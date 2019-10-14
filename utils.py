@@ -32,3 +32,35 @@ def get_dataset(hparams):
   hparams.steps_per_epoch = int(np.ceil(train_size / hparams.batch_size))
 
   return train_ds, validation_ds
+
+
+class Summary(object):
+  """ 
+  Log tf.Summary to output_dir during training and output_dir/eval during 
+  evaluation
+  """
+
+  def __init__(self, hparams):
+    self.hparams = hparams
+    self.train_writer = tf.summary.create_file_writer(hparams.output_dir)
+    self.val_writer = tf.summary.create_file_writer(
+        os.path.join(hparams.output_dir, 'validation'))
+    tf.summary.trace_on(graph=True, profiler=False)
+
+  def _get_writer(self, training):
+    return self.train_writer if training else self.val_writer
+
+  def scalar(self, tag, value, step, training=True):
+    writer = self._get_writer(training)
+    with writer.as_default():
+      tf.summary.scalar(tag, value, step=step)
+
+  def histogram(self, tag, values, step, training=True):
+    writer = self._get_writer(training)
+    with writer.as_default():
+      tf.summary.histogram(tag, values, step=step)
+
+  def graph(self):
+    writer = self._get_writer(training=True)
+    with writer.as_default():
+      tf.summary.trace_export(name=self._hparams.model, step=0)

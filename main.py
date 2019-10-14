@@ -7,7 +7,7 @@ import tensorflow as tf
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-from utils import get_dataset
+from utils import get_dataset, Summary
 from models import get_generator, get_discriminator
 
 
@@ -24,10 +24,10 @@ def discriminator_loss(real, fake):
   return real_loss + fake_loss
 
 
-#@tf.function
-def train_step(hparams, inputs, generator, discriminator, gen_optimizer,
+@tf.function
+def train_step(inputs, noise_dim, generator, discriminator, gen_optimizer,
                dis_optimizer):
-  noise = tf.random.normal((inputs.shape[0], hparams.noise_dim))
+  noise = tf.random.normal((inputs.shape[0], noise_dim))
 
   with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
     generated = generator(noise, training=True)
@@ -49,9 +49,29 @@ def train_step(hparams, inputs, generator, discriminator, gen_optimizer,
   return gen_loss, dis_loss
 
 
-#@tf.function
-def validation_step(hparams, inputs, generator, discriminator):
-  noise = tf.random.normal((inputs.shape[0], hparams.noise_dim))
+def train(hparams, train_ds, generator, discriminator, gen_optimizer,
+          dis_optimizer, epoch):
+  gen_losses, dis_losses = [], []
+
+  start = time()
+
+  for x in tqdm(
+      train_ds,
+      desc='Epoch {:02d}/{:02d}'.format(epoch + 1, hparams.epochs),
+      total=hparams.steps_per_epoch):
+    gen_loss, dis_loss = train_step(x, hparams.noise_dim, generator,
+                                    discriminator, gen_optimizer, dis_optimizer)
+    gen_losses.extend(gen_loss)
+    dis_losses.extend(dis_loss)
+
+  end = time()
+
+  return np.mean(gen_losses), np.mean(dis_losses), end - start
+
+
+@tf.function
+def validation_step(inputs, noise_dim, generator, discriminator):
+  noise = tf.random.normal((inputs.shape[0], noise_dim))
 
   generated = generator(noise, training=False)
 
@@ -64,31 +84,12 @@ def validation_step(hparams, inputs, generator, discriminator):
   return gen_loss, dis_loss
 
 
-def train(hparams, train_ds, generator, discriminator, gen_optimizer,
-          dis_optimizer, epoch):
-  gen_losses, dis_losses = [], []
-
-  start = time()
-
-  for x in tqdm(
-      train_ds,
-      desc='Epoch {:02d}/{:02d}'.format(epoch + 1, hparams.epochs),
-      total=hparams.steps_per_epoch):
-    gen_loss, dis_loss = train_step(hparams, x, generator, discriminator,
-                                    gen_optimizer, dis_optimizer)
-    gen_losses.extend(gen_loss)
-    dis_losses.extend(dis_loss)
-
-  end = time()
-
-  return np.mean(gen_losses), np.mean(dis_losses), end - start
-
-
 def validate(hparams, validation_ds, generator, discriminator):
   gen_losses, dis_losses = [], []
 
   for x in validation_ds:
-    gen_loss, dis_loss = validation_step(hparams, x, generator, discriminator)
+    gen_loss, dis_loss = validation_step(x, hparams.noise_dim, generator,
+                                         discriminator)
     gen_losses.extend(gen_loss)
     dis_losses.extend(dis_loss)
 
@@ -138,8 +139,6 @@ if __name__ == '__main__':
   parser.add_argument('--num_units', default=256, type=int)
   parser.add_argument('--dropout', default=0.2, type=float)
   parser.add_argument('--lr', default=0.001, type=float)
-  parser.add_argument('--model', default='mlp')
-  parser.add_argument('--activation', default='relu')
   parser.add_argument('--noise_dim', default=200, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
