@@ -1,7 +1,12 @@
 import os
+import io
 import pickle
 import numpy as np
 import tensorflow as tf
+
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 
 def get_dataset(hparams):
@@ -15,6 +20,8 @@ def get_dataset(hparams):
   np.random.shuffle(segments)
 
   hparams.sequence_length = segments.shape[-1]
+
+  segments = segments[:20000]
 
   # 70% training data
   train_size = int(len(segments) * 0.7)
@@ -41,7 +48,7 @@ class Summary(object):
   """
 
   def __init__(self, hparams):
-    self.hparams = hparams
+    self._hparams = hparams
     self.train_writer = tf.summary.create_file_writer(hparams.output_dir)
     self.val_writer = tf.summary.create_file_writer(
         os.path.join(hparams.output_dir, 'validation'))
@@ -50,17 +57,52 @@ class Summary(object):
   def _get_writer(self, training):
     return self.train_writer if training else self.val_writer
 
-  def scalar(self, tag, value, step, training=True):
+  def scalar(self, tag, value, training=True):
     writer = self._get_writer(training)
     with writer.as_default():
-      tf.summary.scalar(tag, value, step=step)
+      tf.summary.scalar(tag, value, step=self._hparams.global_step)
 
-  def histogram(self, tag, values, step, training=True):
+  def histogram(self, tag, values, training=True):
     writer = self._get_writer(training)
     with writer.as_default():
-      tf.summary.histogram(tag, values, step=step)
+      tf.summary.histogram(tag, values, step=self._hparams.global_step)
+
+  def _plot_to_image(self, figure):
+    """
+    Converts the matplotlib plot specified by 'figure' to a PNG image and
+    returns it. The supplied figure is closed and inaccessible after this call.
+    """
+    buf = io.BytesIO()
+    plt.savefig(buf, dpi=200, format='png')
+    plt.close(figure)
+    buf.seek(0)
+    image = tf.image.decode_png(buf.getvalue(), channels=4)
+    return image
+
+  def plot(self, tag, values, training=True):
+    writer = self._get_writer(training)
+
+    images = []
+    for i in range(values.shape[0]):
+      value = values[i]
+      figure = plt.figure()
+      plt.plot(value)
+      plt.axis('equal')
+      plt.xlabel('Time (ms)')
+      plt.ylabel('Activity')
+      image = self._plot_to_image(figure)
+      images.append(image)
+
+    images = tf.stack(images)
+
+    with writer.as_default():
+      tf.summary.image(
+          tag,
+          data=images,
+          step=self._hparams.global_step,
+          max_outputs=values.shape[0])
 
   def graph(self):
     writer = self._get_writer(training=True)
     with writer.as_default():
-      tf.summary.trace_export(name=self._hparams.model, step=0)
+      tf.summary.trace_export(name='models', step=0)

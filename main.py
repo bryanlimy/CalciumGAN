@@ -50,7 +50,7 @@ def train_step(inputs, noise_dim, generator, discriminator, gen_optimizer,
 
 
 def train(hparams, train_ds, generator, discriminator, gen_optimizer,
-          dis_optimizer, epoch):
+          dis_optimizer, summary, epoch):
   gen_losses, dis_losses = [], []
 
   start = time()
@@ -59,10 +59,19 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
       train_ds,
       desc='Epoch {:02d}/{:02d}'.format(epoch + 1, hparams.epochs),
       total=hparams.steps_per_epoch):
+
     gen_loss, dis_loss = train_step(x, hparams.noise_dim, generator,
                                     discriminator, gen_optimizer, dis_optimizer)
+
+    if hparams.global_step % hparams.summary_freq == 0:
+      summary.scalar('generator_loss', tf.reduce_mean(gen_loss), training=True)
+      summary.scalar(
+          'discriminator_loss', tf.reduce_mean(dis_loss), training=True)
+
     gen_losses.extend(gen_loss)
     dis_losses.extend(dis_loss)
+
+    hparams.global_step += 1
 
   end = time()
 
@@ -84,7 +93,7 @@ def validation_step(inputs, noise_dim, generator, discriminator):
   return gen_loss, dis_loss
 
 
-def validate(hparams, validation_ds, generator, discriminator):
+def validate(hparams, validation_ds, generator, discriminator, summary):
   gen_losses, dis_losses = [], []
 
   for x in validation_ds:
@@ -93,29 +102,45 @@ def validate(hparams, validation_ds, generator, discriminator):
     gen_losses.extend(gen_loss)
     dis_losses.extend(dis_loss)
 
-  return np.mean(gen_losses), np.mean(dis_losses)
+  gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
+
+  summary.scalar('generator_loss', gen_losses, training=False)
+  summary.scalar('discriminator_loss', dis_losses, training=False)
+
+  return gen_losses, dis_losses
 
 
 def train_and_validate(hparams, train_ds, validation_ds, generator,
-                       discriminator, gen_optimizer, dis_optimizer):
+                       discriminator, gen_optimizer, dis_optimizer, summary):
+
+  # noise to test generator and plot to TensorBoard
+  test_noise = tf.random.normal((5, hparams.noise_dim))
+
   for epoch in range(hparams.epochs):
 
-    train_gen_loss, train_dis_loss, elapse = train(hparams, train_ds, generator,
-                                                   discriminator, gen_optimizer,
-                                                   dis_optimizer, epoch)
+    train_gen_loss, train_dis_loss, elapse = train(
+        hparams, train_ds, generator, discriminator, gen_optimizer,
+        dis_optimizer, summary, epoch)
 
     val_gen_loss, val_dis_loss = validate(hparams, validation_ds, generator,
-                                          discriminator)
+                                          discriminator, summary)
+
+    test_generation = generator(test_noise, training=False)
+    summary.plot('activity', test_generation, training=False)
 
     print('Train generator loss {:.4f} Train discriminator loss {:.4f} '
-          'Time {:.2f}\nEval generator loss {:.4f} '
+          'Time {:.2f}s\nEval generator loss {:.4f} '
           'Eval discriminator loss {:.4f}\n'.format(
               train_gen_loss, train_dis_loss, val_gen_loss, val_dis_loss,
               elapse))
 
+    summary.scalar('elapse (s)', elapse, training=True)
+
 
 def main(hparams):
   train_ds, validation_ds = get_dataset(hparams)
+
+  summary = Summary(hparams)
 
   gen_optimizer = tf.keras.optimizers.Adam(hparams.lr)
   dis_optimizer = tf.keras.optimizers.Adam(hparams.lr)
@@ -126,8 +151,10 @@ def main(hparams):
   generator.summary()
   discriminator.summary()
 
+  hparams.global_step = 0
+
   train_and_validate(hparams, train_ds, validation_ds, generator, discriminator,
-                     gen_optimizer, dis_optimizer)
+                     gen_optimizer, dis_optimizer, summary)
 
 
 if __name__ == '__main__':
@@ -140,6 +167,7 @@ if __name__ == '__main__':
   parser.add_argument('--dropout', default=0.2, type=float)
   parser.add_argument('--lr', default=0.001, type=float)
   parser.add_argument('--noise_dim', default=200, type=int)
+  parser.add_argument('--summary_freq', default=200, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
   main(hparams)

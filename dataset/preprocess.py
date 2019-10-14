@@ -51,6 +51,6 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--input_dir', default='raw_data', type=str)
   parser.add_argument('--output', default='dataset.pkl', type=str)
-  parser.add_argument('--sequence_length', default=40, type=int)
+  parser.add_argument('--sequence_length', default=120, type=int)
   hparams = parser.parse_args()
   main(hparams)
