@@ -18,16 +18,16 @@ def gradient_penalty(inputs, generated, discriminator):
     tape.watch(x_hat)
     d_hat = discriminator(x_hat, training=True)
   gradients = tape.gradient(d_hat, x_hat)
-  regularizer = tf.reduce_mean(
-      tf.square(tf.sqrt(tf.reduce_sum(tf.square(gradients), axis=1)) - 1.0))
-  return regularizer
+  slopes = tf.sqrt(tf.reduce_mean(tf.square(gradients), axis=1))
+  penalty = tf.reduce_mean(tf.square(slopes - 1.0))
+  return penalty
 
 
 def compute_loss(inputs,
                  generator,
                  discriminator,
                  noise_dim,
-                 gradient_penalty_weight=10.0,
+                 penalty_weight=10.0,
                  training=True):
 
   noise = tf.random.normal((inputs.shape[0], noise_dim))
@@ -36,16 +36,16 @@ def compute_loss(inputs,
   real = discriminator(inputs, training=training)
   fake = discriminator(generated, training=training)
 
-  regularizer = gradient_penalty(inputs, generated, discriminator)
-  dis_loss = tf.reduce_mean(real) - tf.reduce_mean(
-      fake) + gradient_penalty_weight * regularizer
-  gen_loss = tf.reduce_mean(fake)
+  penalty = gradient_penalty(inputs, generated, discriminator)
+  dis_loss = tf.reduce_mean(fake) - tf.reduce_mean(
+      real) + penalty_weight * penalty
+  gen_loss = -tf.reduce_mean(fake)
   return gen_loss, dis_loss
 
 
 @tf.function
 def train_step(inputs, generator, discriminator, gen_optimizer, dis_optimizer,
-               noise_dim, gradient_penalty_weight):
+               noise_dim, penalty_weight):
 
   with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
     gen_loss, dis_loss = compute_loss(
@@ -53,7 +53,7 @@ def train_step(inputs, generator, discriminator, gen_optimizer, dis_optimizer,
         generator,
         discriminator,
         noise_dim=noise_dim,
-        gradient_penalty_weight=gradient_penalty_weight,
+        penalty_weight=penalty_weight,
         training=True)
 
   gen_gradients = gen_tape.gradient(gen_loss, generator.trainable_variables)
@@ -85,7 +85,7 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
         gen_optimizer,
         dis_optimizer,
         noise_dim=hparams.noise_dim,
-        gradient_penalty_weight=hparams.gradient_penalty)
+        penalty_weight=hparams.gradient_penalty)
 
     if hparams.global_step % hparams.summary_freq == 0:
       summary.scalar('generator_loss', tf.reduce_mean(gen_loss), training=True)
@@ -104,14 +104,14 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
 
 @tf.function
 def validation_step(inputs, generator, discriminator, noise_dim,
-                    gradient_penalty_weight):
+                    penalty_weight):
 
   gen_loss, dis_loss = compute_loss(
       inputs,
       generator,
       discriminator,
       noise_dim=noise_dim,
-      gradient_penalty_weight=gradient_penalty_weight,
+      penalty_weight=penalty_weight,
       training=False)
 
   return gen_loss, dis_loss
@@ -126,7 +126,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary):
         generator,
         discriminator,
         noise_dim=hparams.noise_dim,
-        gradient_penalty_weight=hparams.gradient_penalty)
+        penalty_weight=hparams.gradient_penalty)
 
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
