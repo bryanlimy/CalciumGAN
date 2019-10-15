@@ -30,7 +30,7 @@ def compute_loss(inputs,
                  penalty_weight=10.0,
                  training=True):
 
-  noise = tf.random.normal((inputs.shape[0], noise_dim))
+  noise = tf.random.normal((inputs.shape[0], noise_dim, noise_dim))
   generated = generator(noise, training=training)
 
   real = discriminator(inputs, training=training)
@@ -143,7 +143,7 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
                        discriminator, gen_optimizer, dis_optimizer, summary):
 
   # noise to test generator and plot to TensorBoard
-  test_noise = tf.random.normal((5, hparams.noise_dim))
+  test_noise = tf.random.normal((5, hparams.noise_dim, hparams.noise_dim))
 
   for epoch in range(hparams.epochs):
 
