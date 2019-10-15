@@ -159,9 +159,9 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
 
     print('Train generator loss {:.4f} Train discriminator loss {:.4f} '
           'Time {:.2f}s\nEval generator loss {:.4f} '
-          'Eval discriminator loss {:.4f}\n'.format(
-              train_gen_loss, train_dis_loss, val_gen_loss, val_dis_loss,
-              elapse))
+          'Eval discriminator loss {:.4f}\n'.format(train_gen_loss,
+                                                    train_dis_loss, elapse,
+                                                    val_gen_loss, val_dis_loss))
 
     summary.scalar('elapse (s)', elapse, training=True)
 

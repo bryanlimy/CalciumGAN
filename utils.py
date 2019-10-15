@@ -29,6 +29,7 @@ def get_dataset(hparams, summary):
 
   # train set
   train_ds = tf.data.Dataset.from_tensor_slices(segments[:train_size])
+  train_ds = train_ds.cache()
   train_ds = train_ds.shuffle(buffer_size=512)
   train_ds = train_ds.batch(hparams.batch_size)
   train_ds = train_ds.prefetch(tf.data.experimental.AUTOTUNE)
