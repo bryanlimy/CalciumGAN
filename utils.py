@@ -9,7 +9,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 
-def get_dataset(hparams):
+def get_dataset(hparams, summary):
   if not os.path.exists(hparams.input):
     print('input pickle {} cannot be found'.format(hparams.input))
     exit()
@@ -19,9 +19,10 @@ def get_dataset(hparams):
 
   np.random.shuffle(segments)
 
-  hparams.sequence_length = segments.shape[-1]
+  # plot first 5 activities
+  summary.plot('real_activities', segments[:5], training=False)
 
-  segments = segments[:20000]
+  hparams.sequence_length = segments.shape[-1]
 
   # 70% training data
   train_size = int(len(segments) * 0.7)
@@ -73,7 +74,7 @@ class Summary(object):
     returns it. The supplied figure is closed and inaccessible after this call.
     """
     buf = io.BytesIO()
-    plt.savefig(buf, dpi=200, format='png')
+    plt.savefig(buf, dpi=150, format='png')
     plt.close(figure)
     buf.seek(0)
     image = tf.image.decode_png(buf.getvalue(), channels=4)
@@ -87,7 +88,6 @@ class Summary(object):
       value = values[i]
       figure = plt.figure()
       plt.plot(value)
-      plt.axis('equal')
       plt.xlabel('Time (ms)')
       plt.ylabel('Activity')
       image = self._plot_to_image(figure)
