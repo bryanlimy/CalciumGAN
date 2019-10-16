@@ -16,7 +16,7 @@ def get_mnist(hparams, summary):
 
   def preprocess(images):
     images = images.reshape(images.shape[0], 28, 28, 1).astype('float32')
-    return (images / 127.5) / 127.5
+    return (images / 127.5) - 1
 
   train_images = preprocess(train_images)
   val_images = preprocess(val_images)
@@ -102,6 +102,8 @@ class Summary(object):
   def image(self, tag, values, training=True):
     writer = self._get_writer(training)
     with writer.as_default():
+      if self._hparams.input == 'mnist':
+        values = values * 0.5 + 0.5
       tf.summary.image(
           tag,
           data=values,

@@ -157,7 +157,10 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
                                           discriminator, summary)
 
     test_generation = generator(test_noise, training=False)
-    summary.plot('generated_activities', test_generation, training=False)
+    if hparams.input == 'mnist':
+      summary.image('generated_activities', test_generation, training=False)
+    else:
+      summary.plot('generated_activities', test_generation, training=False)
 
     print('Train generator loss {:.4f} Train discriminator loss {:.4f} '
           'Time {:.2f}s\nEval generator loss {:.4f} '
