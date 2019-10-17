@@ -135,7 +135,7 @@ class Summary(object):
 
     images = tf.stack(images)
 
-    self.image(tag, values=images, trianing=training)
+    self.image(tag, values=images, training=training)
 
   def graph(self):
     writer = self._get_writer(training=True)
