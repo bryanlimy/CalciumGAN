@@ -50,7 +50,7 @@ class WGAN(tf.keras.Model):
     self.__dict__.update(kwargs)
 
     self.gen = tf.keras.Sequential(self.gen)
-    self.dis = tf.keras.Sequential(self.disc)
+    self.dis = tf.keras.Sequential(self.dis)
 
   def generate(self, z):
     return self.gen(z)
@@ -90,7 +90,7 @@ class WGAN(tf.keras.Model):
 
     return dis_loss, gen_loss, d_regularizer
 
-  @tf.function
+  #@tf.function
   def train(self, x):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
       dis_loss, gen_loss, penalty = self.compute_loss(x)
@@ -147,13 +147,13 @@ discriminator = [
 ]
 
 gen_optimizer = tf.keras.optimizers.Adam(0.0001, beta_1=0.5)
-disc_optimizer = tf.keras.optimizers.RMSprop(0.0005)
+dis_optimizer = tf.keras.optimizers.RMSprop(0.0005)
 
 model = WGAN(
     gen=generator,
-    disc=discriminator,
+    dis=discriminator,
     gen_optimizer=gen_optimizer,
-    disc_optimizer=disc_optimizer,
+    dis_optimizer=dis_optimizer,
     n_Z=NOISE_DIMS,
     gradient_penalty_weight=GRADIENT_PENALTY)
 
