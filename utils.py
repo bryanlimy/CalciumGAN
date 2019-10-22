@@ -9,7 +9,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 
-def get_fashion_mnist(hparams):
+def get_fashion_mnist(hparams, summary):
   (x_train, _), (x_test, _) = tf.keras.datasets.fashion_mnist.load_data()
 
   def preprocess(images):
@@ -19,10 +19,12 @@ def get_fashion_mnist(hparams):
   x_train = preprocess(x_train)
   x_test = preprocess(x_test)
 
+  summary.image('real', x_test[:5], training=False)
+
   return x_train, x_test
 
 
-def get_calcium_signals(hparams):
+def get_calcium_signals(hparams, summary):
   if not os.path.exists(hparams.input):
     print('input pickle {} cannot be found'.format(hparams.input))
     exit()
@@ -37,17 +39,16 @@ def get_calcium_signals(hparams):
   x_train = segments[:train_size]
   x_test = segments[train_size:]
 
+  summary.plot('real', x_test[:5], training=False)
+
   return x_train, x_test
 
 
 def get_dataset(hparams, summary):
   if hparams.input == 'fashion_mnist':
-    x_train, x_test = get_fashion_mnist(hparams)
+    x_train, x_test = get_fashion_mnist(hparams, summary)
   else:
-    x_train, x_test = get_calcium_signals(hparams)
-
-  # plot first 5 activities
-  summary.plot('real', x_test[:5], training=False)
+    x_train, x_test = get_calcium_signals(hparams, summary)
 
   hparams.generator_input_shape = (hparams.noise_dim,)
   hparams.generator_output_shape = x_train.shape[1:]
