@@ -13,8 +13,8 @@ def get_fashion_mnist(hparams, summary):
   (x_train, _), (x_test, _) = tf.keras.datasets.fashion_mnist.load_data()
 
   def preprocess(images):
-    images = images.reshape(images.shape[0], 28, 28, 1).astype('float32')
-    return images / 255.0
+    images = np.reshape(images, newshape=(images.shape[0], 28, 28, 1))
+    return images.astype('float32') / 255.0
 
   x_train = preprocess(x_train)
   x_test = preprocess(x_test)
