@@ -42,7 +42,7 @@ def get_generator(hparams):
       padding='SAME',
       activation='sigmoid')(outputs)
 
-  return tf.keras.model(inputs=inputs, outputs=outputs, name='generator')
+  return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
 
 def get_discriminator(hparams):
@@ -73,4 +73,4 @@ def get_discriminator(hparams):
   outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(units=1, activation='sigmoid')(outputs)
 
-  return tf.keras.model(inputs=inputs, outputs=outputs, name='discriminator')
+  return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
