@@ -50,13 +50,13 @@ class WGAN(tf.keras.Model):
     self.__dict__.update(kwargs)
 
     self.gen = tf.keras.Sequential(self.gen)
-    self.disc = tf.keras.Sequential(self.disc)
+    self.dis = tf.keras.Sequential(self.disc)
 
   def generate(self, z):
     return self.gen(z)
 
   def discriminate(self, x):
-    return self.disc(x)
+    return self.dis(x)
 
   def gradient_penalty(self, x, x_gen):
     epsilon = tf.random.uniform([x.shape[0], 1, 1, 1], 0.0, 1.0)
@@ -90,26 +90,19 @@ class WGAN(tf.keras.Model):
 
     return disc_loss, gen_loss, d_regularizer
 
-  def compute_gradients(self, x):
-    with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
-      disc_loss, gen_loss, regularizer = self.compute_loss(x)
+  @tf.function
+  def train(self, x):
+    with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
+      disc_loss, gen_loss, penalty = self.compute_loss(x)
 
     # compute gradients
     gen_gradients = gen_tape.gradient(gen_loss, self.gen.trainable_variables)
-    disc_gradients = disc_tape.gradient(disc_loss,
-                                        self.disc.trainable_variables)
-
-    return disc_loss, gen_loss, gen_gradients, disc_gradients, regularizer
-
-  @tf.function
-  def train(self, x):
-    dis_loss, gen_loss, gen_gradients, disc_gradients, penalty = \
-      self.compute_gradients(x)
+    dis_gradients = dis_tape.gradient(disc_loss, self.disc.trainable_variables)
 
     self.gen_optimizer.apply_gradients(
         zip(gen_gradients, self.gen.trainable_variables))
-    self.disc_optimizer.apply_gradients(
-        zip(disc_gradients, self.disc.trainable_variables))
+    self.dis_optimizer.apply_gradients(
+        zip(dis_gradients, self.dis.trainable_variables))
 
     with train_summary.as_default():
       tf.summary.scalar(
