@@ -77,14 +77,14 @@ class WGAN(tf.keras.Model):
     # losses of fake with label "1"
     gen_loss = tf.reduce_mean(logits_x_gen)
 
-    return disc_loss, gen_loss
+    return disc_loss, gen_loss, d_regularizer
 
   def compute_gradients(self, x):
     """ passes through the network and computes loss
         """
     ### pass through network
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
-      disc_loss, gen_loss = self.compute_loss(x)
+      disc_loss, gen_loss, regularizer = self.compute_loss(x)
 
     # compute gradients
     gen_gradients = gen_tape.gradient(gen_loss, self.gen.trainable_variables)
@@ -92,7 +92,7 @@ class WGAN(tf.keras.Model):
     disc_gradients = disc_tape.gradient(disc_loss,
                                         self.disc.trainable_variables)
 
-    return disc_loss, gen_loss, gen_gradients, disc_gradients
+    return disc_loss, gen_loss, gen_gradients, disc_gradients, regularizer
 
   def apply_gradients(self, gen_gradients, disc_gradients):
 
@@ -110,17 +110,13 @@ class WGAN(tf.keras.Model):
     gradients = t.gradient(d_hat, x_hat)
     ddx = tf.sqrt(tf.reduce_sum(gradients**2, axis=[1, 2]))
     d_regularizer = tf.reduce_mean((ddx - 1.0)**2)
-
-    with train_summary.as_default():
-      tf.summary.scalar(
-          'gradient_penalty', d_regularizer, step=self.gen_optimizer.iterations)
-
     return d_regularizer
 
   @tf.function
   def train(self, x):
-    dis_loss, gen_loss, gen_gradients, disc_gradients = self.compute_gradients(
-        x)
+    dis_loss, gen_loss, gen_gradients, disc_gradients, regularizer = \
+      self.compute_gradients(x)
+
     self.apply_gradients(gen_gradients, disc_gradients)
 
     with train_summary.as_default():
@@ -128,6 +124,8 @@ class WGAN(tf.keras.Model):
           'generator_loss', gen_loss, step=self.gen_optimizer.iterations)
       tf.summary.scalar(
           'discriminator_loss', dis_loss, step=self.disc_optimizer.iterations)
+      tf.summary.scalar(
+          'gradient_penalty', regularizer, step=self.gen_optimizer.iterations)
 
 
 N_Z = 64
@@ -186,19 +184,12 @@ for epoch in range(EPOCHS):
     model.train(x)
   elapse = time() - start
 
-  dis_losses, gen_losses = [], []
+  dis_losses, gen_losses, penalties = [], [], []
   for x in test_ds:
-    dis_loss, gen_loss = model.compute_loss(x)
+    dis_loss, gen_loss, penalty = model.compute_loss(x)
     dis_losses.append(dis_loss)
     gen_losses.append(gen_loss)
-
-  generated = model.gen(noises)
-  with test_summary.as_default():
-    tf.summary.image(
-        'fake',
-        generated,
-        step=disc_optimizer.iterations,
-        max_outputs=generated.shape[0])
+    penalties.append(penalty)
 
   with train_summary.as_default():
     tf.summary.scalar('elapse (s)', elapse, step=epoch)
@@ -210,8 +201,19 @@ for epoch in range(EPOCHS):
         step=disc_optimizer.iterations)
     tf.summary.scalar(
         'generator_loss', np.mean(gen_losses), step=gen_optimizer.iterations)
+    tf.summary.scalar(
+        'gradient_penalty', np.mean(penalties), step=gen_optimizer.iterations)
 
-  print(
-      'Epoch {:02d}/{:02d} Val discriminator loss {:.4f} Val generator loss {:.4f} Elapse {:.2f}s\n'
-      .format(epoch + 1, EPOCHS, np.mean(dis_losses), np.mean(gen_losses),
-              elapse))
+  # generate and log sample
+  generated = model.gen(noises)
+  with test_summary.as_default():
+    tf.summary.image(
+        'fake',
+        generated,
+        step=disc_optimizer.iterations,
+        max_outputs=generated.shape[0])
+
+  print('Epoch {:02d}/{:02d} Val discriminator loss {:.4f} '
+        'Val generator loss {:.4f} Elapse {:.2f}s\n'.format(
+            epoch + 1, EPOCHS, np.mean(dis_losses), np.mean(gen_losses),
+            elapse))
