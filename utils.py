@@ -53,9 +53,7 @@ def get_dataset(hparams, summary):
   hparams.generator_input_shape = (hparams.noise_dim,)
   hparams.generator_output_shape = x_train.shape[1:]
 
-  # 70% training data
-  train_size = int(len(x_train) * 0.7)
-  hparams.steps_per_epoch = int(np.ceil(train_size / hparams.batch_size))
+  hparams.steps_per_epoch = int(np.ceil(len(x_train) / hparams.batch_size))
 
   # train set
   train_ds = tf.data.Dataset.from_tensor_slices(x_train)
