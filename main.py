@@ -12,15 +12,16 @@ from models import get_generator, get_discriminator
 
 
 def gradient_penalty(inputs, generated, discriminator):
-  epsilon = tf.random.uniform((inputs.shape[0], 1, 1, 1),
-                              minval=0.0,
-                              maxval=1.0)
+  shape = (inputs.shape[0],) + ((1,) * (len(inputs.shape) - 1))
+  epsilon = tf.random.uniform(shape, minval=0.0, maxval=1.0)
   x_hat = epsilon * inputs + (1 - epsilon) * generated
   with tf.GradientTape() as tape:
     tape.watch(x_hat)
     d_hat = discriminator(x_hat, training=True)
   gradients = tape.gradient(d_hat, x_hat)
-  slopes = tf.sqrt(tf.reduce_mean(tf.square(gradients), axis=[1, 2]))
+  slopes = tf.sqrt(
+      tf.reduce_mean(
+          tf.square(gradients), axis=list(range(len(inputs.shape)))[1:]))
   penalty = tf.reduce_mean(tf.square(slopes - 1.0))
   return penalty
 
@@ -39,10 +40,10 @@ def compute_loss(inputs,
   fake = discriminator(generated, training=training)
 
   penalty = gradient_penalty(inputs, generated, discriminator)
-  dis_loss = tf.reduce_mean(fake) - tf.reduce_mean(
-      real) + penalty_weight * penalty
-  gen_loss = -tf.reduce_mean(fake)
-  return gen_loss, dis_loss
+  dis_loss = tf.reduce_mean(real) - tf.reduce_mean(
+      fake) + penalty_weight * penalty
+  gen_loss = tf.reduce_mean(fake)
+  return gen_loss, dis_loss, penalty
 
 
 @tf.function
@@ -50,7 +51,7 @@ def train_step(inputs, generator, discriminator, gen_optimizer, dis_optimizer,
                noise_dim, penalty_weight):
 
   with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
-    gen_loss, dis_loss = compute_loss(
+    gen_loss, dis_loss, penalty = compute_loss(
         inputs,
         generator,
         discriminator,
@@ -66,7 +67,7 @@ def train_step(inputs, generator, discriminator, gen_optimizer, dis_optimizer,
   dis_optimizer.apply_gradients(
       zip(dis_gradients, discriminator.trainable_variables))
 
-  return gen_loss, dis_loss
+  return gen_loss, dis_loss, penalty
 
 
 def train(hparams, train_ds, generator, discriminator, gen_optimizer,
@@ -80,7 +81,7 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
       desc='Epoch {:02d}/{:02d}'.format(epoch + 1, hparams.epochs),
       total=hparams.steps_per_epoch):
 
-    gen_loss, dis_loss = train_step(
+    gen_loss, dis_loss, penalty = train_step(
         inputs,
         generator,
         discriminator,
@@ -90,9 +91,9 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
         penalty_weight=hparams.gradient_penalty)
 
     if hparams.global_step % hparams.summary_freq == 0:
-      summary.scalar('generator_loss', tf.reduce_mean(gen_loss), training=True)
-      summary.scalar(
-          'discriminator_loss', tf.reduce_mean(dis_loss), training=True)
+      summary.scalar('generator_loss', gen_loss, training=True)
+      summary.scalar('discriminator_loss', dis_loss, training=True)
+      summary.scalar('gradient_penalty', penalty, training=True)
 
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
@@ -108,7 +109,7 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
 def validation_step(inputs, generator, discriminator, noise_dim,
                     penalty_weight):
 
-  gen_loss, dis_loss = compute_loss(
+  gen_loss, dis_loss, penalty = compute_loss(
       inputs,
       generator,
       discriminator,
@@ -116,14 +117,14 @@ def validation_step(inputs, generator, discriminator, noise_dim,
       penalty_weight=penalty_weight,
       training=False)
 
-  return gen_loss, dis_loss
+  return gen_loss, dis_loss, penalty
 
 
 def validate(hparams, validation_ds, generator, discriminator, summary):
-  gen_losses, dis_losses = [], []
+  gen_losses, dis_losses, penalties = [], [], []
 
   for inputs in validation_ds:
-    gen_loss, dis_loss = validation_step(
+    gen_loss, dis_loss, penalty = validation_step(
         inputs,
         generator,
         discriminator,
@@ -132,11 +133,13 @@ def validate(hparams, validation_ds, generator, discriminator, summary):
 
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
+    penalties.append(penalty)
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
   summary.scalar('generator_loss', gen_losses, training=False)
   summary.scalar('discriminator_loss', dis_losses, training=False)
+  summary.scalar('gradient_penalty', np.mean(penalties), training=False)
 
   return gen_losses, dis_losses
 
