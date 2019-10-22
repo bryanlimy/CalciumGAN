@@ -81,23 +81,23 @@ class WGAN(tf.keras.Model):
 
     # gradient penalty
     d_regularizer = self.gradient_penalty(x, x_gen)
-    ### losses
-    disc_loss = (tf.reduce_mean(logits_x) - tf.reduce_mean(logits_x_gen) +
-                 d_regularizer * self.gradient_penalty_weight)
+
+    dis_loss = tf.reduce_mean(logits_x) - tf.reduce_mean(
+        logits_x_gen) + d_regularizer * self.gradient_penalty_weight
 
     # losses of fake with label "1"
     gen_loss = tf.reduce_mean(logits_x_gen)
 
-    return disc_loss, gen_loss, d_regularizer
+    return dis_loss, gen_loss, d_regularizer
 
   @tf.function
   def train(self, x):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
-      disc_loss, gen_loss, penalty = self.compute_loss(x)
+      dis_loss, gen_loss, penalty = self.compute_loss(x)
 
     # compute gradients
     gen_gradients = gen_tape.gradient(gen_loss, self.gen.trainable_variables)
-    dis_gradients = dis_tape.gradient(disc_loss, self.disc.trainable_variables)
+    dis_gradients = dis_tape.gradient(dis_loss, self.dis.trainable_variables)
 
     self.gen_optimizer.apply_gradients(
         zip(gen_gradients, self.gen.trainable_variables))
