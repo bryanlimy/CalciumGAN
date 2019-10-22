@@ -45,14 +45,19 @@ def compute_loss(inputs,
 
 
 @tf.function
-def train_step(inputs, generator, discriminator, gen_optimizer, dis_optimizer,
-               noise_dim, penalty_weight):
+def train_step(inputs,
+               generator,
+               discriminator,
+               gen_optimizer,
+               dis_optimizer,
+               noise_dim=64,
+               penalty_weight=10.0):
 
   with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
     gen_loss, dis_loss, penalty = compute_loss(
         inputs,
-        generator,
-        discriminator,
+        generator=generator,
+        discriminator=discriminator,
         noise_dim=noise_dim,
         penalty_weight=penalty_weight,
         training=True)
@@ -81,10 +86,10 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
 
     gen_loss, dis_loss, penalty = train_step(
         inputs,
-        generator,
-        discriminator,
-        gen_optimizer,
-        dis_optimizer,
+        generator=generator,
+        discriminator=discriminator,
+        gen_optimizer=gen_optimizer,
+        dis_optimizer=dis_optimizer,
         noise_dim=hparams.noise_dim,
         penalty_weight=hparams.gradient_penalty)
 
@@ -151,8 +156,14 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
   for epoch in range(hparams.epochs):
 
     train_gen_loss, train_dis_loss, elapse = train(
-        hparams, train_ds, generator, discriminator, gen_optimizer,
-        dis_optimizer, summary, epoch)
+        hparams,
+        train_ds,
+        generator=generator,
+        discriminator=discriminator,
+        gen_optimizer=gen_optimizer,
+        dis_optimizer=dis_optimizer,
+        summary=summary,
+        epoch=epoch)
 
     val_gen_loss, val_dis_loss = validate(hparams, validation_ds, generator,
                                           discriminator, summary)
@@ -188,8 +199,15 @@ def main(hparams):
   generator.summary()
   discriminator.summary()
 
-  train_and_validate(hparams, train_ds, validation_ds, generator, discriminator,
-                     gen_optimizer, dis_optimizer, summary)
+  train_and_validate(
+      hparams,
+      train_ds=train_ds,
+      validation_ds=validation_ds,
+      generator=generator,
+      discriminator=discriminator,
+      gen_optimizer=gen_optimizer,
+      dis_optimizer=dis_optimizer,
+      summay=summary)
 
 
 if __name__ == '__main__':
