@@ -122,7 +122,7 @@ class WGAN(tf.keras.Model):
       tf.summary.scalar(
           'generator_loss', gen_loss, step=self.gen_optimizer.iterations)
       tf.summary.scalar(
-          'disciminator_loss', dis_loss, step=self.disc_optimizer.iterations)
+          'discriminator_loss', dis_loss, step=self.disc_optimizer.iterations)
 
 
 N_Z = 64
