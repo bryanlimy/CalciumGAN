@@ -108,7 +108,7 @@ class WGAN(tf.keras.Model):
       tf.summary.scalar(
           'generator_loss', gen_loss, step=self.gen_optimizer.iterations)
       tf.summary.scalar(
-          'discriminator_loss', dis_loss, step=self.disc_optimizer.iterations)
+          'discriminator_loss', dis_loss, step=self.dis_optimizer.iterations)
       tf.summary.scalar(
           'gradient_penalty', penalty, step=self.gen_optimizer.iterations)
 
@@ -180,7 +180,7 @@ for epoch in range(EPOCHS):
     tf.summary.scalar(
         'discriminator_loss',
         np.mean(dis_losses),
-        step=disc_optimizer.iterations)
+        step=dis_optimizer.iterations)
     tf.summary.scalar(
         'generator_loss', np.mean(gen_losses), step=gen_optimizer.iterations)
     tf.summary.scalar(
@@ -192,7 +192,7 @@ for epoch in range(EPOCHS):
     tf.summary.image(
         'fake',
         generated,
-        step=disc_optimizer.iterations,
+        step=dis_optimizer.iterations,
         max_outputs=generated.shape[0])
 
   print('Epoch {:02d}/{:02d} Val discriminator loss {:.4f} '
