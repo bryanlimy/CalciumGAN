@@ -205,7 +205,7 @@ for epoch in range(EPOCHS):
 
   with test_summary.as_default():
     tf.summary.scalar(
-        'disciminator_loss',
+        'discriminator_loss',
         np.mean(dis_losses),
         step=disc_optimizer.iterations)
     tf.summary.scalar(
