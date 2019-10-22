@@ -207,7 +207,7 @@ def main(hparams):
       discriminator=discriminator,
       gen_optimizer=gen_optimizer,
       dis_optimizer=dis_optimizer,
-      summay=summary)
+      summary=summary)
 
 
 if __name__ == '__main__':
