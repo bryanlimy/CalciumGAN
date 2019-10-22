@@ -9,36 +9,20 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 
-def get_fashion_mnist(hparams, summary):
+def get_fashion_mnist(hparams):
   (x_train, _), (x_test, _) = tf.keras.datasets.fashion_mnist.load_data()
-
-  hparams.steps_per_epoch = int(np.ceil(len(x_train) / hparams.batch_size))
 
   def preprocess(images):
     images = images.reshape(images.shape[0], 28, 28, 1).astype('float32')
     return (images / 127.5) - 1
 
-  train_images = preprocess(x_train)
-  val_images = preprocess(x_test)
+  x_train = preprocess(x_train)
+  x_test = preprocess(x_test)
 
-  summary.image('real_activities', train_images[:5], training=False)
-
-  hparams.generator_input_shape = (hparams.noise_dim,)
-  hparams.generator_output_shape = train_images.shape[1:]
-
-  train_ds = tf.data.Dataset.from_tensor_slices(train_images).shuffle(
-      2048).batch(hparams.batch_size)
-
-  validation_ds = tf.data.Dataset.from_tensor_slices(val_images).batch(
-      hparams.batch_size)
-
-  return train_ds, validation_ds
+  return x_train, x_test
 
 
-def get_dataset(hparams, summary):
-  if hparams.input == 'fashion_mnist':
-    return get_fashion_mnist(hparams, summary)
-
+def get_calcium_signals(hparams):
   if not os.path.exists(hparams.input):
     print('input pickle {} cannot be found'.format(hparams.input))
     exit()
@@ -48,25 +32,39 @@ def get_dataset(hparams, summary):
 
   np.random.shuffle(segments)
 
+  train_size = int(len(segments) * 0.7)
+
+  x_train = segments[:train_size]
+  x_test = segments[train_size:]
+
+  return x_train, x_test
+
+
+def get_dataset(hparams, summary):
+  if hparams.input == 'fashion_mnist':
+    x_train, x_test = get_fashion_mnist(hparams)
+  else:
+    x_train, x_test = get_calcium_signals(hparams)
+
   # plot first 5 activities
-  summary.plot('real_activities', segments[:5], training=False)
+  summary.plot('real_activities', x_test[:5], training=False)
 
   hparams.generator_input_shape = (hparams.noise_dim,)
-  hparams.generator_output_shape = (segments.shape[-1],)
+  hparams.generator_output_shape = x_train.shape[1:]
 
   # 70% training data
-  train_size = int(len(segments) * 0.7)
+  train_size = int(len(x_train) * 0.7)
   hparams.steps_per_epoch = int(np.ceil(train_size / hparams.batch_size))
 
   # train set
-  train_ds = tf.data.Dataset.from_tensor_slices(segments[:train_size])
+  train_ds = tf.data.Dataset.from_tensor_slices(x_train)
   train_ds = train_ds.cache()
-  train_ds = train_ds.shuffle(buffer_size=512)
+  train_ds = train_ds.shuffle(buffer_size=2048)
   train_ds = train_ds.batch(hparams.batch_size)
   train_ds = train_ds.prefetch(tf.data.experimental.AUTOTUNE)
 
   # validation set
-  validation_ds = tf.data.Dataset.from_tensor_slices(segments[train_size:])
+  validation_ds = tf.data.Dataset.from_tensor_slices(x_test)
   validation_ds = validation_ds.batch(hparams.batch_size)
 
   return train_ds, validation_ds
