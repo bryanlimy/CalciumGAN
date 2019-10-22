@@ -5,11 +5,12 @@ from time import time
 import tensorflow as tf
 from shutil import rmtree
 
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 SHAPES = (28, 28, 1)
 OUTPUT_DIR = 'runs/wgan'
 NOISE_DIMS = 64
 GRADIENT_PENALTY = 10.0
+EPOCHS = 100
 
 if os.path.exists(OUTPUT_DIR):
   rmtree(OUTPUT_DIR)
@@ -174,7 +175,6 @@ model = WGAN(
     n_Z=NOISE_DIMS,
     gradient_penalty_weight=GRADIENT_PENALTY)
 
-EPOCHS = 200
 noises = tf.random.normal((5, 1, 1, NOISE_DIMS))
 
 for epoch in range(EPOCHS):
