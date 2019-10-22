@@ -3,74 +3,40 @@ import tensorflow as tf
 
 
 def get_generator(hparams):
-  # inputs = tf.keras.Input(shape=hparams.generator_input_shape, name='inputs')
-  # shape = inputs.shape[1:]
-  #
-  # outputs = tf.keras.layers.Reshape((shape[0] // 4, 4))(inputs)
-  # outputs = tf.keras.layers.Conv1D(
-  #     filters=64, kernel_size=10, strides=2, padding='causal')(outputs)
-  # outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
-  # outputs = tf.keras.layers.Conv1D(
-  #     filters=32, kernel_size=10, strides=2, padding='causal')(outputs)
-  # outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
-  # outputs = tf.keras.layers.Flatten()(outputs)
-  # outputs = tf.keras.layers.Dense(np.prod(
-  #     hparams.generator_output_shape))(outputs)
-  # outputs = tf.keras.layers.Reshape(hparams.generator_output_shape)(outputs)
-  #
-  # return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
-  inputs = tf.keras.Input(shape=hparams.generator_input_shape, name='input')
+  inputs = tf.keras.Input(shape=hparams.generator_input_shape, name='inputs')
+  shape = inputs.shape[1:]
 
-  outputs = tf.keras.layers.Dense(7 * 7 * 64, activation='relu')(inputs)
-  outputs = tf.keras.layers.Reshape((7, 7, 64))(outputs)
-  outputs = tf.keras.layers.Conv2DTranspose(
-      filters=64,
-      kernel_size=3,
-      strides=(2, 2),
-      padding='SAME',
-      activation='relu')(outputs)
-  outputs = tf.keras.layers.Conv2DTranspose(
-      filters=32,
-      kernel_size=3,
-      strides=(2, 2),
-      padding='SAME',
-      activation='relu')(outputs)
-  outputs = tf.keras.layers.Conv2DTranspose(
-      filters=1,
-      kernel_size=3,
-      strides=(1, 1),
-      padding='SAME',
-      activation='sigmoid')(outputs)
+  outputs = tf.keras.layers.Reshape((shape[0] // 4, 4))(inputs)
+  outputs = tf.keras.layers.Conv1D(
+      filters=128, kernel_size=10, strides=2, padding='causal')(outputs)
+  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
+  outputs = tf.keras.layers.Conv1D(
+      filters=64, kernel_size=10, strides=2, padding='causal')(outputs)
+  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
+  outputs = tf.keras.layers.Flatten()(outputs)
+  outputs = tf.keras.layers.Dense(np.prod(
+      hparams.generator_output_shape))(outputs)
+  outputs = tf.keras.layers.Reshape(hparams.generator_output_shape)(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
 
 def get_discriminator(hparams):
-  # inputs = tf.keras.Input(hparams.generator_output_shape, name='inputs')
-  # shape = inputs.shape[1:]
-  #
-  # if len(shape) == 3:
-  #   outputs = tf.keras.layers.Reshape((shape[0], shape[1]))(inputs)
-  # else:
-  #   outputs = tf.keras.layers.Reshape((shape[0] // 4, 4))(inputs)
-  #
-  # outputs = tf.keras.layers.Conv1D(
-  #     filters=32, kernel_size=10, strides=2, padding='causal')(outputs)
-  # outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
-  # outputs = tf.keras.layers.Conv1D(
-  #     filters=64, kernel_size=10, strides=2, padding='causal')(outputs)
-  # outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
-  # outputs = tf.keras.layers.Flatten()(outputs)
-  # outputs = tf.keras.layers.Dense(1)(outputs)
-  #
-  # return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
-  inputs = tf.keras.Input(shape=hparams.generator_output_shape, name='input')
+  inputs = tf.keras.Input(hparams.generator_output_shape, name='inputs')
+  shape = inputs.shape[1:]
 
-  outputs = tf.keras.layers.Conv2D(
-      filters=32, kernel_size=3, strides=(2, 2), activation='relu')(inputs)
-  outputs = tf.keras.layers.Conv2D(
-      filters=64, kernel_size=3, strides=(2, 2), activation='relu')(outputs)
+  if len(shape) == 3:
+    outputs = tf.keras.layers.Reshape((shape[0], shape[1]))(inputs)
+  else:
+    outputs = tf.keras.layers.Reshape((shape[0] // 4, 4))(inputs)
+
+  outputs = tf.keras.layers.Conv1D(
+      filters=64, kernel_size=10, strides=2, padding='causal')(outputs)
+  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
+  outputs = tf.keras.layers.Conv1D(
+      filters=128, kernel_size=10, strides=2, padding='causal')(outputs)
+  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
   outputs = tf.keras.layers.Flatten()(outputs)
-  outputs = tf.keras.layers.Dense(units=1, activation='sigmoid')(outputs)
+  outputs = tf.keras.layers.Dense(1)(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
