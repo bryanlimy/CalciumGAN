@@ -47,7 +47,7 @@ def get_dataset(hparams, summary):
     x_train, x_test = get_calcium_signals(hparams)
 
   # plot first 5 activities
-  summary.plot('real_activities', x_test[:5], training=False)
+  summary.plot('real', x_test[:5], training=False)
 
   hparams.generator_input_shape = (hparams.noise_dim,)
   hparams.generator_output_shape = x_train.shape[1:]
@@ -99,7 +99,7 @@ class Summary(object):
   def image(self, tag, values, training=True):
     writer = self._get_writer(training)
     with writer.as_default():
-      if self._hparams.input == 'mnist':
+      if self._hparams.input == 'fashion_mnist':
         values = values * 0.5 + 0.5
       tf.summary.image(
           tag,
