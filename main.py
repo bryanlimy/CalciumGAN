@@ -31,8 +31,8 @@ def compute_loss(inputs,
                  noise_dim,
                  penalty_weight=10.0,
                  training=True):
+  noise = tf.random.normal((inputs.shape[0], noise_dim))
 
-  noise = tf.random.normal((inputs.shape[0], noise_dim, noise_dim))
   generated = generator(noise, training=training)
 
   real = discriminator(inputs, training=training)
