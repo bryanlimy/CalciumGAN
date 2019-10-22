@@ -12,17 +12,16 @@ from models import get_generator, get_discriminator
 
 
 def gradient_penalty(inputs, generated, discriminator, training=True):
-  shape = (inputs.shape[0],) + ((1,) * (len(inputs.shape) - 1))
-  epsilon = tf.random.uniform(shape, minval=0.0, maxval=1.0)
+  epsilon = tf.random.uniform((inputs.shape[0], 1, 1, 1),
+                              minval=0.0,
+                              maxval=1.0)
   x_hat = epsilon * inputs + (1 - epsilon) * generated
   with tf.GradientTape() as tape:
     tape.watch(x_hat)
     d_hat = discriminator(x_hat, training=training)
   gradients = tape.gradient(d_hat, x_hat)
-  slopes = tf.sqrt(
-      tf.reduce_mean(
-          tf.square(gradients), axis=list(range(len(inputs.shape)))[1:]))
-  penalty = tf.reduce_mean(tf.square(slopes - 1.0))
+  slopes = tf.sqrt(tf.reduce_mean(gradients**2, axis=[1, 2]))
+  penalty = tf.reduce_mean((slopes - 1.0)**2)
   return penalty
 
 
