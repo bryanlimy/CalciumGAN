@@ -110,6 +110,11 @@ class WGAN(tf.keras.Model):
     gradients = t.gradient(d_hat, x_hat)
     ddx = tf.sqrt(tf.reduce_sum(gradients**2, axis=[1, 2]))
     d_regularizer = tf.reduce_mean((ddx - 1.0)**2)
+
+    with train_summary.as_default():
+      tf.summary.scalar(
+          'gradient_penalty', d_regularizer, step=self.gen_optimizer.iterations)
+
     return d_regularizer
 
   @tf.function
