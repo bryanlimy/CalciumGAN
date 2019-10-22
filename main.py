@@ -181,8 +181,8 @@ def main(hparams):
 
   train_ds, validation_ds = get_dataset(hparams, summary)
 
-  gen_optimizer = tf.keras.optimizers.Adam(hparams.lr)
-  dis_optimizer = tf.keras.optimizers.Adam(hparams.lr)
+  gen_optimizer = tf.keras.optimizers.Adam(0.0001, beta_1=0.5)
+  dis_optimizer = tf.keras.optimizers.RMSprop(0.0005)
 
   generator = get_generator(hparams)
   discriminator = get_discriminator(hparams)

@@ -5,9 +5,11 @@ from time import time
 import tensorflow as tf
 from shutil import rmtree
 
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 SHAPES = (28, 28, 1)
 OUTPUT_DIR = 'runs/wgan'
+NOISE_DIMS = 64
+GRADIENT_PENALTY = 10.0
 
 if os.path.exists(OUTPUT_DIR):
   rmtree(OUTPUT_DIR)
@@ -128,8 +130,6 @@ class WGAN(tf.keras.Model):
           'gradient_penalty', regularizer, step=self.gen_optimizer.iterations)
 
 
-N_Z = 64
-
 generator = [
     tf.keras.layers.Dense(units=7 * 7 * 64, activation="relu"),
     tf.keras.layers.Reshape(target_shape=(7, 7, 64)),
@@ -171,11 +171,11 @@ model = WGAN(
     disc=discriminator,
     gen_optimizer=gen_optimizer,
     disc_optimizer=disc_optimizer,
-    n_Z=N_Z,
-    gradient_penalty_weight=10.0)
+    n_Z=NOISE_DIMS,
+    gradient_penalty_weight=GRADIENT_PENALTY)
 
 EPOCHS = 200
-noises = tf.random.normal((5, 1, 1, N_Z))
+noises = tf.random.normal((5, 1, 1, NOISE_DIMS))
 
 for epoch in range(EPOCHS):
 
