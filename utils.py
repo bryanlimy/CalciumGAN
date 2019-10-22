@@ -14,7 +14,7 @@ def get_fashion_mnist(hparams, summary):
 
   def preprocess(images):
     images = images.reshape(images.shape[0], 28, 28, 1).astype('float32')
-    return (images / 127.5) - 1
+    return images / 255.0
 
   x_train = preprocess(x_train)
   x_test = preprocess(x_test)
@@ -116,8 +116,6 @@ class Summary(object):
     writer = self._get_writer(training)
     step = self._get_step() if step is None else step
     with writer.as_default():
-      if self._hparams.input == 'fashion_mnist':
-        values = values * 0.5 + 0.5
       tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
 
   def plot(self, tag, values, step=None, training=True):
