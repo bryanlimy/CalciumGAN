@@ -168,7 +168,7 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
                                                     train_dis_loss, elapse,
                                                     val_gen_loss, val_dis_loss))
 
-    summary.scalar('elapse (s)', elapse, training=True)
+    summary.scalar('elapse (s)', elapse, step=epoch, training=True)
 
 
 def main(hparams):

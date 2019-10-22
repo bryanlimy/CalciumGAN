@@ -85,26 +85,8 @@ class Summary(object):
   def _get_writer(self, training):
     return self.train_writer if training else self.val_writer
 
-  def scalar(self, tag, value, training=True):
-    writer = self._get_writer(training)
-    with writer.as_default():
-      tf.summary.scalar(tag, value, step=self._hparams.global_step)
-
-  def histogram(self, tag, values, training=True):
-    writer = self._get_writer(training)
-    with writer.as_default():
-      tf.summary.histogram(tag, values, step=self._hparams.global_step)
-
-  def image(self, tag, values, training=True):
-    writer = self._get_writer(training)
-    with writer.as_default():
-      if self._hparams.input == 'fashion_mnist':
-        values = values * 0.5 + 0.5
-      tf.summary.image(
-          tag,
-          data=values,
-          step=self._hparams.global_step,
-          max_outputs=values.shape[0])
+  def _get_step(self):
+    return self._hparams.global_step
 
   def _plot_to_image(self, figure):
     """
@@ -118,7 +100,27 @@ class Summary(object):
     image = tf.image.decode_png(buf.getvalue(), channels=4)
     return image
 
-  def plot(self, tag, values, training=True):
+  def scalar(self, tag, value, step=None, training=True):
+    writer = self._get_writer(training)
+    step = self._get_step() if step is None else step
+    with writer.as_default():
+      tf.summary.scalar(tag, value, step=step)
+
+  def histogram(self, tag, values, step=None, training=True):
+    writer = self._get_writer(training)
+    step = self._get_step() if step is None else step
+    with writer.as_default():
+      tf.summary.histogram(tag, values, step=step)
+
+  def image(self, tag, values, step=None, training=True):
+    writer = self._get_writer(training)
+    step = self._get_step() if step is None else step
+    with writer.as_default():
+      if self._hparams.input == 'fashion_mnist':
+        values = values * 0.5 + 0.5
+      tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
+
+  def plot(self, tag, values, step=None, training=True):
     images = []
     for i in range(values.shape[0]):
       value = values[i]
@@ -128,10 +130,8 @@ class Summary(object):
       plt.ylabel('Activity')
       image = self._plot_to_image(figure)
       images.append(image)
-
     images = tf.stack(images)
-
-    self.image(tag, values=images, training=training)
+    self.image(tag, values=images, step=step, training=training)
 
   def graph(self):
     writer = self._get_writer(training=True)
