@@ -37,6 +37,6 @@ def get_discriminator(hparams):
       filters=128, kernel_size=10, strides=2, padding='causal')(outputs)
   outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
   outputs = tf.keras.layers.Flatten()(outputs)
-  outputs = tf.keras.layers.Dense(1)(outputs)
+  outputs = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
