@@ -7,7 +7,7 @@ import tensorflow as tf
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-from utils import get_dataset, Summary
+from utils import get_dataset, derivative_mse, Summary
 from models import get_generator, get_discriminator
 
 
@@ -43,7 +43,11 @@ def compute_loss(inputs,
   dis_loss = tf.reduce_mean(real) - tf.reduce_mean(
       fake) + penalty_weight * penalty
   gen_loss = tf.reduce_mean(fake)
-  return gen_loss, dis_loss, penalty
+
+  kl_divergence = tf.reduce_mean(
+      tf.keras.losses.KLD(y_true=inputs, y_pred=generated))
+
+  return gen_loss, dis_loss, penalty, kl_divergence
 
 
 @tf.function
@@ -56,7 +60,7 @@ def train_step(inputs,
                penalty_weight=10.0):
 
   with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
-    gen_loss, dis_loss, penalty = compute_loss(
+    gen_loss, dis_loss, penalty, _ = compute_loss(
         inputs,
         generator=generator,
         discriminator=discriminator,
@@ -114,7 +118,7 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
 def validation_step(inputs, generator, discriminator, noise_dim,
                     penalty_weight):
 
-  gen_loss, dis_loss, penalty = compute_loss(
+  gen_loss, dis_loss, penalty, kl_divergence = compute_loss(
       inputs,
       generator,
       discriminator,
@@ -122,14 +126,14 @@ def validation_step(inputs, generator, discriminator, noise_dim,
       penalty_weight=penalty_weight,
       training=False)
 
-  return gen_loss, dis_loss, penalty
+  return gen_loss, dis_loss, penalty, kl_divergence
 
 
 def validate(hparams, validation_ds, generator, discriminator, summary):
-  gen_losses, dis_losses, penalties = [], [], []
+  gen_losses, dis_losses, penalties, kl_divergences = [], [], [], []
 
   for inputs in validation_ds:
-    gen_loss, dis_loss, penalty = validation_step(
+    gen_loss, dis_loss, penalty, kl_divergence = validation_step(
         inputs,
         generator,
         discriminator,
@@ -139,12 +143,18 @@ def validate(hparams, validation_ds, generator, discriminator, summary):
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
     penalties.append(penalty)
+    kl_divergences.append(kl_divergence)
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
   summary.scalar('generator_loss', gen_losses, training=False)
   summary.scalar('discriminator_loss', dis_losses, training=False)
   summary.scalar('gradient_penalty', np.mean(penalties), training=False)
+  summary.scalar('kl_divergence', np.mean(kl_divergences), training=False)
+
+  # set1 = tf.concat(set1, axis=0)
+  # set2 = tf.concat(set2, axis=0)
+  # mse = derivative_mse(set1, set2)
 
   return gen_losses, dis_losses
 

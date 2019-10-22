@@ -68,6 +68,13 @@ def get_dataset(hparams, summary):
   return train_ds, validation_ds
 
 
+def derivative_mse(set1, set2):
+  diff1 = np.diff(set1, n=1, axis=-1)
+  diff2 = np.diff(set2, n=1, axis=-1)
+  mse = np.mean(np.square(diff1 - diff2))
+  return mse
+
+
 class Summary(object):
   """ 
   Log tf.Summary to output_dir during training and output_dir/eval during 
