@@ -11,13 +11,13 @@ from utils import get_dataset, Summary
 from models import get_generator, get_discriminator
 
 
-def gradient_penalty(inputs, generated, discriminator):
+def gradient_penalty(inputs, generated, discriminator, training=True):
   shape = (inputs.shape[0],) + ((1,) * (len(inputs.shape) - 1))
   epsilon = tf.random.uniform(shape, minval=0.0, maxval=1.0)
   x_hat = epsilon * inputs + (1 - epsilon) * generated
   with tf.GradientTape() as tape:
     tape.watch(x_hat)
-    d_hat = discriminator(x_hat, training=True)
+    d_hat = discriminator(x_hat, training=training)
   gradients = tape.gradient(d_hat, x_hat)
   slopes = tf.sqrt(
       tf.reduce_mean(
@@ -39,7 +39,8 @@ def compute_loss(inputs,
   real = discriminator(inputs, training=training)
   fake = discriminator(generated, training=training)
 
-  penalty = gradient_penalty(inputs, generated, discriminator)
+  penalty = gradient_penalty(
+      inputs, generated, discriminator, training=training)
   dis_loss = tf.reduce_mean(real) - tf.reduce_mean(
       fake) + penalty_weight * penalty
   gen_loss = tf.reduce_mean(fake)

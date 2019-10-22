@@ -58,10 +58,18 @@ class WGAN(tf.keras.Model):
   def discriminate(self, x):
     return self.disc(x)
 
+  def gradient_penalty(self, x, x_gen):
+    epsilon = tf.random.uniform([x.shape[0], 1, 1, 1], 0.0, 1.0)
+    x_hat = epsilon * x + (1 - epsilon) * x_gen
+    with tf.GradientTape() as t:
+      t.watch(x_hat)
+      d_hat = self.discriminate(x_hat)
+    gradients = t.gradient(d_hat, x_hat)
+    ddx = tf.sqrt(tf.reduce_sum(gradients**2, axis=[1, 2]))
+    d_regularizer = tf.reduce_mean((ddx - 1.0)**2)
+    return d_regularizer
+
   def compute_loss(self, x):
-    """ passes through the network and computes loss
-        """
-    ### pass through network
     # generating noise from a uniform distribution
     z_samp = tf.random.normal([x.shape[0], 1, 1, self.n_Z])
 
@@ -83,44 +91,25 @@ class WGAN(tf.keras.Model):
     return disc_loss, gen_loss, d_regularizer
 
   def compute_gradients(self, x):
-    """ passes through the network and computes loss
-        """
-    ### pass through network
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
       disc_loss, gen_loss, regularizer = self.compute_loss(x)
 
     # compute gradients
     gen_gradients = gen_tape.gradient(gen_loss, self.gen.trainable_variables)
-
     disc_gradients = disc_tape.gradient(disc_loss,
                                         self.disc.trainable_variables)
 
     return disc_loss, gen_loss, gen_gradients, disc_gradients, regularizer
 
-  def apply_gradients(self, gen_gradients, disc_gradients):
+  @tf.function
+  def train(self, x):
+    dis_loss, gen_loss, gen_gradients, disc_gradients, penalty = \
+      self.compute_gradients(x)
 
     self.gen_optimizer.apply_gradients(
         zip(gen_gradients, self.gen.trainable_variables))
     self.disc_optimizer.apply_gradients(
         zip(disc_gradients, self.disc.trainable_variables))
-
-  def gradient_penalty(self, x, x_gen):
-    epsilon = tf.random.uniform([x.shape[0], 1, 1, 1], 0.0, 1.0)
-    x_hat = epsilon * x + (1 - epsilon) * x_gen
-    with tf.GradientTape() as t:
-      t.watch(x_hat)
-      d_hat = self.discriminate(x_hat)
-    gradients = t.gradient(d_hat, x_hat)
-    ddx = tf.sqrt(tf.reduce_sum(gradients**2, axis=[1, 2]))
-    d_regularizer = tf.reduce_mean((ddx - 1.0)**2)
-    return d_regularizer
-
-  @tf.function
-  def train(self, x):
-    dis_loss, gen_loss, gen_gradients, disc_gradients, regularizer = \
-      self.compute_gradients(x)
-
-    self.apply_gradients(gen_gradients, disc_gradients)
 
     with train_summary.as_default():
       tf.summary.scalar(
@@ -128,7 +117,7 @@ class WGAN(tf.keras.Model):
       tf.summary.scalar(
           'discriminator_loss', dis_loss, step=self.disc_optimizer.iterations)
       tf.summary.scalar(
-          'gradient_penalty', regularizer, step=self.gen_optimizer.iterations)
+          'gradient_penalty', penalty, step=self.gen_optimizer.iterations)
 
 
 generator = [
