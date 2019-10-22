@@ -90,7 +90,7 @@ class WGAN(tf.keras.Model):
 
     return dis_loss, gen_loss, d_regularizer
 
-  #@tf.function
+  @tf.function
   def train(self, x):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
       dis_loss, gen_loss, penalty = self.compute_loss(x)
