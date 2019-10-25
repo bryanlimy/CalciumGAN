@@ -11,40 +11,52 @@ def process_file(hparams, filename):
   with open(filename, 'rb') as file:
     data = pickle.load(file)
 
-  signals = np.array(data['signals'], dtype=np.float32)
-  time = np.array(data['time'], dtype=np.float32)
-  position = np.array(data['position'], dtype=np.float32)
+  raw_signals = np.array(data['signals'], dtype=np.float32)
+  raw_spikes = np.array(data['spikes'], dtype=np.float32)
 
   # remove first two rows in signals
-  signals = signals[2:]
+  raw_signals = raw_signals[2:]
+  raw_spikes = raw_spikes[2:]
 
-  segments = []
-  for i in tqdm(range(signals.shape[-1] - hparams.sequence_length)):
-    segment = list(signals[:, i:i + hparams.sequence_length])
-    segments.extend(segment)
+  assert raw_signals.shape == raw_spikes.shape
 
-  return segments
+  signals, spikes = [], []
+  for i in tqdm(range(raw_signals.shape[-1] - hparams.sequence_length)):
+    signals.append(raw_signals[:, i:i + hparams.sequence_length])
+    spikes.append(raw_spikes[:, i:i + hparams.sequence_length])
+
+  signals = np.concatenate(signals, axis=0)
+  spikes = np.concatenate(spikes, axis=0)
+
+  assert signals.shape == spikes.shape
+
+  return signals, spikes
 
 
 def main(hparams):
   if not os.path.exists(hparams.input_dir):
     print('input directory {} does not exists'.format(hparams.input_dir))
   if os.path.exists(hparams.output):
-    print('output {} already exists'.format(hparams.output))
+    print('output {} already exists\n'.format(hparams.output))
 
   filenames = glob(os.path.join(hparams.input_dir, '*.pkl'))
   filenames.sort()
 
-  segments = []
+  signals, spikes = [], []
   for filename in filenames:
-    segments += process_file(hparams, filename)
+    signal, spike = process_file(hparams, filename)
+    signals.append(signal)
+    spikes.append(spike)
 
-  segments = np.array(segments, dtype=np.float32)
+  signals = np.concatenate(signals, axis=0)
+  spikes = np.concatenate(spikes, axis=0)
+
+  assert signals.shape == spikes.shape
 
   with open(hparams.output, 'wb') as file:
-    pickle.dump(segments, file)
+    pickle.dump({'signals': signals, 'spikes': spikes}, file)
 
-  print('saved {} segments to {}'.format(len(segments), hparams.output))
+  print('saved {} segments to {}'.format(len(signals), hparams.output))
 
 
 if __name__ == '__main__':
