@@ -6,6 +6,7 @@ import numpy as np
 from glob import glob
 from tqdm import tqdm
 import tensorflow as tf
+from sklearn.preprocessing import normalize
 from multiprocessing import Process, cpu_count
 
 

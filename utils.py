@@ -67,7 +67,7 @@ def get_calcium_signals(hparams, summary):
     signal = tf.reshape(signal, shape=hparams.signal_shape)
     spike = tf.io.decode_raw(parsed['spike'], out_type=tf.float32)
     spike = tf.reshape(spike, shape=hparams.spike_shape)
-    return {'signal': signal, 'spike': spike}
+    return signal, spike
 
   train_files = tf.data.Dataset.list_files(
       os.path.join(hparams.input, 'train-*.record'))
@@ -94,6 +94,7 @@ def get_dataset(hparams, summary):
   else:
     train_ds, eval_ds = get_calcium_signals(hparams, summary)
 
+  hparams.generator_input_shape = (hparams.noise_dim,)
   hparams.steps_per_epoch = ceil(hparams.train_size / hparams.batch_size)
 
   return train_ds, eval_ds
