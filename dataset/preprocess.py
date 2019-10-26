@@ -1,12 +1,24 @@
 import os
+import math
 import pickle
 import argparse
 import numpy as np
 from glob import glob
 from tqdm import tqdm
+import tensorflow as tf
+
+from multiprocessing import Process, cpu_count
 
 
-def process_file(hparams, filename):
+def split(sequence, n):
+  """ divide sequence into n sub-sequence evenly"""
+  k, m = divmod(len(sequence), n)
+  return [
+      sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
+  ]
+
+
+def get_segments_from_file(hparams, filename):
   print('processing file {}...'.format(filename))
   with open(filename, 'rb') as file:
     data = pickle.load(file)
@@ -33,18 +45,13 @@ def process_file(hparams, filename):
   return signals, spikes
 
 
-def main(hparams):
-  if not os.path.exists(hparams.input_dir):
-    print('input directory {} does not exists'.format(hparams.input_dir))
-  if os.path.exists(hparams.output):
-    print('output {} already exists\n'.format(hparams.output))
-
+def get_segments(hparams):
   filenames = glob(os.path.join(hparams.input_dir, '*.pkl'))
   filenames.sort()
 
   signals, spikes = [], []
   for filename in filenames:
-    signal, spike = process_file(hparams, filename)
+    signal, spike = get_segments_from_file(hparams, filename)
     signals.append(signal)
     spikes.append(spike)
 
@@ -53,16 +60,111 @@ def main(hparams):
 
   assert signals.shape == spikes.shape
 
-  with open(hparams.output, 'wb') as file:
-    pickle.dump({'signals': signals, 'spikes': spikes}, file)
+  return signals, spikes
 
-  print('saved {} segments to {}'.format(len(signals), hparams.output))
+
+def _bytes_feature(value):
+  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+
+def serialize_example(signal, spike):
+  features = {
+      'signal': _bytes_feature(signal.tostring()),
+      'spike': _bytes_feature(spike.tostring())
+  }
+  example = tf.train.Example(features=tf.train.Features(feature=features))
+  return example.SerializeToString()
+
+
+def get_record_filename(hparams, mode, shard_id, num_shards):
+  filename = '{}-{:03d}-of-{:03d}.record'.format(mode, shard_id + 1, num_shards)
+  return os.path.join(hparams.output_dir, filename)
+
+
+def write_to_record(hparams, mode, shard_ids, num_shards, signals, spikes):
+  for i in range(len(shard_ids)):
+    record_filename = get_record_filename(hparams, mode, shard_ids[i],
+                                          num_shards)
+    print('writing {} segments to {}...'.format(
+        len(signals[i]), record_filename))
+
+    with tf.io.TFRecordWriter(record_filename) as writer:
+      for signal, spike in zip(signals[i], spikes[i]):
+        example = serialize_example(signal, spike)
+        writer.write(example)
+
+
+def write_to_records(hparams, mode, signals, spikes):
+  if not os.path.exists(hparams.output_dir):
+    os.makedirs(hparams.output_dir)
+  # calculate the number of records to create
+  num_shards = math.ceil(len(signals) / hparams.num_per_shard)
+
+  print('writing {} segments to {} {} records...'.format(
+      len(signals), num_shards, mode))
+
+  if mode == 'train':
+    hparams.train_shards = num_shards
+  else:
+    hparams.eval_shards = num_shards
+
+  signals, spikes = split(signals, num_shards), split(spikes, num_shards)
+
+  num_jobs = min(len(signals), hparams.num_jobs)
+
+  signals, spikes = split(signals, num_jobs), split(spikes, num_jobs)
+  shard_ids = split(list(range(num_shards)), num_jobs)
+
+  jobs = []
+  for i in range(num_jobs):
+    process = Process(
+        target=write_to_record,
+        args=(hparams, mode, shard_ids[i], num_shards, signals[i], spikes[i]))
+    jobs.append(process)
+    process.start()
+
+  for process in jobs:
+    process.join()
+
+
+def main(hparams):
+  if not os.path.exists(hparams.input_dir):
+    print('input directory {} does not exists'.format(hparams.input_dir))
+    exit()
+
+  if os.path.exists(hparams.output_dir):
+    print('output directory {} already exists\n'.format(hparams.output_dir))
+    exit()
+
+  signals, spikes = get_segments(hparams)
+
+  indexes = np.arange(len(signals))
+  np.random.shuffle(indexes)
+
+  signals = signals[indexes]
+  spikes = spikes[indexes]
+
+  train_size = int(len(signals) * 0.7)
+
+  write_to_records(
+      hparams,
+      mode='train',
+      signals=signals[:train_size],
+      spikes=spikes[:train_size])
+
+  write_to_records(
+      hparams,
+      mode='eval',
+      signals=signals[train_size:],
+      spikes=spikes[train_size:])
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--input_dir', default='raw_data', type=str)
-  parser.add_argument('--output', default='dataset.pkl', type=str)
+  parser.add_argument('--output_dir', default='tfrecords', type=str)
   parser.add_argument('--sequence_length', default=120, type=int)
+  parser.add_argument('--num_per_shard', default=100000, type=int)
+  parser.add_argument('--num_jobs', default=cpu_count(), type=int)
   hparams = parser.parse_args()
   main(hparams)
