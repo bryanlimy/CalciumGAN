@@ -132,9 +132,9 @@ def validation_step(inputs, generator, discriminator, noise_dim,
 def validate(hparams, validation_ds, generator, discriminator, summary):
   gen_losses, dis_losses, penalties, kl_divergences = [], [], [], []
 
-  for inputs in validation_ds:
+  for signal, spike in validation_ds:
     gen_loss, dis_loss, penalty, kl_divergence = validation_step(
-        inputs,
+        signal,
         generator,
         discriminator,
         noise_dim=hparams.noise_dim,
