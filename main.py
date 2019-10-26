@@ -224,7 +224,7 @@ def main(hparams):
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input', default='dataset/dataset.pkl')
+  parser.add_argument('--input', default='dataset/tfrecords')
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--batch_size', default=64, type=int)
   parser.add_argument('--epochs', default=20, type=int)

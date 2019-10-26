@@ -6,7 +6,6 @@ import numpy as np
 from glob import glob
 from tqdm import tqdm
 import tensorflow as tf
-
 from multiprocessing import Process, cpu_count
 
 
@@ -146,6 +145,11 @@ def main(hparams):
 
   train_size = int(len(signals) * 0.7)
 
+  hparams.train_size = train_size
+  hparams.eval_size = len(signals) - train_size
+  hparams.signal_shape = signals.shape[1:]
+  hparams.spike_shape = spikes.shape[1:]
+
   write_to_records(
       hparams,
       mode='train',
@@ -157,6 +161,21 @@ def main(hparams):
       mode='eval',
       signals=signals[train_size:],
       spikes=spikes[train_size:])
+
+  # save information of the dataset
+  with open(os.path.join(hparams.output_dir, 'info.pkl'), 'wb') as file:
+    pickle.dump({
+        'train_size': hparams.train_size,
+        'eval_size': hparams.eval_size,
+        'signal_shape': hparams.signal_shape,
+        'spike_shape': hparams.spike_shape,
+        'train_shards': hparams.train_shards,
+        'eval_shards': hparams.eval_shards,
+        'num_per_shard': hparams.num_per_shard
+    }, file)
+
+  print('saved {} tfrecords to {}'.format(
+      hparams.train_shards + hparams.eval_shards, hparams.output_dir))
 
 
 if __name__ == '__main__':
