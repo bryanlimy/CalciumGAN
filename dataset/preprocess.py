@@ -138,9 +138,15 @@ def main(hparams):
 
   signals, spikes = get_segments(hparams)
 
+  print('\n')
+
+  if hparams.normalize:
+    print('apply {} normalization'.format(hparams.normalize))
+    signals = normalize(signals, norm=hparams.normalize, axis=1)
+
+  # shuffle data
   indexes = np.arange(len(signals))
   np.random.shuffle(indexes)
-
   signals = signals[indexes]
   spikes = spikes[indexes]
 
@@ -172,7 +178,8 @@ def main(hparams):
         'spike_shape': hparams.spike_shape,
         'train_shards': hparams.train_shards,
         'eval_shards': hparams.eval_shards,
-        'num_per_shard': hparams.num_per_shard
+        'num_per_shard': hparams.num_per_shard,
+        'normalize': hparams.normalize
     }, file)
 
   print('saved {} tfrecords to {}'.format(
@@ -186,5 +193,7 @@ if __name__ == '__main__':
   parser.add_argument('--sequence_length', default=120, type=int)
   parser.add_argument('--num_per_shard', default=100000, type=int)
   parser.add_argument('--num_jobs', default=cpu_count(), type=int)
+  parser.add_argument(
+      '--normalize', default='', type=str, choices=['', 'l1', 'l2', 'max'])
   hparams = parser.parse_args()
   main(hparams)
