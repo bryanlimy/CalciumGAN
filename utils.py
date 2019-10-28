@@ -47,6 +47,7 @@ def get_dataset_info(hparams):
   hparams.train_shards = info['train_shards']
   hparams.eval_shards = info['eval_shards']
   hparams.buffer_size = info['num_per_shard']
+  hparams.normalize = info['normalize']
 
 
 def get_calcium_signals(hparams, summary):
