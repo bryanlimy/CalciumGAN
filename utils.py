@@ -1,5 +1,6 @@
 import os
 import io
+import json
 import pickle
 import numpy as np
 from math import ceil
@@ -108,6 +109,11 @@ def derivative_mse(set1, set2):
   return mse
 
 
+def store_hparams(hparams):
+  with open(os.path.join(hparams.output_dir, 'hparams.json'), 'w') as file:
+    json.dump(hparams.__dict__, file)
+
+
 class Summary(object):
   """ 
   Log tf.Summary to output_dir during training and output_dir/eval during 
@@ -133,7 +139,7 @@ class Summary(object):
     returns it. The supplied figure is closed and inaccessible after this call.
     """
     buf = io.BytesIO()
-    plt.savefig(buf, dpi=150, format='png')
+    plt.savefig(buf, dpi=100, format='png')
     plt.close(figure)
     buf.seek(0)
     image = tf.image.decode_png(buf.getvalue(), channels=4)

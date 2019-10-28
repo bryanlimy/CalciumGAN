@@ -7,7 +7,7 @@ import tensorflow as tf
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-from utils import get_dataset, derivative_mse, Summary
+from utils import get_dataset, derivative_mse, store_hparams, Summary
 from models import get_generator, get_discriminator
 
 
@@ -202,14 +202,16 @@ def main(hparams):
 
   train_ds, validation_ds = get_dataset(hparams, summary)
 
-  gen_optimizer = tf.keras.optimizers.Adam(0.0001, beta_1=0.5)
-  dis_optimizer = tf.keras.optimizers.RMSprop(0.0005)
+  gen_optimizer = tf.keras.optimizers.Adam(hparams.lr)
+  dis_optimizer = tf.keras.optimizers.Adam(hparams.lr)
 
   generator = get_generator(hparams)
   discriminator = get_discriminator(hparams)
 
   generator.summary()
   discriminator.summary()
+
+  store_hparams(hparams)
 
   train_and_validate(
       hparams,
