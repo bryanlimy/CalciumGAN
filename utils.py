@@ -174,11 +174,10 @@ class Summary(object):
       plt.xlabel('Time (ms)')
       plt.subplot(211)
       plt.plot(signals[i])
-      if spikes is not None:
+      if spikes is not None or np.count_nonzero(spikes[0]) > 0:
         spike = np.squeeze(np.argwhere(spikes[i] >= 1))
-        if len(spike) > 0:
-          plt.subplot(212)
-          plt.eventplot(spike, orientation='horizontal', colors='b')
+        plt.subplot(212)
+        plt.eventplot(spike, orientation='horizontal', colors='b')
       image = self._plot_to_image(figure)
       images.append(image)
     images = tf.stack(images)
