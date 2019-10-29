@@ -187,9 +187,9 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
 
     test_generation = generator(test_noise, training=False)
     if hparams.input == 'fashion_mnist':
-      summary.image('fake', test_generation, training=False)
+      summary.image('fake', signals=test_generation, training=False)
     else:
-      summary.plot('fake', test_generation, training=False)
+      summary.plot('fake', signals=test_generation, training=False)
 
     print('Train generator loss {:.4f} Train discriminator loss {:.4f} '
           'Time {:.2f}s\nEval generator loss {:.4f} '
