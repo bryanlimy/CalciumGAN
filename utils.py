@@ -174,7 +174,7 @@ class Summary(object):
       plt.xlabel('Time (ms)')
       plt.subplot(211)
       plt.plot(signals[i])
-      if spikes is not None or np.count_nonzero(spikes[0]) > 0:
+      if spikes is not None and np.count_nonzero(spikes[i]) > 0:
         spike = np.squeeze(np.argwhere(spikes[i] >= 1))
         plt.subplot(212)
         plt.eventplot(spike, orientation='horizontal', colors='b')
