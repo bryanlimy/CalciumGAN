@@ -168,6 +168,7 @@ class Summary(object):
     signals = signals.numpy()
     if spikes is not None:
       spikes = spikes.numpy()
+      print(spikes)
     for i in range(signals.shape[0]):
       figure = plt.figure()
       plt.xlabel('Time (ms)')
