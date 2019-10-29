@@ -168,7 +168,7 @@ class Summary(object):
     signals = signals.numpy()
     if spikes is not None:
       spikes = spikes.numpy()
-      print(spikes)
+
     for i in range(signals.shape[0]):
       figure = plt.figure()
       plt.xlabel('Time (ms)')
@@ -177,7 +177,7 @@ class Summary(object):
       if spikes is not None:
         plt.subplot(212)
         plt.eventplot(
-            np.squeeze(np.argwhere(spikes[i] == 1)),
+            np.squeeze(np.argwhere(spikes[i] >= 1)),
             orientation='horizontal',
             colors='b')
       image = self._plot_to_image(figure)
