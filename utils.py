@@ -175,11 +175,13 @@ class Summary(object):
       plt.subplot(211)
       plt.plot(signals[i])
       if spikes is not None:
-        plt.subplot(212)
-        plt.eventplot(
-            np.squeeze(np.argwhere(spikes[i] >= 1)),
-            orientation='horizontal',
-            colors='b')
+        spike = np.squeeze(np.argwhere(spikes >= 1))
+        if len(spike) > 0:
+          plt.subplot(212)
+          plt.eventplot(
+              np.squeeze(np.argwhere(spikes[i] >= 1)),
+              orientation='horizontal',
+              colors='b')
       image = self._plot_to_image(figure)
       images.append(image)
     images = tf.stack(images)
