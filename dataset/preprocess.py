@@ -138,8 +138,6 @@ def main(hparams):
 
   signals, spikes = get_segments(hparams)
 
-  print('\n')
-
   if hparams.normalize:
     print('apply {} normalization'.format(hparams.normalize))
     signals = normalize(signals, norm=hparams.normalize, axis=1)

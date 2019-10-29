@@ -84,11 +84,16 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
   gen_losses, dis_losses = [], []
 
   start = time()
+  plot = False
 
   for signal, spike in tqdm(
       train_ds,
       desc='Epoch {:02d}/{:02d}'.format(epoch + 1, hparams.epochs),
       total=hparams.steps_per_epoch):
+
+    if not plot:
+      summary.plot('real', signals=signal[:5], spikes=spike[:5], training=False)
+      plot = True
 
     gen_loss, dis_loss, penalty = train_step(
         signal,

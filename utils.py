@@ -163,14 +163,22 @@ class Summary(object):
     with writer.as_default():
       tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
 
-  def plot(self, tag, values, step=None, training=True):
+  def plot(self, tag, signals, spikes=None, step=None, training=True):
     images = []
-    for i in range(values.shape[0]):
-      value = values[i]
+    signals = signals.numpy()
+    if spikes is not None:
+      spikes = spikes.numpy()
+    for i in range(signals.shape[0]):
       figure = plt.figure()
-      plt.plot(value)
       plt.xlabel('Time (ms)')
-      plt.ylabel('Activity')
+      plt.subplot(211)
+      plt.plot(signals[i])
+      if spikes is not None:
+        plt.subplot(212)
+        plt.eventplot(
+            np.squeeze(np.argwhere(spikes[i] == 1)),
+            orientation='horizontal',
+            colors='b')
       image = self._plot_to_image(figure)
       images.append(image)
     images = tf.stack(images)
