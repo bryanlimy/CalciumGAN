@@ -176,7 +176,8 @@ class Summary(object):
       plt.plot(signals[i])
       try:
         if spikes is not None and np.count_nonzero(spikes[i]) > 0:
-          spike = np.squeeze(np.argwhere(spikes[i] >= 1))
+          spike = np.argwhere(spikes[i] >= 1)
+          spike = np.reshape(spike, newshape=(np.prod(spike.shape,)))
           plt.subplot(212)
           plt.eventplot(spike, orientation='horizontal', colors='b')
       except TypeError as e:
@@ -184,6 +185,7 @@ class Summary(object):
         print(spikes[i])
         print(np.count_nonzero(spikes[i]))
         print(np.squeeze(np.argwhere(spikes[i] >= 1)))
+        print(np.squeeze(np.argwhere(spikes[i] >= 1)).shape)
         exit()
       image = self._plot_to_image(figure)
       images.append(image)
