@@ -174,19 +174,11 @@ class Summary(object):
       plt.xlabel('Time (ms)')
       plt.subplot(211)
       plt.plot(signals[i])
-      try:
-        if spikes is not None and np.count_nonzero(spikes[i]) > 0:
-          spike = np.argwhere(spikes[i] >= 1)
-          spike = np.reshape(spike, newshape=(np.prod(spike.shape,)))
-          plt.subplot(212)
-          plt.eventplot(spike, orientation='horizontal', colors='b')
-      except TypeError as e:
-        print('TypeError: {}'.format(e))
-        print(spikes[i])
-        print(np.count_nonzero(spikes[i]))
-        print(np.squeeze(np.argwhere(spikes[i] >= 1)))
-        print(np.squeeze(np.argwhere(spikes[i] >= 1)).shape)
-        exit()
+      if spikes is not None and np.count_nonzero(spikes[i]) > 0:
+        spike = np.argwhere(spikes[i] >= 1)
+        spike = np.reshape(spike, newshape=(np.prod(spike.shape,)))
+        plt.subplot(212)
+        plt.eventplot(spike, orientation='horizontal', colors='b')
       image = self._plot_to_image(figure)
       images.append(image)
     images = tf.stack(images)
