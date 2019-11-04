@@ -148,14 +148,13 @@ class Summary(object):
   def _get_step(self):
     return self._hparams.global_step
 
-  def _plot_to_image(self, figure):
+  def _plot_to_image(self):
     """
     Converts the matplotlib plot specified by 'figure' to a PNG image and
     returns it. The supplied figure is closed and inaccessible after this call.
     """
     buf = io.BytesIO()
     plt.savefig(buf, dpi=100, format='png')
-    plt.close(figure)
     buf.seek(0)
     image = tf.image.decode_png(buf.getvalue(), channels=4)
     return image
@@ -183,7 +182,9 @@ class Summary(object):
     plt.legend(ncol=3, frameon=False, loc=(.02, .85))
     self._simple_axis(plt.gca())
     plt.tight_layout()
-    return self._plot_to_image(figure)
+    image = self._plot_to_image()
+    plt.close()
+    return image
 
   def scalar(self, tag, value, step=None, training=True):
     writer = self._get_writer(training)
