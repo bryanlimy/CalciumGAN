@@ -15,7 +15,10 @@ def generate_spike_train(hparams, filename):
 
   if 'oasis' in data:
     print('oasis spike train already existed in {}'.format(filename))
-    return
+    if hparams.overwrite:
+      print('overwriting...')
+    else:
+      return
 
   results = []
   for signal in tqdm(data['signals']):
@@ -41,5 +44,6 @@ def main(hparams):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--input_dir', default='raw_data', type=str)
+  parser.add_argument('--overwrite', action='store_true')
   hparams = parser.parse_args()
   main(hparams)
