@@ -158,6 +158,31 @@ class Summary(object):
     image = tf.image.decode_png(buf.getvalue(), channels=4)
     return image
 
+  def _simple_axis(self, axis):
+    """plot only x and y axis, not a frame for subplot ax"""
+    axis.spines['top'].set_visible(False)
+    axis.spines['right'].set_visible(False)
+    axis.get_xaxis().tick_bottom()
+    axis.get_yaxis().tick_left()
+
+  def _plot_trace(self, signal, spike):
+    figure = plt.figure()
+    # plot calcium signal
+    plt.figure(figsize=(20, 4))
+    plt.subplot(211)
+    plt.plot(signal, label='signal', zorder=-12, c='r')
+    plt.legend(ncol=3, frameon=False, loc=(.02, .85))
+    self._simple_axis(plt.gca())
+    plt.tight_layout()
+    # plot spike train
+    plt.subplot(212)
+    plt.bar(np.arange(len(spike)), spike, width=0.4, label='oasis', color='y')
+    plt.ylim(0, 1.3)
+    plt.legend(ncol=3, frameon=False, loc=(.02, .85))
+    self._simple_axis(plt.gca())
+    plt.tight_layout()
+    return self._plot_to_image(figure)
+
   def scalar(self, tag, value, step=None, training=True):
     writer = self._get_writer(training)
     step = self._get_step() if step is None else step
@@ -175,29 +200,6 @@ class Summary(object):
     step = self._get_step() if step is None else step
     with writer.as_default():
       tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
-
-  def _simple_axis(self, axis):
-    """plot only x and y axis, not a frame for subplot ax"""
-    axis.spines['top'].set_visible(False)
-    axis.spines['right'].set_visible(False)
-    axis.get_xaxis().tick_bottom()
-    axis.get_yaxis().tick_left()
-
-  def _plot_trace(self, signal, spike):
-    figure = plt.figure()
-    # plot calcium signal
-    plt.figure(figsize=(20, 4))
-    plt.subplot(211)
-    plt.plot(signal, label='signal', zorder=-12, c='r')
-    plt.legend(ncol=3, frameon=False, loc=(.02, .85))
-    self._simple_axis(plt.gca())
-    # plot spike train
-    plt.subplot(212)
-    plt.bar(np.arange(len(spike)), spike, width=0.4, label='oasis', color='y')
-    plt.ylim(0, 1.3)
-    plt.legend(ncol=3, frameon=False, loc=(.02, .85))
-    self._simple_axis(plt.gca())
-    return self._plot_to_image(figure)
 
   def plot_traces(self, tag, signals, spikes=None, step=None, training=True):
     images = []
