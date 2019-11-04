@@ -19,7 +19,7 @@ def generate_spike_train(hparams, filename):
 
   results = []
   for signal in tqdm(data['signals']):
-    c, s, b, g, lam = deconvolve(signal, g=(None, None), penalty=1)
+    c, s, b, g, lam = deconvolve(signal, g=(None,), penalty=1)
     results.append(s / s.max())
 
   data['oasis'] = np.array(results, dtype=np.float32)
