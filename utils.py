@@ -119,6 +119,8 @@ def oasis_deconvolve(signals):
   if tf.is_tensor(signals):
     signals = signals.numpy()
 
+  signals = signals.astype('double')
+
   spikes = []
   for i in range(len(signals)):
     c, s, b, g, lam = deconvolve(signals[i], g=(None, None), penalty=1)
