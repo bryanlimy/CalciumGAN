@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 from math import ceil
 import tensorflow as tf
+from oasis.functions import deconvolve
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -114,6 +115,18 @@ def store_hparams(hparams):
     json.dump(hparams.__dict__, file)
 
 
+def oasis_deconvolve(signals):
+  if tf.is_tensor(signals):
+    signals = signals.numpy()
+
+  spikes = []
+  for i in range(len(signals)):
+    c, s, b, g, lam = deconvolve(signals[i], g=(None, None), penalty=1)
+    spikes.append(s / s.max())
+
+  return np.array(spikes, dtype=np.float32)
+
+
 class Summary(object):
   """ 
   Log tf.Summary to output_dir during training and output_dir/eval during 
@@ -163,24 +176,45 @@ class Summary(object):
     with writer.as_default():
       tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
 
-  def plot(self, tag, signals, spikes=None, step=None, training=True):
+  def _simple_axis(self, axis):
+    """plot only x and y axis, not a frame for subplot ax"""
+    axis.spines['top'].set_visible(False)
+    axis.spines['right'].set_visible(False)
+    axis.get_xaxis().tick_bottom()
+    axis.get_yaxis().tick_left()
+
+  def _plot_trace(self, signal, spike):
+    figure = plt.figure()
+    # plot calcium signal
+    plt.figure(figsize=(20, 4))
+    plt.subplot(211)
+    plt.plot(signal, label='signal', zorder=-12, c='r')
+    plt.legend(ncol=3, frameon=False, loc=(.02, .85))
+    self._simple_axis(plt.gca())
+    # plot spike train
+    plt.subplot(212)
+    plt.bar(np.arange(len(spike)), spike, width=0.4, label='oasis', color='y')
+    plt.ylim(0, 1.3)
+    plt.legend(ncol=3, frameon=False, loc=(.02, .85))
+    self._simple_axis(plt.gca())
+    return self._plot_to_image(figure)
+
+  def plot_traces(self, tag, signals, spikes=None, step=None, training=True):
     images = []
-    signals = signals.numpy()
-    if spikes is not None:
+
+    if tf.is_tensor(signals):
+      signals = signals.numpy()
+
+    if spikes is None:
+      spikes = oasis_deconvolve(signals)
+
+    if tf.is_tensor(spikes):
       spikes = spikes.numpy()
 
     for i in range(signals.shape[0]):
-      figure = plt.figure()
-      plt.xlabel('Time (ms)')
-      plt.subplot(211)
-      plt.plot(signals[i])
-      if spikes is not None and np.count_nonzero(spikes[i]) > 0:
-        spike = np.argwhere(spikes[i] >= 1)
-        spike = np.reshape(spike, newshape=(np.prod(spike.shape,)))
-        plt.subplot(212)
-        plt.eventplot(spike, orientation='horizontal', colors='b')
-      image = self._plot_to_image(figure)
+      image = self._plot_trace(signals[i], spikes[i])
       images.append(image)
+
     images = tf.stack(images)
     self.image(tag, values=images, step=step, training=training)
 

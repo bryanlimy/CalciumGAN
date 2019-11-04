@@ -1,5 +1,4 @@
 import os
-import oasis
 import pickle
 import argparse
 import numpy as np

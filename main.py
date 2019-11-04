@@ -92,7 +92,8 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
       total=hparams.steps_per_epoch):
 
     if not plot:
-      summary.plot('real', signals=signal[:5], spikes=spike[:5], training=True)
+      summary.plot_traces(
+          'real', signals=signal[:5], spikes=spike[:5], training=True)
       plot = True
 
     gen_loss, dis_loss, penalty = train_step(
@@ -189,7 +190,7 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
     if hparams.input == 'fashion_mnist':
       summary.image('fake', signals=test_generation, training=False)
     else:
-      summary.plot('fake', signals=test_generation, training=False)
+      summary.plot_traces('fake', signals=test_generation, training=False)
 
     print('Train generator loss {:.4f} Train discriminator loss {:.4f} '
           'Time {:.2f}s\nEval generator loss {:.4f} '

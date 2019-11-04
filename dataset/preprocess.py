@@ -24,7 +24,7 @@ def get_segments_from_file(hparams, filename):
     data = pickle.load(file)
 
   raw_signals = np.array(data['signals'], dtype=np.float32)
-  raw_spikes = np.array(data['spikes'], dtype=np.float32)
+  raw_spikes = np.array(data['oasis'], dtype=np.float32)
 
   # remove first two rows in signals
   raw_signals = raw_signals[2:]
