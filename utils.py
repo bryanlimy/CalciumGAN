@@ -123,7 +123,7 @@ def oasis_deconvolve(signals):
 
   spikes = []
   for i in range(len(signals)):
-    c, s, b, g, lam = deconvolve(signals[i], g=(None, None), penalty=1)
+    c, s, b, g, lam = deconvolve(signals[i], g=(None,), penalty=1)
     spikes.append(s / s.max())
 
   return np.array(spikes, dtype=np.float32)
@@ -205,20 +205,15 @@ class Summary(object):
 
   def plot_traces(self, tag, signals, spikes=None, step=None, training=True):
     images = []
-
     if tf.is_tensor(signals):
       signals = signals.numpy()
-
     if spikes is None:
       spikes = oasis_deconvolve(signals)
-
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
-
     for i in range(signals.shape[0]):
       image = self._plot_trace(signals[i], spikes[i])
       images.append(image)
-
     images = tf.stack(images)
     self.image(tag, values=images, step=step, training=training)
 
