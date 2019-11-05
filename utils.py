@@ -115,7 +115,7 @@ def store_hparams(hparams):
     json.dump(hparams.__dict__, file)
 
 
-def oasis_deconvolve(signals):
+def oasis_deconvolve(signals, to_tensor=False):
   if tf.is_tensor(signals):
     signals = signals.numpy()
 
@@ -124,9 +124,12 @@ def oasis_deconvolve(signals):
   spikes = []
   for i in range(len(signals)):
     c, s, b, g, lam = deconvolve(signals[i], g=(None,), penalty=1)
-    spikes.append(s / s.max())
+    spikes.append(s / s.max() if s.max() > 0 else s)
 
-  return np.array(spikes, dtype=np.float32)
+  if to_tensor:
+    return tf.convert_to_tensor(spikes, dtype=tf.float32)
+  else:
+    return np.array(spikes, dtype=np.float32)
 
 
 class Summary(object):
@@ -167,8 +170,6 @@ class Summary(object):
     axis.get_yaxis().tick_left()
 
   def _plot_trace(self, signal, spike):
-    figure = plt.figure()
-    # plot calcium signal
     plt.figure(figsize=(20, 4))
     plt.subplot(211)
     plt.plot(signal, label='signal', zorder=-12, c='r')
