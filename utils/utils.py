@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 from math import ceil
 import tensorflow as tf
+from .oasis_helper import deconvolve_signals
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -193,7 +194,7 @@ class Summary(object):
     if tf.is_tensor(signals):
       signals = signals.numpy()
     if spikes is None:
-      spikes = deconvolve_signals(signals)
+      spikes = deconvolve_signals(signals, multiprocessing=False)
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
     for i in range(signals.shape[0]):

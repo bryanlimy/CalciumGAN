@@ -8,7 +8,7 @@ np.random.seed(1234)
 tf.random.set_seed(1234)
 
 from utils.utils import get_dataset, store_hparams, Summary
-from utils.oasis import deconvolve_signals
+from utils.oasis_helper import deconvolve_signals
 from models import get_generator, get_discriminator
 from metrics import get_mean_spike
 
