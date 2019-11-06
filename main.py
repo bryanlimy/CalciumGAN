@@ -168,6 +168,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary):
       'mean_spike_error',
       hparams.mean_spike_count - fake_mean_spikes,
       training=False)
+
   # set1 = tf.concat(set1, axis=0)
   # set2 = tf.concat(set2, axis=0)
   # mse = derivative_mse(set1, set2)
