@@ -5,7 +5,6 @@ import pickle
 import numpy as np
 from math import ceil
 import tensorflow as tf
-from oasis.functions import deconvolve
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -114,23 +113,6 @@ def derivative_mse(set1, set2):
 def store_hparams(hparams):
   with open(os.path.join(hparams.output_dir, 'hparams.json'), 'w') as file:
     json.dump(hparams.__dict__, file)
-
-
-def deconvolve_signals(signals, to_tensor=False):
-  if tf.is_tensor(signals):
-    signals = signals.numpy()
-
-  signals = signals.astype('double')
-
-  spikes = []
-  for i in range(len(signals)):
-    c, s, b, g, lam = deconvolve(signals[i], g=(None,), penalty=1)
-    spikes.append(s / s.max() if s.max() > 0 else s)
-
-  if to_tensor:
-    return tf.convert_to_tensor(spikes, dtype=tf.float32)
-  else:
-    return np.array(spikes, dtype=np.float32)
 
 
 class Summary(object):

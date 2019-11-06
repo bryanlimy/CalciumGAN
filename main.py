@@ -7,8 +7,8 @@ import tensorflow as tf
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-from utils import get_dataset, derivative_mse, store_hparams, \
-  deconvolve_signals, Summary
+from utils.utils import get_dataset, store_hparams, Summary
+from utils.oasis import deconvolve_signals
 from models import get_generator, get_discriminator
 from metrics import get_mean_spike
 
@@ -137,8 +137,10 @@ def validation_step(inputs, generator, discriminator, noise_dim,
   return generated, gen_loss, dis_loss, penalty, kl_divergence
 
 
-def validate(hparams, validation_ds, generator, discriminator, summary):
+def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   gen_losses, dis_losses, penalties, kl_divergences = [], [], [], []
+
+  start = time()
 
   fake_signals = []
   for signal, spike in validation_ds:
@@ -155,10 +157,13 @@ def validate(hparams, validation_ds, generator, discriminator, summary):
     kl_divergences.append(kl_divergence)
     fake_signals.extend(generated)
 
-  fake_spikes = deconvolve_signals(tf.convert_to_tensor(fake_signals))
+  fake_spikes = deconvolve_signals(
+      tf.convert_to_tensor(fake_signals), multiprocessing=True)
   fake_mean_spikes = get_mean_spike(fake_spikes)
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
+
+  end = time()
 
   summary.scalar('generator_loss', gen_losses, training=False)
   summary.scalar('discriminator_loss', dis_losses, training=False)
@@ -168,6 +173,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary):
       'mean_spike_error',
       hparams.mean_spike_count - fake_mean_spikes,
       training=False)
+  summary.scalar('elapse (s)', end - start, step=epoch, training=False)
 
   # set1 = tf.concat(set1, axis=0)
   # set2 = tf.concat(set2, axis=0)
@@ -194,8 +200,13 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
         summary=summary,
         epoch=epoch)
 
-    val_gen_loss, val_dis_loss = validate(hparams, validation_ds, generator,
-                                          discriminator, summary)
+    val_gen_loss, val_dis_loss = validate(
+        hparams,
+        validation_ds,
+        generator=generator,
+        discriminator=discriminator,
+        summary=summary,
+        epoch=epoch)
 
     test_generation = generator(test_noise, training=False)
     if hparams.input == 'fashion_mnist':
