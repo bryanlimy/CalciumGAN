@@ -50,6 +50,7 @@ def get_dataset_info(hparams):
   hparams.eval_shards = info['eval_shards']
   hparams.buffer_size = info['num_per_shard']
   hparams.normalize = info['normalize']
+  hparams.mean_spike_count = float(info['mean_spike_count'])
 
 
 def get_calcium_signals(hparams, summary):
@@ -115,7 +116,7 @@ def store_hparams(hparams):
     json.dump(hparams.__dict__, file)
 
 
-def oasis_deconvolve(signals, to_tensor=False):
+def deconvolve_signals(signals, to_tensor=False):
   if tf.is_tensor(signals):
     signals = signals.numpy()
 
@@ -210,7 +211,7 @@ class Summary(object):
     if tf.is_tensor(signals):
       signals = signals.numpy()
     if spikes is None:
-      spikes = oasis_deconvolve(signals)
+      spikes = deconvolve_signals(signals)
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
     for i in range(signals.shape[0]):

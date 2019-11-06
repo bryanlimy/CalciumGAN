@@ -127,6 +127,11 @@ def write_to_records(hparams, mode, signals, spikes):
     process.join()
 
 
+def get_mean_spike(spikes):
+  binarized = (spikes > np.random.random(spikes.shape)).astype(np.float32)
+  return np.mean(binarized)
+
+
 def main(hparams):
   if not os.path.exists(hparams.input_dir):
     print('input directory {} does not exists'.format(hparams.input_dir))
@@ -155,6 +160,8 @@ def main(hparams):
   hparams.signal_shape = signals.shape[1:]
   hparams.spike_shape = spikes.shape[1:]
 
+  hparams.mean_spike_count = get_mean_spike(spikes[train_size:])
+
   write_to_records(
       hparams,
       mode='train',
@@ -177,7 +184,8 @@ def main(hparams):
         'train_shards': hparams.train_shards,
         'eval_shards': hparams.eval_shards,
         'num_per_shard': hparams.num_per_shard,
-        'normalize': hparams.normalize
+        'normalize': hparams.normalize,
+        'mean_spike_count': hparams.mean_spike_count
     }, file)
 
   print('saved {} tfrecords to {}'.format(

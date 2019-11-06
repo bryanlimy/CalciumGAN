@@ -8,7 +8,7 @@ np.random.seed(1234)
 tf.random.set_seed(1234)
 
 from utils import get_dataset, derivative_mse, store_hparams, \
-  oasis_deconvolve, Summary
+  deconvolve_signals, Summary
 from models import get_generator, get_discriminator
 from metrics import get_mean_spike
 
@@ -140,7 +140,7 @@ def validation_step(inputs, generator, discriminator, noise_dim,
 def validate(hparams, validation_ds, generator, discriminator, summary):
   gen_losses, dis_losses, penalties, kl_divergences = [], [], [], []
 
-  real_mean_spikes, fake_mean_spikes = [], []
+  fake_signals = []
   for signal, spike in validation_ds:
     generated, gen_loss, dis_loss, penalty, kl_divergence = validation_step(
         signal,
@@ -153,9 +153,10 @@ def validate(hparams, validation_ds, generator, discriminator, summary):
     dis_losses.append(dis_loss)
     penalties.append(penalty)
     kl_divergences.append(kl_divergence)
-    real_mean_spikes.append(get_mean_spike(spike))
-    fake_mean_spikes.append(
-        get_mean_spike(oasis_deconvolve(generated, to_tensor=True)))
+    fake_signals.extend(generated)
+
+  fake_spikes = deconvolve_signals(tf.convert_to_tensor(fake_signals))
+  fake_mean_spikes = get_mean_spike(fake_spikes)
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
@@ -165,7 +166,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary):
   summary.scalar('kl_divergence', np.mean(kl_divergences), training=False)
   summary.scalar(
       'mean_spike_error',
-      tf.reduce_mean(real_mean_spikes) - tf.reduce_mean(fake_mean_spikes),
+      hparams.mean_spike_count - fake_mean_spikes,
       training=False)
   # set1 = tf.concat(set1, axis=0)
   # set2 = tf.concat(set2, axis=0)
@@ -182,15 +183,15 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
 
   for epoch in range(hparams.epochs):
 
-    train_gen_loss, train_dis_loss, elapse = train(
-        hparams,
-        train_ds,
-        generator=generator,
-        discriminator=discriminator,
-        gen_optimizer=gen_optimizer,
-        dis_optimizer=dis_optimizer,
-        summary=summary,
-        epoch=epoch)
+    # train_gen_loss, train_dis_loss, elapse = train(
+    #     hparams,
+    #     train_ds,
+    #     generator=generator,
+    #     discriminator=discriminator,
+    #     gen_optimizer=gen_optimizer,
+    #     dis_optimizer=dis_optimizer,
+    #     summary=summary,
+    #     epoch=epoch)
 
     val_gen_loss, val_dis_loss = validate(hparams, validation_ds, generator,
                                           discriminator, summary)
