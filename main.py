@@ -183,15 +183,15 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
 
   for epoch in range(hparams.epochs):
 
-    # train_gen_loss, train_dis_loss, elapse = train(
-    #     hparams,
-    #     train_ds,
-    #     generator=generator,
-    #     discriminator=discriminator,
-    #     gen_optimizer=gen_optimizer,
-    #     dis_optimizer=dis_optimizer,
-    #     summary=summary,
-    #     epoch=epoch)
+    train_gen_loss, train_dis_loss, elapse = train(
+        hparams,
+        train_ds,
+        generator=generator,
+        discriminator=discriminator,
+        gen_optimizer=gen_optimizer,
+        dis_optimizer=dis_optimizer,
+        summary=summary,
+        epoch=epoch)
 
     val_gen_loss, val_dis_loss = validate(hparams, validation_ds, generator,
                                           discriminator, summary)
