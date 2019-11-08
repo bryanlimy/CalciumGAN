@@ -27,7 +27,7 @@ def deconvolve_signals(signals, to_tensor=False, multiprocessing=True):
   signals = signals.astype('double')
 
   if multiprocessing:
-    num_jobs = min(len(signals), cpu_count() - 2)
+    num_jobs = min(len(signals), cpu_count() - 6)
     subsets = split(signals, n=num_jobs)
     pool = Pool(processes=num_jobs)
     spikes = pool.map(_deconvolve_signals, subsets)
