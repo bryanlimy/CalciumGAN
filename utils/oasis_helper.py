@@ -89,7 +89,7 @@ def deconvolve_signals(hparams, signals, to_tensor=False, multiprocessing=True):
   else:
     spikes = np.array(_deconvolve_signals(signals))
 
-  assert spikes.shape == signals.shape, \
-    'spikes shape {}, signals shape {}'.format(spikes.shape, signals.shape)
+  assert spikes.shape == signals.shape, 'AssertionError: spikes shape {}, signals shape {}'.format(
+      spikes.shape, signals.shape)
 
   return tf.convert_to_tensor(spikes, dtype=tf.float32) if to_tensor else spikes
