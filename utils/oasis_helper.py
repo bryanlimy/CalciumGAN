@@ -14,15 +14,17 @@ def split(sequence, n):
   ]
 
 
-def _deconvolve_signals(signals, queue):
+def _deconvolve_signals(signals, queue=None):
   spikes = []
   for i in range(len(signals)):
     c, s, b, g, lam = deconvolve(signals[i], g=(None,), penalty=1)
     spikes.append(s / s.max() if s.max() > 0 else s)
-    if len(spikes) >= 500:
+    if queue is not None and len(spikes) >= 500:
       queue.put(np.array(spikes, dtype=np.float32))
       spikes = []
-  if len(spikes) > 0:
+  if queue is None:
+    return spikes
+  elif len(spikes) > 0:
     queue.put(np.array(spikes, dtype=np.float32))
 
 
