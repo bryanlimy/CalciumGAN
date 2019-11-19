@@ -158,7 +158,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
     fake_signals.extend(generated)
 
   fake_spikes = deconvolve_signals(
-      tf.convert_to_tensor(fake_signals), multiprocessing=True)
+      hparams, tf.convert_to_tensor(fake_signals), multiprocessing=True)
   fake_mean_spikes = get_mean_spike(fake_spikes)
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
