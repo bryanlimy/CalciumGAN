@@ -1,5 +1,4 @@
 import os
-import gc
 import h5py
 import numpy as np
 import tensorflow as tf
@@ -85,9 +84,6 @@ def deconvolve_signals(hparams, signals, to_tensor=False, multiprocessing=True):
 
     with h5py.File(cache, 'r') as h5:
       spikes = np.array(h5['spikes'][:], dtype=np.float32)
-
-    print('garbage collection')
-    gc.collect()
 
     os.remove(cache)
   else:

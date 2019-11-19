@@ -155,10 +155,10 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
     dis_losses.append(dis_loss)
     penalties.append(penalty)
     kl_divergences.append(kl_divergence)
-    fake_signals.extend(generated)
+    fake_signals.extend(generated.numpy())
 
   fake_spikes = deconvolve_signals(
-      hparams, tf.convert_to_tensor(fake_signals), multiprocessing=True)
+      hparams, np.array(fake_signals), multiprocessing=True)
   fake_mean_spikes = get_mean_spike(fake_spikes)
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
