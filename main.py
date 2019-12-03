@@ -157,10 +157,6 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
     kl_divergences.append(kl_divergence)
     fake_signals.extend(generated.numpy())
 
-  fake_spikes = deconvolve_signals(
-      hparams, np.array(fake_signals), multiprocessing=True)
-  fake_mean_spikes = get_mean_spike(fake_spikes)
-
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
   end = time()
@@ -169,11 +165,14 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   summary.scalar('discriminator_loss', dis_losses, training=False)
   summary.scalar('gradient_penalty', np.mean(penalties), training=False)
   summary.scalar('kl_divergence', np.mean(kl_divergences), training=False)
-  summary.scalar(
-      'mean_spike_error',
-      hparams.mean_spike_count - fake_mean_spikes,
-      training=False)
   summary.scalar('elapse (s)', end - start, step=epoch, training=False)
+
+  # compute spike trains and corresponding metrics
+  fake_spikes = deconvolve_signals(
+      hparams, np.array(fake_signals), multiprocessing=True)
+  fake_mean_spikes = get_mean_spike(fake_spikes)
+  mean_spike_error = hparams.mean_spike_count - fake_mean_spikes
+  summary.scalar('mean_spike_error', mean_spike_error, training=False)
 
   # set1 = tf.concat(set1, axis=0)
   # set2 = tf.concat(set2, axis=0)
