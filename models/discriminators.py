@@ -5,10 +5,23 @@ import tensorflow as tf
 
 
 @register
-def conv1d(hparams):
-  signal = tf.keras.Input(hparams.signal_shape, name='signal')
+def mlp(hparams):
+  signals = tf.keras.Input(shape=hparams.signal_shape, name='signals')
 
-  outputs = tf.keras.layers.Reshape((signal.shape[-1] // 4, 4))(signal)
+  outputs = tf.keras.layers.Dense(512, activation='tanh')(signals)
+  outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
+  outputs = tf.keras.layers.Dense(256, activation='tanh')(outputs)
+  outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
+  outputs = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)
+
+  return tf.keras.Model(inputs=signals, outputs=outputs, name='discriminator')
+
+
+@register
+def conv1d(hparams):
+  signals = tf.keras.Input(hparams.signal_shape, name='signals')
+
+  outputs = tf.keras.layers.Reshape((signals.shape[-1] // 4, 4))(signals)
 
   outputs = tf.keras.layers.Conv1D(
       filters=128, kernel_size=3, strides=2, padding='causal')(outputs)
@@ -19,4 +32,4 @@ def conv1d(hparams):
   outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)
 
-  return tf.keras.Model(inputs=signal, outputs=outputs, name='discriminator')
+  return tf.keras.Model(inputs=signals, outputs=outputs, name='discriminator')
