@@ -9,7 +9,7 @@ tf.random.set_seed(1234)
 
 from utils.utils import get_dataset, store_hparams, Summary
 from utils.oasis_helper import deconvolve_signals
-from models import get_generator, get_discriminator
+from models.registry import get_model
 from metrics import get_mean_spike
 
 
@@ -232,8 +232,7 @@ def main(hparams):
   gen_optimizer = tf.keras.optimizers.Adam(hparams.lr)
   dis_optimizer = tf.keras.optimizers.Adam(hparams.lr)
 
-  generator = get_generator(hparams)
-  discriminator = get_discriminator(hparams)
+  generator, discriminator = get_model(hparams)
 
   generator.summary()
   discriminator.summary()
@@ -264,5 +263,7 @@ if __name__ == '__main__':
   parser.add_argument('--summary_freq', default=200, type=int)
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
   parser.add_argument('--verbose', default=1, type=int)
+  parser.add_argument('--generator', default='conv1d', type=str)
+  parser.add_argument('--discriminator', default='conv1d', type=str)
   hparams = parser.parse_args()
   main(hparams)
