@@ -1,14 +1,8 @@
 import os
-import io
-import json
 import pickle
 import numpy as np
 from math import ceil
 import tensorflow as tf
-
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
 
 
 def get_fashion_mnist(hparams, summary):
@@ -49,6 +43,7 @@ def get_dataset_info(hparams):
   hparams.eval_shards = info['eval_shards']
   hparams.buffer_size = info['num_per_shard']
   hparams.normalize = info['normalize']
+  hparams.mean_spike_count = float(info['mean_spike_count'])
 
 
 def get_calcium_signals(hparams, summary):
@@ -100,91 +95,3 @@ def get_dataset(hparams, summary):
   hparams.steps_per_epoch = ceil(hparams.train_size / hparams.batch_size)
 
   return train_ds, eval_ds
-
-
-def derivative_mse(set1, set2):
-  diff1 = np.diff(set1, n=1, axis=-1)
-  diff2 = np.diff(set2, n=1, axis=-1)
-  mse = np.mean(np.square(diff1 - diff2))
-  return mse
-
-
-def store_hparams(hparams):
-  with open(os.path.join(hparams.output_dir, 'hparams.json'), 'w') as file:
-    json.dump(hparams.__dict__, file)
-
-
-class Summary(object):
-  """ 
-  Log tf.Summary to output_dir during training and output_dir/eval during 
-  evaluation
-  """
-
-  def __init__(self, hparams):
-    self._hparams = hparams
-    self.train_writer = tf.summary.create_file_writer(hparams.output_dir)
-    self.val_writer = tf.summary.create_file_writer(
-        os.path.join(hparams.output_dir, 'validation'))
-    tf.summary.trace_on(graph=True, profiler=False)
-
-  def _get_writer(self, training):
-    return self.train_writer if training else self.val_writer
-
-  def _get_step(self):
-    return self._hparams.global_step
-
-  def _plot_to_image(self, figure):
-    """
-    Converts the matplotlib plot specified by 'figure' to a PNG image and
-    returns it. The supplied figure is closed and inaccessible after this call.
-    """
-    buf = io.BytesIO()
-    plt.savefig(buf, dpi=100, format='png')
-    plt.close(figure)
-    buf.seek(0)
-    image = tf.image.decode_png(buf.getvalue(), channels=4)
-    return image
-
-  def scalar(self, tag, value, step=None, training=True):
-    writer = self._get_writer(training)
-    step = self._get_step() if step is None else step
-    with writer.as_default():
-      tf.summary.scalar(tag, value, step=step)
-
-  def histogram(self, tag, values, step=None, training=True):
-    writer = self._get_writer(training)
-    step = self._get_step() if step is None else step
-    with writer.as_default():
-      tf.summary.histogram(tag, values, step=step)
-
-  def image(self, tag, values, step=None, training=True):
-    writer = self._get_writer(training)
-    step = self._get_step() if step is None else step
-    with writer.as_default():
-      tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
-
-  def plot(self, tag, signals, spikes=None, step=None, training=True):
-    images = []
-    signals = signals.numpy()
-    if spikes is not None:
-      spikes = spikes.numpy()
-
-    for i in range(signals.shape[0]):
-      figure = plt.figure()
-      plt.xlabel('Time (ms)')
-      plt.subplot(211)
-      plt.plot(signals[i])
-      if spikes is not None and np.count_nonzero(spikes[i]) > 0:
-        spike = np.argwhere(spikes[i] >= 1)
-        spike = np.reshape(spike, newshape=(np.prod(spike.shape,)))
-        plt.subplot(212)
-        plt.eventplot(spike, orientation='horizontal', colors='b')
-      image = self._plot_to_image(figure)
-      images.append(image)
-    images = tf.stack(images)
-    self.image(tag, values=images, step=step, training=training)
-
-  def graph(self):
-    writer = self._get_writer(training=True)
-    with writer.as_default():
-      tf.summary.trace_export(name='models', step=0)

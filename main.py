@@ -1,14 +1,19 @@
+import os
 import argparse
 import numpy as np
 from time import time
 from tqdm import tqdm
 import tensorflow as tf
+from shutil import rmtree
 
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-from utils import get_dataset, derivative_mse, store_hparams, Summary
-from models import get_generator, get_discriminator
+from models.registry import get_model
+from utils.summary_helper import Summary
+from utils.dataset_helper import get_dataset
+from utils.utils import store_hparams, save_signals, deconvolve_saved_signals, \
+  get_mean_spike_error, get_mean_van_rossum_distance
 
 
 def gradient_penalty(inputs, generated, discriminator, training=True):
@@ -47,7 +52,7 @@ def compute_loss(inputs,
   kl_divergence = tf.reduce_mean(
       tf.keras.losses.KLD(y_true=inputs, y_pred=generated))
 
-  return gen_loss, dis_loss, penalty, kl_divergence
+  return generated, gen_loss, dis_loss, penalty, kl_divergence
 
 
 @tf.function
@@ -60,7 +65,7 @@ def train_step(inputs,
                penalty_weight=10.0):
 
   with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
-    gen_loss, dis_loss, penalty, _ = compute_loss(
+    _, gen_loss, dis_loss, penalty, _ = compute_loss(
         inputs,
         generator=generator,
         discriminator=discriminator,
@@ -92,7 +97,8 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
       total=hparams.steps_per_epoch):
 
     if not plot:
-      summary.plot('real', signals=signal[:5], spikes=spike[:5], training=True)
+      summary.plot_traces(
+          'real', signals=signal[:5], spikes=spike[:5], training=True)
       plot = True
 
     gen_loss, dis_loss, penalty = train_step(
@@ -123,7 +129,7 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
 def validation_step(inputs, generator, discriminator, noise_dim,
                     penalty_weight):
 
-  gen_loss, dis_loss, penalty, kl_divergence = compute_loss(
+  generated, gen_loss, dis_loss, penalty, kl_divergence = compute_loss(
       inputs,
       generator,
       discriminator,
@@ -131,14 +137,16 @@ def validation_step(inputs, generator, discriminator, noise_dim,
       penalty_weight=penalty_weight,
       training=False)
 
-  return gen_loss, dis_loss, penalty, kl_divergence
+  return generated, gen_loss, dis_loss, penalty, kl_divergence
 
 
-def validate(hparams, validation_ds, generator, discriminator, summary):
+def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   gen_losses, dis_losses, penalties, kl_divergences = [], [], [], []
 
+  start = time()
+
   for signal, spike in validation_ds:
-    gen_loss, dis_loss, penalty, kl_divergence = validation_step(
+    generated, gen_loss, dis_loss, penalty, kl_divergence = validation_step(
         signal,
         generator,
         discriminator,
@@ -150,16 +158,24 @@ def validate(hparams, validation_ds, generator, discriminator, summary):
     penalties.append(penalty)
     kl_divergences.append(kl_divergence)
 
+    save_signals(hparams, epoch, signal.numpy(), spike.numpy(),
+                 generated.numpy())
+
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
+
+  deconvolve_saved_signals(hparams, epoch)
+  mean_spike_error = get_mean_spike_error(hparams, epoch)
+  mean_van_rossum_distance = get_mean_van_rossum_distance(hparams, epoch)
+
+  end = time()
 
   summary.scalar('generator_loss', gen_losses, training=False)
   summary.scalar('discriminator_loss', dis_losses, training=False)
   summary.scalar('gradient_penalty', np.mean(penalties), training=False)
   summary.scalar('kl_divergence', np.mean(kl_divergences), training=False)
-
-  # set1 = tf.concat(set1, axis=0)
-  # set2 = tf.concat(set2, axis=0)
-  # mse = derivative_mse(set1, set2)
+  summary.scalar('elapse (s)', end - start, step=epoch, training=False)
+  summary.scalar('mean_spike_error', mean_spike_error, training=False)
+  summary.scalar('mean_van_rossum', mean_van_rossum_distance, training=False)
 
   return gen_losses, dis_losses
 
@@ -182,14 +198,19 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
         summary=summary,
         epoch=epoch)
 
-    val_gen_loss, val_dis_loss = validate(hparams, validation_ds, generator,
-                                          discriminator, summary)
+    val_gen_loss, val_dis_loss = validate(
+        hparams,
+        validation_ds,
+        generator=generator,
+        discriminator=discriminator,
+        summary=summary,
+        epoch=epoch)
 
     test_generation = generator(test_noise, training=False)
     if hparams.input == 'fashion_mnist':
       summary.image('fake', signals=test_generation, training=False)
     else:
-      summary.plot('fake', signals=test_generation, training=False)
+      summary.plot_traces('fake', signals=test_generation, training=False)
 
     print('Train generator loss {:.4f} Train discriminator loss {:.4f} '
           'Time {:.2f}s\nEval generator loss {:.4f} '
@@ -201,6 +222,9 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
 
 
 def main(hparams):
+  if hparams.clear_output_dir and os.path.exists(hparams.output_dir):
+    rmtree(hparams.output_dir)
+
   hparams.global_step = 0
 
   summary = Summary(hparams)
@@ -210,8 +234,7 @@ def main(hparams):
   gen_optimizer = tf.keras.optimizers.Adam(hparams.lr)
   dis_optimizer = tf.keras.optimizers.Adam(hparams.lr)
 
-  generator = get_generator(hparams)
-  discriminator = get_discriminator(hparams)
+  generator, discriminator = get_model(hparams)
 
   generator.summary()
   discriminator.summary()
@@ -242,5 +265,8 @@ if __name__ == '__main__':
   parser.add_argument('--summary_freq', default=200, type=int)
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
   parser.add_argument('--verbose', default=1, type=int)
+  parser.add_argument('--generator', default='conv1d', type=str)
+  parser.add_argument('--discriminator', default='conv1d', type=str)
+  parser.add_argument('--clear_output_dir', action='store_true')
   hparams = parser.parse_args()
   main(hparams)
