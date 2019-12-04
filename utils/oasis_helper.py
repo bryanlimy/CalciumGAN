@@ -1,9 +1,16 @@
 import numpy as np
 import tensorflow as tf
 
-from .utils import split
 from oasis.functions import deconvolve
 from multiprocessing import Pool, cpu_count
+
+
+def split(sequence, n):
+  """ divide sequence into n sub-sequence evenly"""
+  k, m = divmod(len(sequence), n)
+  return [
+      sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
+  ]
 
 
 def _deconvolve_signals(signals):
