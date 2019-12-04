@@ -1,16 +1,19 @@
+import os
 import argparse
 import numpy as np
 from time import time
 from tqdm import tqdm
 import tensorflow as tf
+from shutil import rmtree
 
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-from utils.utils import get_dataset, store_hparams, Summary
+from utils.utils import get_dataset, store_hparams, save_signals, deconvolve_saved_signals
+from utils.summary_helper import Summary
 from utils.oasis_helper import deconvolve_signals
+from utils.metrics import mean_spike_count, van_rossum_distance
 from models.registry import get_model
-from metrics import get_mean_spike
 
 
 def gradient_penalty(inputs, generated, discriminator, training=True):
@@ -142,7 +145,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
 
   start = time()
 
-  fake_signals = []
+  i = 0
   for signal, spike in validation_ds:
     generated, gen_loss, dis_loss, penalty, kl_divergence = validation_step(
         signal,
@@ -155,9 +158,18 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
     dis_losses.append(dis_loss)
     penalties.append(penalty)
     kl_divergences.append(kl_divergence)
-    fake_signals.extend(generated.numpy())
+
+    save_signals(hparams, epoch, signal.numpy(), spike.numpy(),
+                 generated.numpy())
+
+    i += 1
+    if i >= 50:
+      break
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
+
+  fake_spikes = deconvolve_saved_signals(hparams, epoch)
+  mean_spike_error = hparams.mean_spike_count - mean_spike_count(fake_spikes)
 
   end = time()
 
@@ -166,11 +178,6 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   summary.scalar('gradient_penalty', np.mean(penalties), training=False)
   summary.scalar('kl_divergence', np.mean(kl_divergences), training=False)
   summary.scalar('elapse (s)', end - start, step=epoch, training=False)
-
-  # compute spike trains and corresponding metrics
-  fake_spikes = deconvolve_signals(np.array(fake_signals), multiprocessing=True)
-  fake_mean_spikes = get_mean_spike(fake_spikes)
-  mean_spike_error = hparams.mean_spike_count - fake_mean_spikes
   summary.scalar('mean_spike_error', mean_spike_error, training=False)
 
   # set1 = tf.concat(set1, axis=0)
@@ -188,15 +195,15 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
 
   for epoch in range(hparams.epochs):
 
-    train_gen_loss, train_dis_loss, elapse = train(
-        hparams,
-        train_ds,
-        generator=generator,
-        discriminator=discriminator,
-        gen_optimizer=gen_optimizer,
-        dis_optimizer=dis_optimizer,
-        summary=summary,
-        epoch=epoch)
+    # train_gen_loss, train_dis_loss, elapse = train(
+    #     hparams,
+    #     train_ds,
+    #     generator=generator,
+    #     discriminator=discriminator,
+    #     gen_optimizer=gen_optimizer,
+    #     dis_optimizer=dis_optimizer,
+    #     summary=summary,
+    #     epoch=epoch)
 
     val_gen_loss, val_dis_loss = validate(
         hparams,
@@ -222,6 +229,9 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
 
 
 def main(hparams):
+  if hparams.clear_output_dir and os.path.exists(hparams.output_dir):
+    rmtree(hparams.output_dir)
+
   hparams.global_step = 0
 
   summary = Summary(hparams)
@@ -264,5 +274,6 @@ if __name__ == '__main__':
   parser.add_argument('--verbose', default=1, type=int)
   parser.add_argument('--generator', default='conv1d', type=str)
   parser.add_argument('--discriminator', default='conv1d', type=str)
+  parser.add_argument('--clear_output_dir', action='store_true')
   hparams = parser.parse_args()
   main(hparams)
