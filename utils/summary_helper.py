@@ -1,5 +1,6 @@
 import os
 import io
+import numpy as np
 import tensorflow as tf
 from .oasis_helper import deconvolve_signals
 

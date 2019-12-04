@@ -1,12 +1,18 @@
-import h5py
 import numpy as np
 import tensorflow as tf
 
 
 def mean_spike_count(spikes):
-  binarized = tf.cast(
-      spikes > tf.random.uniform(spikes.shape), dtype=tf.float32)
-  return tf.reduce_mean(binarized)
+  binarized = (spikes > np.random.random(spikes.shape)).astype(np.float32)
+  spike_count = np.sum(binarized, axis=-1)
+  return np.mean(spike_count)
+
+
+def derivative_mse(set1, set2):
+  diff1 = np.diff(set1, n=1, axis=-1)
+  diff2 = np.diff(set2, n=1, axis=-1)
+  mse = np.mean(np.square(diff1 - diff2))
+  return mse
 
 
 class ExponentialDecay():

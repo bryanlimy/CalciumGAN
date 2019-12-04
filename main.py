@@ -9,11 +9,11 @@ from shutil import rmtree
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-from utils.utils import get_dataset, store_hparams, save_signals, deconvolve_saved_signals
-from utils.summary_helper import Summary
-from utils.oasis_helper import deconvolve_signals
-from utils.metrics import mean_spike_count, van_rossum_distance
 from models.registry import get_model
+from utils.summary_helper import Summary
+from utils.dataset_helper import get_dataset
+from utils.utils import store_hparams, save_signals, deconvolve_saved_signals, \
+  get_mean_spike_error, get_mean_van_rossum_distance
 
 
 def gradient_penalty(inputs, generated, discriminator, training=True):
@@ -145,7 +145,6 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
 
   start = time()
 
-  i = 0
   for signal, spike in validation_ds:
     generated, gen_loss, dis_loss, penalty, kl_divergence = validation_step(
         signal,
@@ -162,14 +161,11 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
     save_signals(hparams, epoch, signal.numpy(), spike.numpy(),
                  generated.numpy())
 
-    i += 1
-    if i >= 50:
-      break
-
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
-  fake_spikes = deconvolve_saved_signals(hparams, epoch)
-  mean_spike_error = hparams.mean_spike_count - mean_spike_count(fake_spikes)
+  deconvolve_saved_signals(hparams, epoch)
+  mean_spike_error = get_mean_spike_error(hparams, epoch)
+  mean_van_rossum_distance = get_mean_van_rossum_distance(hparams, epoch)
 
   end = time()
 
@@ -179,10 +175,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   summary.scalar('kl_divergence', np.mean(kl_divergences), training=False)
   summary.scalar('elapse (s)', end - start, step=epoch, training=False)
   summary.scalar('mean_spike_error', mean_spike_error, training=False)
-
-  # set1 = tf.concat(set1, axis=0)
-  # set2 = tf.concat(set2, axis=0)
-  # mse = derivative_mse(set1, set2)
+  summary.scalar('mean_van_rossum', mean_van_rossum_distance, training=False)
 
   return gen_losses, dis_losses
 
@@ -195,15 +188,15 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
 
   for epoch in range(hparams.epochs):
 
-    # train_gen_loss, train_dis_loss, elapse = train(
-    #     hparams,
-    #     train_ds,
-    #     generator=generator,
-    #     discriminator=discriminator,
-    #     gen_optimizer=gen_optimizer,
-    #     dis_optimizer=dis_optimizer,
-    #     summary=summary,
-    #     epoch=epoch)
+    train_gen_loss, train_dis_loss, elapse = train(
+        hparams,
+        train_ds,
+        generator=generator,
+        discriminator=discriminator,
+        gen_optimizer=gen_optimizer,
+        dis_optimizer=dis_optimizer,
+        summary=summary,
+        epoch=epoch)
 
     val_gen_loss, val_dis_loss = validate(
         hparams,
