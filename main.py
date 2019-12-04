@@ -168,8 +168,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   summary.scalar('elapse (s)', end - start, step=epoch, training=False)
 
   # compute spike trains and corresponding metrics
-  fake_spikes = deconvolve_signals(
-      hparams, np.array(fake_signals), multiprocessing=True)
+  fake_spikes = deconvolve_signals(np.array(fake_signals), multiprocessing=True)
   fake_mean_spikes = get_mean_spike(fake_spikes)
   mean_spike_error = hparams.mean_spike_count - fake_mean_spikes
   summary.scalar('mean_spike_error', mean_spike_error, training=False)

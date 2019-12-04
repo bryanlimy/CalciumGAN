@@ -194,7 +194,7 @@ class Summary(object):
     if tf.is_tensor(signals):
       signals = signals.numpy()
     if spikes is None:
-      spikes = deconvolve_signals(self._hparams, signals, multiprocessing=False)
+      spikes = deconvolve_signals(signals, multiprocessing=False)
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
     for i in range(signals.shape[0]):
