@@ -90,9 +90,9 @@ def write_to_records(hparams, mode, signals, spikes):
       len(signals), num_shards, mode))
 
   if mode == 'train':
-    hparams.train_shards = num_shards
+    hparams.num_train_shards = num_shards
   else:
-    hparams.eval_shards = num_shards
+    hparams.num_validation_shards = num_shards
 
   sharded_signals = split(signals, num_shards)
   sharded_spikes = split(spikes, num_shards)
@@ -125,7 +125,7 @@ def main(hparams):
   train_size = int(len(signals) * 0.7)
 
   hparams.train_size = train_size
-  hparams.eval_size = len(signals) - train_size
+  hparams.validation_size = len(signals) - train_size
   hparams.signal_shape = signals.shape[1:]
   hparams.spike_shape = spikes.shape[1:]
 
@@ -137,7 +137,7 @@ def main(hparams):
 
   write_to_records(
       hparams,
-      mode='eval',
+      mode='validation',
       signals=signals[train_size:],
       spikes=spikes[train_size:])
 
@@ -145,17 +145,18 @@ def main(hparams):
   with open(os.path.join(hparams.output_dir, 'info.pkl'), 'wb') as file:
     pickle.dump({
         'train_size': hparams.train_size,
-        'eval_size': hparams.eval_size,
+        'validation_size': hparams.validation_size,
         'signal_shape': hparams.signal_shape,
         'spike_shape': hparams.spike_shape,
-        'train_shards': hparams.train_shards,
-        'eval_shards': hparams.eval_shards,
+        'num_train_shards': hparams.num_train_shards,
+        'num_validation_shards': hparams.num_validation_shards,
         'num_per_shard': hparams.num_per_shard,
         'normalize': hparams.normalize
     }, file)
 
   print('saved {} tfrecords to {}'.format(
-      hparams.train_shards + hparams.eval_shards, hparams.output_dir))
+      hparams.num_train_shards + hparams.num_validation_shards,
+      hparams.output_dir))
 
 
 if __name__ == '__main__':
