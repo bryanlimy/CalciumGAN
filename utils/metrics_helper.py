@@ -77,5 +77,5 @@ def van_rossum_distance(spike1, spike2, tc=1000, bin_width=0.0001, t_extra=1):
           f[t_ind] = decay.spike()
           st.pop(0)
 
-  d = np.sqrt((bin_width / tc) * np.linalg.norm((f_0 - f_1), 1))
-  return d
+  distance = np.sqrt((bin_width / tc) * np.linalg.norm((f_0 - f_1), 1))
+  return distance

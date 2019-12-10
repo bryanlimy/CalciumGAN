@@ -3,11 +3,10 @@ import math
 import pickle
 import argparse
 import numpy as np
-from glob import glob
 from tqdm import tqdm
 import tensorflow as tf
+from shutil import rmtree
 from sklearn.preprocessing import normalize
-from multiprocessing import Process, cpu_count
 
 
 def split(sequence, n):
@@ -18,9 +17,10 @@ def split(sequence, n):
   ]
 
 
-def get_segments_from_file(hparams, filename):
-  print('processing file {}...'.format(filename))
-  with open(filename, 'rb') as file:
+def get_segments(hparams):
+  print('processing file {}...'.format(hparams.input))
+
+  with open(hparams.input, 'rb') as file:
     data = pickle.load(file)
 
   raw_signals = np.array(data['signals'], dtype=np.float32)
@@ -32,31 +32,20 @@ def get_segments_from_file(hparams, filename):
 
   assert raw_signals.shape == raw_spikes.shape
 
-  signals, spikes = [], []
-  for i in tqdm(range(raw_signals.shape[-1] - hparams.sequence_length)):
-    signals.append(raw_signals[:, i:i + hparams.sequence_length])
-    spikes.append(raw_spikes[:, i:i + hparams.sequence_length])
+  if hparams.normalize:
+    print('apply {} normalization'.format(hparams.normalize))
+    raw_signals = normalize(raw_signals, norm=hparams.normalize, axis=1)
 
-  signals = np.concatenate(signals, axis=0)
-  spikes = np.concatenate(spikes, axis=0)
+  num_neurons = raw_signals.shape[0]
+  num_samples = raw_signals.shape[1] - hparams.sequence_length
+  signals = np.zeros((num_samples, num_neurons, hparams.sequence_length),
+                     dtype=np.float32)
+  spikes = np.zeros((num_samples, num_neurons, hparams.sequence_length),
+                    dtype=np.float32)
 
-  assert signals.shape == spikes.shape
-
-  return signals, spikes
-
-
-def get_segments(hparams):
-  filenames = glob(os.path.join(hparams.input_dir, '*.pkl'))
-  filenames.sort()
-
-  signals, spikes = [], []
-  for filename in filenames:
-    signal, spike = get_segments_from_file(hparams, filename)
-    signals.append(signal)
-    spikes.append(spike)
-
-  signals = np.concatenate(signals, axis=0)
-  spikes = np.concatenate(spikes, axis=0)
+  for i in tqdm(range(num_samples)):
+    signals[i] = raw_signals[:, i:i + hparams.sequence_length]
+    spikes[i] = raw_spikes[:, i:i + hparams.sequence_length]
 
   assert signals.shape == spikes.shape
 
@@ -81,17 +70,14 @@ def get_record_filename(hparams, mode, shard_id, num_shards):
   return os.path.join(hparams.output_dir, filename)
 
 
-def write_to_record(hparams, mode, shard_ids, num_shards, signals, spikes):
-  for i in range(len(shard_ids)):
-    record_filename = get_record_filename(hparams, mode, shard_ids[i],
-                                          num_shards)
-    print('writing {} segments to {}...'.format(
-        len(signals[i]), record_filename))
+def write_to_record(hparams, mode, shard, num_shards, signals, spikes):
+  record_filename = get_record_filename(hparams, mode, shard, num_shards)
+  print('writing {} segments to {}...'.format(len(signals), record_filename))
 
-    with tf.io.TFRecordWriter(record_filename) as writer:
-      for signal, spike in zip(signals[i], spikes[i]):
-        example = serialize_example(signal, spike)
-        writer.write(example)
+  with tf.io.TFRecordWriter(record_filename) as writer:
+    for signal, spike in zip(signals, spikes):
+      example = serialize_example(signal, spike)
+      writer.write(example)
 
 
 def write_to_records(hparams, mode, signals, spikes):
@@ -108,44 +94,27 @@ def write_to_records(hparams, mode, signals, spikes):
   else:
     hparams.eval_shards = num_shards
 
-  signals, spikes = split(signals, num_shards), split(spikes, num_shards)
+  sharded_signals = split(signals, num_shards)
+  sharded_spikes = split(spikes, num_shards)
 
-  num_jobs = min(len(signals), hparams.num_jobs)
-
-  signals, spikes = split(signals, num_jobs), split(spikes, num_jobs)
-  shard_ids = split(list(range(num_shards)), num_jobs)
-
-  jobs = []
-  for i in range(num_jobs):
-    process = Process(
-        target=write_to_record,
-        args=(hparams, mode, shard_ids[i], num_shards, signals[i], spikes[i]))
-    jobs.append(process)
-    process.start()
-
-  for process in jobs:
-    process.join()
-
-
-def get_mean_spike(spikes):
-  binarized = (spikes > np.random.random(spikes.shape)).astype(np.float32)
-  return np.mean(binarized)
+  for shard in range(num_shards):
+    write_to_record(hparams, mode, shard, num_shards, sharded_signals[shard],
+                    sharded_spikes[shard])
 
 
 def main(hparams):
-  if not os.path.exists(hparams.input_dir):
-    print('input directory {} does not exists'.format(hparams.input_dir))
+  if not os.path.exists(hparams.input):
+    print('input file {} does not exists'.format(hparams.input))
     exit()
 
   if os.path.exists(hparams.output_dir):
-    print('output directory {} already exists\n'.format(hparams.output_dir))
-    exit()
+    if hparams.replace:
+      rmtree(hparams.output_dir)
+    else:
+      print('output directory {} already exists\n'.format(hparams.output_dir))
+      exit()
 
   signals, spikes = get_segments(hparams)
-
-  if hparams.normalize:
-    print('apply {} normalization'.format(hparams.normalize))
-    signals = normalize(signals, norm=hparams.normalize, axis=1)
 
   # shuffle data
   indexes = np.arange(len(signals))
@@ -159,8 +128,6 @@ def main(hparams):
   hparams.eval_size = len(signals) - train_size
   hparams.signal_shape = signals.shape[1:]
   hparams.spike_shape = spikes.shape[1:]
-
-  hparams.mean_spike_count = get_mean_spike(spikes[train_size:])
 
   write_to_records(
       hparams,
@@ -184,8 +151,7 @@ def main(hparams):
         'train_shards': hparams.train_shards,
         'eval_shards': hparams.eval_shards,
         'num_per_shard': hparams.num_per_shard,
-        'normalize': hparams.normalize,
-        'mean_spike_count': hparams.mean_spike_count
+        'normalize': hparams.normalize
     }, file)
 
   print('saved {} tfrecords to {}'.format(
@@ -194,12 +160,17 @@ def main(hparams):
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input_dir', default='raw_data', type=str)
+  parser.add_argument(
+      '--input', default='raw_data/ST260_Day4_signals4Bryan.pkl', type=str)
   parser.add_argument('--output_dir', default='tfrecords', type=str)
   parser.add_argument('--sequence_length', default=120, type=int)
-  parser.add_argument('--num_per_shard', default=100000, type=int)
-  parser.add_argument('--num_jobs', default=cpu_count(), type=int)
+  parser.add_argument('--num_per_shard', default=1100, type=int)
   parser.add_argument(
       '--normalize', default='', type=str, choices=['', 'l1', 'l2', 'max'])
+  parser.add_argument('--replace', action='store_true')
   hparams = parser.parse_args()
+
+  # calculate the number of samples per shard so that each shard is about 100MB
+  hparams.num_per_shard = int((120 / hparams.sequence_length) * 1100)
+
   main(hparams)
