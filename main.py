@@ -144,7 +144,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   gen_losses, dis_losses, penalties, kl_divergences = [], [], [], []
 
   start = time()
-  i = 0
+
   for signal, spike in validation_ds:
     generated, gen_loss, dis_loss, penalty, kl_divergence = validation_step(
         signal,
@@ -160,10 +160,6 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
 
     save_signals(hparams, epoch, signal.numpy(), spike.numpy(),
                  generated.numpy())
-
-    i += 1
-    if i > 10:
-      break
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
