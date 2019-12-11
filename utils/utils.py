@@ -43,7 +43,7 @@ def deconvolve_saved_signals(hparams, epoch):
 
   with open_h5(filename, mode='a') as file:
     fake_signals = file['fake_signals'][:]
-    fake_spikes = deconvolve_signals(fake_signals, multiprocessing=False)
+    fake_spikes = deconvolve_signals(fake_signals, multiprocessing=True)
     file.create_dataset(
         'fake_spikes',
         dtype=np.float32,
