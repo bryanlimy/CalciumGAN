@@ -43,13 +43,13 @@ def deconvolve_saved_signals(hparams, epoch):
 
   with open_h5(filename, mode='a') as file:
     fake_signals = file['fake_signals'][:]
-    fake_spikes = deconvolve_signals(fake_signals, multiprocessing=True)
+    fake_spikes = deconvolve_signals(fake_signals, multiprocessing=False)
     file.create_dataset(
         'fake_spikes',
         dtype=np.float32,
         data=fake_spikes,
         chunks=True,
-        maxshape=(None, fake_spikes.shape[1]))
+        maxshape=(None, fake_spikes.shape[1], fake_spikes.shape[2]))
   elapse = time() - start
   print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
 
@@ -62,7 +62,7 @@ def get_mean_spike_error(hparams, epoch):
 
   real_mean_spike = mean_spike_count(real_spikes)
   fake_mean_spike = mean_spike_count(fake_spikes)
-  return real_mean_spike - fake_mean_spike
+  return np.mean(np.abs(real_mean_spike - fake_mean_spike))
 
 
 def _van_rossum_distance_loop(args):

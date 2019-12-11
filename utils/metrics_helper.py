@@ -4,8 +4,9 @@ import tensorflow as tf
 
 def mean_spike_count(spikes):
   binarized = (spikes > np.random.random(spikes.shape)).astype(np.float32)
-  spike_count = np.sum(binarized, axis=-1)
-  return np.mean(spike_count)
+  spikes_per_trace = np.sum(binarized, axis=-1)
+  mean_spike_per_neuron = np.mean(spikes_per_trace, axis=0)
+  return mean_spike_per_neuron
 
 
 def derivative_mse(set1, set2):
