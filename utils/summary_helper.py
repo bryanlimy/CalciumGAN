@@ -84,13 +84,18 @@ class Summary(object):
 
   def plot_traces(self, tag, signals, spikes=None, step=None, training=True):
     images = []
+
     if tf.is_tensor(signals):
       signals = signals.numpy()
+    signals = signals[0]
+
     if spikes is None:
       spikes = deconvolve_signals(signals, multiprocessing=False)
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
-    for i in range(signals.shape[0]):
+
+    # plot 20 neurons at most
+    for i in range(min(20, signals.shape[0])):
       image = self._plot_trace(signals[i], spikes[i])
       images.append(image)
     images = tf.stack(images)

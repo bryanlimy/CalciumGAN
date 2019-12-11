@@ -5,7 +5,7 @@ from math import ceil
 import tensorflow as tf
 
 
-def get_fashion_mnist(hparams, summary):
+def get_fashion_mnist(hparams):
   (x_train, _), (x_test, _) = tf.keras.datasets.fashion_mnist.load_data()
 
   def preprocess(images):
@@ -17,8 +17,6 @@ def get_fashion_mnist(hparams, summary):
 
   hparams.train_size = len(x_train)
   hparams.eval_size = len(x_test)
-
-  summary.image('real', x_test[:5], training=False)
 
   train_ds = tf.data.Dataset.from_tensor_slices(x_train)
   train_ds = train_ds.shuffle(buffer_size=2048)
@@ -39,13 +37,13 @@ def get_dataset_info(hparams):
   hparams.validation_size = info['validation_size']
   hparams.signal_shape = info['signal_shape']
   hparams.spike_shape = info['spike_shape']
-  hparams.train_shards = info['train_shards']
-  hparams.validation_shards = info['validation_shards']
+  hparams.num_train_shards = info['num_train_shards']
+  hparams.num_validation_shards = info['num_validation_shards']
   hparams.buffer_size = info['num_per_shard']
   hparams.normalize = info['normalize']
 
 
-def get_calcium_signals(hparams, summary):
+def get_calcium_signals(hparams):
   if not os.path.exists(hparams.input):
     print('input directory {} cannot be found'.format(hparams.input))
     exit()
@@ -85,13 +83,15 @@ def get_calcium_signals(hparams, summary):
   return train_ds, validation_ds
 
 
-def get_dataset(hparams, summary):
+def get_dataset(hparams):
   if hparams.input == 'fashion_mnist':
-    train_ds, validation_ds = get_fashion_mnist(hparams, summary)
+    train_ds, validation_ds = get_fashion_mnist(hparams)
+    hparams.generator_input_shape = (hparams.noise_dim,)
   else:
-    train_ds, validation_ds = get_calcium_signals(hparams, summary)
+    train_ds, validation_ds = get_calcium_signals(hparams)
+    hparams.num_neurons = hparams.signal_shape[0]
+    hparams.generator_input_shape = (hparams.num_neurons, hparams.noise_dim)
 
-  hparams.generator_input_shape = (hparams.noise_dim,)
   hparams.steps_per_epoch = ceil(hparams.train_size / hparams.batch_size)
 
   return train_ds, validation_ds

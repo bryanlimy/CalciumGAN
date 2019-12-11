@@ -8,7 +8,9 @@ import tensorflow as tf
 def mlp(hparams):
   signals = tf.keras.Input(shape=hparams.signal_shape, name='signals')
 
-  outputs = tf.keras.layers.Dense(512, activation='tanh')(signals)
+  outputs = tf.keras.layers.Flatten()(signals)
+
+  outputs = tf.keras.layers.Dense(512, activation='tanh')(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
   outputs = tf.keras.layers.Dense(256, activation='tanh')(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)

@@ -31,4 +31,4 @@ def create_or_append_h5(file, name, value):
         dtype=np.float32,
         data=value,
         chunks=True,
-        maxshape=(None, value.shape[1]))
+        maxshape=(None, value.shape[1], value.shape[2]))
