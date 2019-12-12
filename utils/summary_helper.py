@@ -90,7 +90,7 @@ class Summary(object):
     signals = signals[0]
 
     if spikes is None:
-      spikes = deconvolve_signals(signals, multiprocessing=False)
+      spikes = deconvolve_signals(signals)
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
 
