@@ -163,7 +163,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
-  mean_spike_error = get_spike_metrics(hparams, epoch)
+  mean_spike_error, mean_van_rossum_distance = get_spike_metrics(hparams, epoch)
 
   end = time()
 
@@ -173,7 +173,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   summary.scalar('kl_divergence', np.mean(kl_divergences), training=False)
   summary.scalar('elapse (s)', end - start, step=epoch, training=False)
   summary.scalar('mean_spike_error', mean_spike_error, training=False)
-  # summary.scalar('mean_van_rossum', mean_van_rossum_distance, training=False)
+  summary.scalar('mean_van_rossum', mean_van_rossum_distance, training=False)
 
   return gen_losses, dis_losses
 
