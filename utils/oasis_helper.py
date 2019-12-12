@@ -21,7 +21,7 @@ def _deconvolve_signals(signals):
   return spikes
 
 
-def deconvolve_signals(signals, to_tensor=False, multiprocessing=True):
+def deconvolve_signals(signals, to_tensor=False, num_processors=1):
   if tf.is_tensor(signals):
     signals = signals.numpy()
 
@@ -30,8 +30,8 @@ def deconvolve_signals(signals, to_tensor=False, multiprocessing=True):
     signals = np.reshape(signals, newshape=(shape[0] * shape[1], shape[2]))
   signals = signals.astype('double')
 
-  if multiprocessing:
-    num_jobs = min(len(signals), 6)
+  if num_processors > 2:
+    num_jobs = min(len(signals), num_processors)
     subsets = split(signals, n=num_jobs)
     pool = Pool(processes=num_jobs)
     spikes = pool.map(_deconvolve_signals, subsets)

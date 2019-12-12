@@ -12,8 +12,7 @@ tf.random.set_seed(1234)
 from models.registry import get_model
 from utils.summary_helper import Summary
 from utils.dataset_helper import get_dataset
-from utils.utils import store_hparams, save_signals, deconvolve_saved_signals, \
-  get_mean_spike_error, get_mean_van_rossum_distance
+from utils.utils import store_hparams, save_signals, get_spike_metrics
 
 
 def gradient_penalty(inputs, generated, discriminator, training=True):
@@ -163,9 +162,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
-  deconvolve_saved_signals(hparams, epoch)
-  mean_spike_error = get_mean_spike_error(hparams, epoch)
-  # mean_van_rossum_distance = get_mean_van_rossum_distance(hparams, epoch)
+  mean_spike_error = get_spike_metrics(hparams, epoch)
 
   end = time()
 
@@ -267,6 +264,18 @@ if __name__ == '__main__':
   parser.add_argument('--verbose', default=1, type=int)
   parser.add_argument('--generator', default='conv1d', type=str)
   parser.add_argument('--discriminator', default='conv1d', type=str)
-  parser.add_argument('--clear_output_dir', action='store_true')
+  parser.add_argument(
+      '--clear_output_dir',
+      action='store_true',
+      help='delete output directory if exists')
+  parser.add_argument(
+      '--keep_generated',
+      action='store_true',
+      help='keep generated calcium signals and spike trains')
+  parser.add_argument(
+      '--num_processors',
+      default=6,
+      type=int,
+      help='number of processing cores to use for metrics calculation')
   hparams = parser.parse_args()
   main(hparams)

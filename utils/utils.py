@@ -37,34 +37,6 @@ def save_signals(hparams, epoch, real_spikes, real_signals, fake_signals):
     create_or_append_h5(file, 'fake_signals', fake_signals)
 
 
-def deconvolve_saved_signals(hparams, epoch):
-  start = time()
-  filename = get_signal_filename(hparams, epoch)
-
-  with open_h5(filename, mode='a') as file:
-    fake_signals = file['fake_signals'][:]
-    fake_spikes = deconvolve_signals(fake_signals, multiprocessing=True)
-    file.create_dataset(
-        'fake_spikes',
-        dtype=np.float32,
-        data=fake_spikes,
-        chunks=True,
-        maxshape=(None, fake_spikes.shape[1], fake_spikes.shape[2]))
-  elapse = time() - start
-  print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
-
-
-def get_mean_spike_error(hparams, epoch):
-  filename = get_signal_filename(hparams, epoch)
-  with open_h5(filename, mode='r') as file:
-    real_spikes = file['real_spikes'][:]
-    fake_spikes = file['fake_spikes'][:]
-
-  real_mean_spike = mean_spike_count(real_spikes)
-  fake_mean_spike = mean_spike_count(fake_spikes)
-  return np.mean(np.abs(real_mean_spike - fake_mean_spike))
-
-
 def _van_rossum_distance_loop(args):
   real_spikes, fake_spikes = args
   distances = []
@@ -92,3 +64,39 @@ def get_mean_van_rossum_distance(hparams, epoch):
   elapse = time() - start
   print('mean van Rossum distance in {:.2f}s'.format(elapse))
   return mean_distiance
+
+
+def deconvolve_saved_signals(hparams, filename):
+  start = time()
+  with open_h5(filename, mode='a') as file:
+    fake_signals = file['fake_signals'][:]
+    fake_spikes = deconvolve_signals(
+        fake_signals, num_processors=hparams.num_processors)
+    file.create_dataset(
+        'fake_spikes',
+        dtype=np.float32,
+        data=fake_spikes,
+        chunks=True,
+        maxshape=(None, fake_spikes.shape[1], fake_spikes.shape[2]))
+  elapse = time() - start
+  print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
+
+
+def get_mean_spike_error(filename):
+  with open_h5(filename, mode='r') as file:
+    real_spikes = file['real_spikes'][:]
+    fake_spikes = file['fake_spikes'][:]
+
+  real_mean_spike = mean_spike_count(real_spikes)
+  fake_mean_spike = mean_spike_count(fake_spikes)
+  mse = np.mean(np.square(real_mean_spike - fake_mean_spike))
+  return mse
+
+
+def get_spike_metrics(hparams, epoch):
+  filename = get_signal_filename(hparams, epoch)
+  deconvolve_saved_signals(hparams, filename)
+  mean_spike_error = get_mean_spike_error(filename)
+  if not hparams.keep_generated:
+    os.remove(filename)
+  return mean_spike_error
