@@ -143,6 +143,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
 
   start = time()
 
+  i = 0
   for signal, spike in validation_ds:
     generated, gen_loss, dis_loss, penalty, kl_divergence = validation_step(
         signal,
