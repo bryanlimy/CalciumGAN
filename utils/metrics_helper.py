@@ -4,9 +4,9 @@ import tensorflow as tf
 
 def mean_spike_count(spikes):
   binarized = (spikes > np.random.random(spikes.shape)).astype(np.float32)
-  firing_rate_per_trace = np.mean(binarized, axis=-1)
-  mean_spike_per_batch = np.mean(firing_rate_per_trace, axis=-1)
-  return mean_spike_per_batch
+  spike_count = np.sum(binarized, axis=-1)
+  mean_spike_count = np.mean(spike_count, axis=0)
+  return mean_spike_count
 
 
 def derivative_mse(set1, set2):

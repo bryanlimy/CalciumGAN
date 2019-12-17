@@ -100,11 +100,14 @@ def get_mean_spike_error(filename):
   return mse
 
 
-def get_spike_metrics(hparams, epoch):
+def measure_spike_metrics(hparams, epoch, summary):
   filename = get_signal_filename(hparams, epoch)
   deconvolve_saved_signals(hparams, filename)
   mean_spike_error = get_mean_spike_error(filename)
   van_rossum_distance = get_mean_van_rossum_distance(hparams, filename)
+
+  summary.scalar('mean_spike_error', mean_spike_error, training=False)
+  summary.scalar('mean_van_rossum', van_rossum_distance, training=False)
+
   if not hparams.keep_generated:
     os.remove(filename)
-  return mean_spike_error, van_rossum_distance

@@ -12,7 +12,7 @@ tf.random.set_seed(1234)
 from models.registry import get_model
 from utils.summary_helper import Summary
 from utils.dataset_helper import get_dataset
-from utils.utils import store_hparams, save_signals, get_spike_metrics
+from utils.utils import store_hparams, save_signals, measure_spike_metrics
 
 
 def gradient_penalty(inputs, generated, discriminator, training=True):
@@ -163,7 +163,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
-  mean_spike_error, mean_van_rossum_distance = get_spike_metrics(hparams, epoch)
+  measure_spike_metrics(hparams, epoch, summary)
 
   end = time()
 
@@ -172,8 +172,6 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   summary.scalar('gradient_penalty', np.mean(penalties), training=False)
   summary.scalar('kl_divergence', np.mean(kl_divergences), training=False)
   summary.scalar('elapse (s)', end - start, step=epoch, training=False)
-  summary.scalar('mean_spike_error', mean_spike_error, training=False)
-  summary.scalar('mean_van_rossum', mean_van_rossum_distance, training=False)
 
   return gen_losses, dis_losses
 
