@@ -8,7 +8,9 @@ import tensorflow as tf
 def mlp(hparams):
   signals = tf.keras.Input(shape=hparams.signal_shape, name='signals')
 
-  outputs = tf.keras.layers.Dense(512, activation='tanh')(signals)
+  outputs = tf.keras.layers.Flatten()(signals)
+
+  outputs = tf.keras.layers.Dense(512, activation='tanh')(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
   outputs = tf.keras.layers.Dense(256, activation='tanh')(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
@@ -21,10 +23,8 @@ def mlp(hparams):
 def conv1d(hparams):
   signals = tf.keras.Input(hparams.signal_shape, name='signals')
 
-  outputs = tf.keras.layers.Reshape((signals.shape[-1] // 4, 4))(signals)
-
   outputs = tf.keras.layers.Conv1D(
-      filters=128, kernel_size=3, strides=2, padding='causal')(outputs)
+      filters=128, kernel_size=3, strides=2, padding='causal')(signals)
   outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
   outputs = tf.keras.layers.Conv1D(
       filters=256, kernel_size=3, strides=2, padding='causal')(outputs)

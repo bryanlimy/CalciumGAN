@@ -31,19 +31,34 @@ def generate_spike_train(hparams, filename):
     pickle.dump(data, file)
 
 
+def remove_oasis(filename):
+  print('cleaning file {}...'.format(filename))
+  with open(filename, 'rb') as file:
+    data = pickle.load(file)
+
+  if 'oasis' in data:
+    del data['oasis']
+    with open(filename, 'wb') as file:
+      pickle.dump(data, file)
+
+
 def main(hparams):
   filenames = glob(os.path.join(hparams.input_dir, '*.pkl'))
   filenames.sort()
 
   for filename in filenames:
-    generate_spike_train(hparams, filename)
+    if hparams.clean:
+      remove_oasis(filename)
+    else:
+      generate_spike_train(hparams, filename)
 
-  print('deconvolution completed')
+  print('process completed')
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--input_dir', default='raw_data', type=str)
   parser.add_argument('--overwrite', action='store_true')
+  parser.add_argument('--clean', action='store_true')
   hparams = parser.parse_args()
   main(hparams)

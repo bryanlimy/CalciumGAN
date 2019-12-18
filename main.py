@@ -12,8 +12,7 @@ tf.random.set_seed(1234)
 from models.registry import get_model
 from utils.summary_helper import Summary
 from utils.dataset_helper import get_dataset
-from utils.utils import store_hparams, save_signals, deconvolve_saved_signals, \
-  get_mean_spike_error, get_mean_van_rossum_distance
+from utils.utils import store_hparams, save_signals, measure_spike_metrics
 
 
 def gradient_penalty(inputs, generated, discriminator, training=True):
@@ -33,10 +32,11 @@ def gradient_penalty(inputs, generated, discriminator, training=True):
 def compute_loss(inputs,
                  generator,
                  discriminator,
+                 num_neurons,
                  noise_dim,
                  penalty_weight=10.0,
                  training=True):
-  noise = tf.random.normal((inputs.shape[0], noise_dim))
+  noise = tf.random.normal((inputs.shape[0], num_neurons, noise_dim))
 
   generated = generator(noise, training=training)
 
@@ -61,6 +61,7 @@ def train_step(inputs,
                discriminator,
                gen_optimizer,
                dis_optimizer,
+               num_neurons,
                noise_dim=64,
                penalty_weight=10.0):
 
@@ -69,6 +70,7 @@ def train_step(inputs,
         inputs,
         generator=generator,
         discriminator=discriminator,
+        num_neurons=num_neurons,
         noise_dim=noise_dim,
         penalty_weight=penalty_weight,
         training=True)
@@ -89,17 +91,11 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
   gen_losses, dis_losses = [], []
 
   start = time()
-  plot = False
 
   for signal, spike in tqdm(
       train_ds,
       desc='Epoch {:02d}/{:02d}'.format(epoch + 1, hparams.epochs),
       total=hparams.steps_per_epoch):
-
-    if not plot:
-      summary.plot_traces(
-          'real', signals=signal[:5], spikes=spike[:5], training=True)
-      plot = True
 
     gen_loss, dis_loss, penalty = train_step(
         signal,
@@ -107,6 +103,7 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
         discriminator=discriminator,
         gen_optimizer=gen_optimizer,
         dis_optimizer=dis_optimizer,
+        num_neurons=hparams.num_neurons,
         noise_dim=hparams.noise_dim,
         penalty_weight=hparams.gradient_penalty)
 
@@ -126,13 +123,14 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
 
 
 @tf.function
-def validation_step(inputs, generator, discriminator, noise_dim,
+def validation_step(inputs, generator, discriminator, noise_dim, num_neurons,
                     penalty_weight):
 
   generated, gen_loss, dis_loss, penalty, kl_divergence = compute_loss(
       inputs,
       generator,
       discriminator,
+      num_neurons=num_neurons,
       noise_dim=noise_dim,
       penalty_weight=penalty_weight,
       training=False)
@@ -145,11 +143,13 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
 
   start = time()
 
+  i = 0
   for signal, spike in validation_ds:
     generated, gen_loss, dis_loss, penalty, kl_divergence = validation_step(
         signal,
         generator,
         discriminator,
+        num_neurons=hparams.num_neurons,
         noise_dim=hparams.noise_dim,
         penalty_weight=hparams.gradient_penalty)
 
@@ -163,9 +163,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
 
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
-  deconvolve_saved_signals(hparams, epoch)
-  mean_spike_error = get_mean_spike_error(hparams, epoch)
-  mean_van_rossum_distance = get_mean_van_rossum_distance(hparams, epoch)
+  measure_spike_metrics(hparams, epoch, summary)
 
   end = time()
 
@@ -174,8 +172,6 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   summary.scalar('gradient_penalty', np.mean(penalties), training=False)
   summary.scalar('kl_divergence', np.mean(kl_divergences), training=False)
   summary.scalar('elapse (s)', end - start, step=epoch, training=False)
-  summary.scalar('mean_spike_error', mean_spike_error, training=False)
-  summary.scalar('mean_van_rossum', mean_van_rossum_distance, training=False)
 
   return gen_losses, dis_losses
 
@@ -184,7 +180,7 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
                        discriminator, gen_optimizer, dis_optimizer, summary):
 
   # noise to test generator and plot to TensorBoard
-  test_noise = tf.random.normal((5, hparams.noise_dim))
+  test_noise = tf.random.normal((1, hparams.num_neurons, hparams.noise_dim))
 
   for epoch in range(hparams.epochs):
 
@@ -229,7 +225,7 @@ def main(hparams):
 
   summary = Summary(hparams)
 
-  train_ds, validation_ds = get_dataset(hparams, summary)
+  train_ds, validation_ds = get_dataset(hparams)
 
   gen_optimizer = tf.keras.optimizers.Adam(hparams.lr)
   dis_optimizer = tf.keras.optimizers.Adam(hparams.lr)
@@ -267,6 +263,18 @@ if __name__ == '__main__':
   parser.add_argument('--verbose', default=1, type=int)
   parser.add_argument('--generator', default='conv1d', type=str)
   parser.add_argument('--discriminator', default='conv1d', type=str)
-  parser.add_argument('--clear_output_dir', action='store_true')
+  parser.add_argument(
+      '--clear_output_dir',
+      action='store_true',
+      help='delete output directory if exists')
+  parser.add_argument(
+      '--keep_generated',
+      action='store_true',
+      help='keep generated calcium signals and spike trains')
+  parser.add_argument(
+      '--num_processors',
+      default=6,
+      type=int,
+      help='number of processing cores to use for metrics calculation')
   hparams = parser.parse_args()
   main(hparams)
