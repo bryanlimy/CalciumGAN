@@ -37,6 +37,22 @@ def save_signals(hparams, epoch, real_spikes, real_signals, fake_signals):
     create_or_append_h5(file, 'fake_signals', fake_signals)
 
 
+def deconvolve_saved_signals(hparams, filename):
+  start = time()
+  with open_h5(filename, mode='a') as file:
+    fake_signals = file['fake_signals'][:]
+    fake_spikes = deconvolve_signals(
+        fake_signals, num_processors=hparams.num_processors)
+    file.create_dataset(
+        'fake_spikes',
+        dtype=np.float32,
+        data=fake_spikes,
+        chunks=True,
+        maxshape=(None, fake_spikes.shape[1], fake_spikes.shape[2]))
+  elapse = time() - start
+  print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
+
+
 def _van_rossum_distance_loop(args):
   real_spikes, fake_spikes = args
   assert real_spikes.shape == fake_spikes.shape
@@ -71,22 +87,6 @@ def get_mean_van_rossum_distance(hparams, filename):
   elapse = time() - start
   print('mean van Rossum distance in {:.2f}s'.format(elapse))
   return mean_distance
-
-
-def deconvolve_saved_signals(hparams, filename):
-  start = time()
-  with open_h5(filename, mode='a') as file:
-    fake_signals = file['fake_signals'][:]
-    fake_spikes = deconvolve_signals(
-        fake_signals, num_processors=hparams.num_processors)
-    file.create_dataset(
-        'fake_spikes',
-        dtype=np.float32,
-        data=fake_spikes,
-        chunks=True,
-        maxshape=(None, fake_spikes.shape[1], fake_spikes.shape[2]))
-  elapse = time() - start
-  print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
 
 
 def get_mean_spike_error(filename):
