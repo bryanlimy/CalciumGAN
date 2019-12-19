@@ -225,7 +225,7 @@ def main(hparams):
 
   summary = Summary(hparams)
 
-  train_ds, validation_ds = get_dataset(hparams)
+  train_ds, validation_ds = get_dataset(hparams, summary)
 
   gen_optimizer = tf.keras.optimizers.Adam(hparams.lr)
   dis_optimizer = tf.keras.optimizers.Adam(hparams.lr)

@@ -96,8 +96,7 @@ def get_mean_spike_error(filename):
 
   real_mean_spike = mean_spike_count(real_spikes)
   fake_mean_spike = mean_spike_count(fake_spikes)
-  mse = np.mean(np.square(real_mean_spike - fake_mean_spike))
-  return mse
+  return np.mean(np.square(real_mean_spike - fake_mean_spike))
 
 
 def measure_spike_metrics(hparams, epoch, summary):
@@ -106,8 +105,8 @@ def measure_spike_metrics(hparams, epoch, summary):
   mean_spike_error = get_mean_spike_error(filename)
   van_rossum_distance = get_mean_van_rossum_distance(hparams, filename)
 
-  summary.scalar('mean_spike_error', mean_spike_error, training=False)
-  summary.scalar('mean_van_rossum', van_rossum_distance, training=False)
+  summary.scalar('spike_count_mse', mean_spike_error, training=False)
+  summary.scalar('van_rossum_distance', van_rossum_distance, training=False)
 
   if not hparams.keep_generated:
     os.remove(filename)

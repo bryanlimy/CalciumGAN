@@ -87,12 +87,15 @@ class Summary(object):
 
     if tf.is_tensor(signals):
       signals = signals.numpy()
-    signals = signals[0]
+    if len(signals.shape) > 2:
+      signals = signals[0]
 
     if spikes is None:
       spikes = deconvolve_signals(signals)
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
+    if len(spikes.shape) > 2:
+      spikes = spikes[0]
 
     # plot 20 neurons at most
     for i in range(min(20, signals.shape[0])):

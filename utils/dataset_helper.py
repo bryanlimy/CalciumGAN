@@ -83,7 +83,7 @@ def get_calcium_signals(hparams):
   return train_ds, validation_ds
 
 
-def get_dataset(hparams):
+def get_dataset(hparams, summary):
   if hparams.input == 'fashion_mnist':
     train_ds, validation_ds = get_fashion_mnist(hparams)
     hparams.generator_input_shape = (hparams.noise_dim,)
@@ -91,6 +91,11 @@ def get_dataset(hparams):
     train_ds, validation_ds = get_calcium_signals(hparams)
     hparams.num_neurons = hparams.signal_shape[0]
     hparams.generator_input_shape = (hparams.num_neurons, hparams.noise_dim)
+
+    # plot signals and spikes from validation set
+    sample_signals, sample_spikes = next(iter(validation_ds))
+    summary.plot_traces(
+        'real', signals=sample_signals, spikes=sample_spikes, training=False)
 
   hparams.steps_per_epoch = ceil(hparams.train_size / hparams.batch_size)
 
