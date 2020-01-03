@@ -12,7 +12,8 @@ tf.random.set_seed(1234)
 from models.registry import get_model
 from utils.summary_helper import Summary
 from utils.dataset_helper import get_dataset
-from utils.utils import store_hparams, save_signals, measure_spike_metrics
+from utils.utils import store_hparams, save_signals, measure_spike_metrics, \
+  save_models, load_models
 
 
 def gradient_penalty(inputs, generated, discriminator, training=True):
@@ -216,6 +217,9 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
 
     summary.scalar('elapse (s)', elapse, step=epoch, training=True)
 
+    if epoch % 5 == 0:
+      save_models(hparams, generator, discriminator, epoch)
+
 
 def main(hparams):
   if hparams.clear_output_dir and os.path.exists(hparams.output_dir):
@@ -236,6 +240,8 @@ def main(hparams):
   discriminator.summary()
 
   store_hparams(hparams)
+
+  load_models(hparams, generator, discriminator)
 
   train_and_validate(
       hparams,

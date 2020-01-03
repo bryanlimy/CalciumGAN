@@ -37,6 +37,37 @@ def save_signals(hparams, epoch, real_spikes, real_signals, fake_signals):
     create_or_append_h5(file, 'fake_signals', fake_signals)
 
 
+import pickle
+
+
+def save_models(hparams, generator, discriminator, epoch):
+  generator_weights = generator.get_weights()
+  discriminator_weights = discriminator.get_weights()
+  filename = os.path.join(hparams.output_dir, 'ckpt-{:03d}.pkl'.format(epoch))
+  with open(filename, 'wb') as file:
+    pickle.dump({
+        'epoch': epoch,
+        'generator_weights': generator_weights,
+        'discriminator_weights': discriminator_weights
+    }, file)
+  print('saved weights to {}'.format(filename))
+
+
+from glob import glob
+
+
+def load_models(hparams, generator, discriminator):
+  ckpts = glob(os.path.join(hparams.output_dir, 'ckpt-*'))
+  if ckpts:
+    ckpts.sort()
+    filename = ckpts[-1]
+    with open(filename, 'rb') as file:
+      ckpt = pickle.load(file)
+    generator.set_weights(ckpt['generator_weights'])
+    discriminator.set_weights(ckpt['discriminator_weights'])
+    print('restore checkpoint {}'.format(filename))
+
+
 def deconvolve_saved_signals(hparams, filename):
   start = time()
   with open_h5(filename, mode='a') as file:
