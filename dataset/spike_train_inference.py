@@ -5,6 +5,7 @@ import numpy as np
 from glob import glob
 from tqdm import tqdm
 from oasis.functions import deconvolve
+from oasis.oasis_methods import oasisAR1
 
 
 def generate_spike_train(hparams, filename):
@@ -20,12 +21,12 @@ def generate_spike_train(hparams, filename):
     else:
       return
 
-  results = []
-  for signal in tqdm(data['signals']):
-    c, s, b, g, lam = deconvolve(signal, g=(None,), penalty=1)
-    results.append(s / s.max())
+  oasis = np.zeros((data['signals'].shape), dtype=data['signals'].dtype)
+  for i in tqdm(range(len(data['signals']))):
+    _, oasis[i] = oasisAR1(data['signals'][i], g=0.95, s_min=.55)
+  oasis = np.where(oasis > 0.5, 1.0, 0.0)
 
-  data['oasis'] = np.array(results, dtype=np.float32)
+  data['oasis'] = np.array(oasis, dtype=np.float32)
 
   with open(filename, 'wb') as file:
     pickle.dump(data, file)

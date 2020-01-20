@@ -1,7 +1,9 @@
 import os
 import json
+import pickle
 import numpy as np
 from time import time
+from glob import glob
 from multiprocessing import Pool, cpu_count
 
 from .oasis_helper import deconvolve_signals
@@ -28,16 +30,13 @@ def get_signal_filename(hparams, epoch):
                       'epoch{:03d}_signals.h5'.format(epoch))
 
 
-def save_signals(hparams, epoch, real_spikes, real_signals, fake_signals):
+def save_signals(hparams, epoch, real_signals, real_spikes, fake_signals):
   filename = get_signal_filename(hparams, epoch)
 
   with open_h5(filename, mode='a') as file:
     create_or_append_h5(file, 'real_spikes', real_spikes)
     create_or_append_h5(file, 'real_signals', real_signals)
     create_or_append_h5(file, 'fake_signals', fake_signals)
-
-
-import pickle
 
 
 def save_models(hparams, generator, discriminator, epoch):
@@ -51,9 +50,6 @@ def save_models(hparams, generator, discriminator, epoch):
         'discriminator_weights': discriminator_weights
     }, file)
   print('saved weights to {}'.format(filename))
-
-
-from glob import glob
 
 
 def load_models(hparams, generator, discriminator):

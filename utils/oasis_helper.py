@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from oasis.functions import deconvolve
+from oasis.oasis_methods import oasisAR1
 from multiprocessing import Pool
 
 
@@ -16,8 +16,8 @@ def split(sequence, n):
 def _deconvolve_signals(signals):
   spikes = np.zeros(signals.shape)
   for i in range(len(signals)):
-    c, s, b, g, lam = deconvolve(signals[i], g=(None,), penalty=1)
-    spikes[i] = s / s.max() if s.max() > 0 else s
+    _, spikes[i] = oasisAR1(signals[i], g=0.95, s_min=.55)
+  spikes = np.where(spikes > 0.5, 1.0, 0.0)
   return spikes
 
 
