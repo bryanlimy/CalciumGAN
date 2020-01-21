@@ -4,6 +4,8 @@ import numpy as np
 from math import ceil
 import tensorflow as tf
 
+from .utils import denormalize
+
 
 def get_fashion_mnist(hparams):
   (x_train, _), (x_test, _) = tf.keras.datasets.fashion_mnist.load_data()
@@ -96,6 +98,8 @@ def get_dataset(hparams, summary):
 
     # plot signals and spikes from validation set
     sample_signals, sample_spikes = next(iter(validation_ds))
+    sample_signals = denormalize(
+        sample_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
     summary.plot_traces(
         'real', signals=sample_signals, spikes=sample_spikes, training=False)
 
