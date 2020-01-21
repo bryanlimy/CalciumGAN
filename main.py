@@ -98,7 +98,7 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
 
   for signal, spike in tqdm(
       train_ds,
-      desc='Epoch {:02d}/{:02d}'.format(epoch + 1, hparams.epochs),
+      desc='Epoch {:02d}/{:02d}'.format(epoch, hparams.epochs),
       total=hparams.steps_per_epoch):
 
     gen_loss, dis_loss, penalty = train_step(
