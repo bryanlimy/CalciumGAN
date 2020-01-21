@@ -80,47 +80,38 @@ def deconvolve_saved_signals(hparams, filename):
   print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
 
 
-def _van_rossum_distance_loop(args):
-  real_spikes, fake_spikes = args
-  assert real_spikes.shape == fake_spikes.shape
-  shape = real_spikes.shape
-  distances = np.zeros((shape[0], shape[1]), dtype=np.float32)
-  for i in range(shape[0]):
-    for neuron in range(shape[1]):
-      distances[i][neuron] = van_rossum_distance(real_spikes[i][neuron],
-                                                 fake_spikes[i][neuron])
-  return distances
+def get_mean_van_rossum_distance(hparams, real_spikes, fake_spikes):
 
+  def _van_rossum_distance(args):
+    real_spikes, fake_spikes = args
+    assert real_spikes.shape == fake_spikes.shape
+    shape = real_spikes.shape
+    distances = np.zeros((shape[0], shape[1]), dtype=np.float32)
+    for i in range(shape[0]):
+      for neuron in range(shape[1]):
+        distances[i][neuron] = van_rossum_distance(real_spikes[i][neuron],
+                                                   fake_spikes[i][neuron])
+    return distances
 
-def get_mean_van_rossum_distance(hparams, filename):
   start = time()
-
-  with open_h5(filename, mode='r') as file:
-    real_spikes = file['real_spikes'][:]
-    fake_spikes = file['fake_spikes'][:]
-
   if hparams.num_processors > 2:
     num_jobs = min(len(real_spikes), hparams.num_processors)
     real_spikes_split = split(real_spikes, n=num_jobs)
     fake_spikes_split = split(fake_spikes, n=num_jobs)
     pool = Pool(processes=num_jobs)
-    distances = pool.map(_van_rossum_distance_loop,
+    distances = pool.map(_van_rossum_distance,
                          list(zip(real_spikes_split, fake_spikes_split)))
     pool.close()
     distances = np.concatenate(distances, axis=0)
   else:
-    distances = _van_rossum_distance_loop((real_spikes, fake_spikes))
+    distances = _van_rossum_distance((real_spikes, fake_spikes))
   mean_distance = np.mean(distances)
   elapse = time() - start
   print('mean van Rossum distance in {:.2f}s'.format(elapse))
   return mean_distance
 
 
-def get_mean_spike_error(filename):
-  with open_h5(filename, mode='r') as file:
-    real_spikes = file['real_spikes'][:]
-    fake_spikes = file['fake_spikes'][:]
-
+def get_mean_spike_error(real_spikes, fake_spikes):
   real_mean_spike = mean_spike_count(real_spikes)
   fake_mean_spike = mean_spike_count(fake_spikes)
   return np.mean(np.square(real_mean_spike - fake_mean_spike))
@@ -129,8 +120,14 @@ def get_mean_spike_error(filename):
 def measure_spike_metrics(hparams, epoch, summary):
   filename = get_signal_filename(hparams, epoch)
   deconvolve_saved_signals(hparams, filename)
-  mean_spike_error = get_mean_spike_error(filename)
-  van_rossum_distance = get_mean_van_rossum_distance(hparams, filename)
+
+  with open_h5(filename, mode='r') as file:
+    real_spikes = file['real_spikes'][:]
+    fake_spikes = file['fake_spikes'][:]
+
+  mean_spike_error = get_mean_spike_error(real_spikes, fake_spikes)
+  van_rossum_distance = get_mean_van_rossum_distance(hparams, real_spikes,
+                                                     fake_spikes)
 
   summary.scalar('spike_count_mse', mean_spike_error, training=False)
   summary.scalar('van_rossum_distance', van_rossum_distance, training=False)

@@ -168,11 +168,13 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
         real_spikes=spike.numpy(),
         fake_signals=generated.numpy())
 
+  end = time()
+
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
-  measure_spike_metrics(hparams, epoch, summary)
-
-  end = time()
+  # evaluate spike metrics every 5 epochs
+  if epoch % 5 == 0 or epoch == hparams.epochs:
+    measure_spike_metrics(hparams, epoch, summary)
 
   summary.scalar('generator_loss', gen_losses, training=False)
   summary.scalar('discriminator_loss', dis_losses, training=False)

@@ -48,6 +48,7 @@ class Summary(object):
 
   def _plot_trace(self, signal, spike):
     plt.figure(figsize=(20, 4))
+    # plot signal
     plt.subplot(211)
     plt.plot(signal, label='signal', zorder=-12, c='r')
     plt.legend(ncol=3, frameon=False, loc=(.02, .85))
@@ -55,7 +56,7 @@ class Summary(object):
     plt.tight_layout()
     # plot spike train
     plt.subplot(212)
-    plt.bar(np.arange(len(spike)), spike, width=0.3, label='oasis', color='b')
+    plt.bar(np.arange(len(spike)), spike, width=0.3, label='spike', color='b')
     plt.ylim(0, 1.3)
     plt.legend(ncol=3, frameon=False, loc=(.02, .85))
     self._simple_axis(plt.gca())
