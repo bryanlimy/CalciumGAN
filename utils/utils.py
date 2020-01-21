@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 from time import time
 from glob import glob
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
 
 from .oasis_helper import deconvolve_signals
 from .h5_helpers import open_h5, create_or_append_h5
@@ -17,6 +17,11 @@ def split(sequence, n):
   return [
       sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
   ]
+
+
+def denormalize(x, x_min, x_max):
+  """ re-scale signals back to its original range """
+  return (x_max - x_min) * (x + 1) / 2 + x_min
 
 
 def store_hparams(hparams):
@@ -32,6 +37,11 @@ def get_signal_filename(hparams, epoch):
 
 def save_signals(hparams, epoch, real_signals, real_spikes, fake_signals):
   filename = get_signal_filename(hparams, epoch)
+
+  real_signals = denormalize(
+      real_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
+  fake_signals = denormalize(
+      fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
   with open_h5(filename, mode='a') as file:
     create_or_append_h5(file, 'real_spikes', real_spikes)

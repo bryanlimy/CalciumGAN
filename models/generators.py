@@ -18,7 +18,7 @@ def mlp(hparams):
   outputs = tf.keras.layers.Reshape(hparams.signal_shape)(outputs)
 
   if hparams.normalize:
-    outputs = tf.keras.activations.sigmoid(outputs)
+    outputs = tf.keras.activations.tanh(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
@@ -38,6 +38,6 @@ def conv1d(hparams):
   outputs = tf.keras.layers.Reshape(hparams.signal_shape)(outputs)
 
   if hparams.normalize:
-    outputs = tf.keras.activations.sigmoid(outputs)
+    outputs = tf.keras.activations.tanh(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')

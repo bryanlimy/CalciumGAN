@@ -6,7 +6,6 @@ import numpy as np
 from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
-from sklearn.preprocessing import normalize
 
 
 def split(sequence, n):
@@ -15,6 +14,11 @@ def split(sequence, n):
   return [
       sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
   ]
+
+
+def normalize(x, x_min, x_max):
+  # scale x to be between -1 and 1
+  return 2 * (x - x_min) / (x_max - x_min) - 1
 
 
 def get_segments(hparams):
@@ -32,9 +36,21 @@ def get_segments(hparams):
 
   assert raw_signals.shape == raw_spikes.shape
 
+  # max and min value of signals
+  hparams.signals_min = np.min(raw_signals)
+  hparams.signals_max = np.max(raw_signals)
+
+  print('signals min {:.04f}'.format(np.min(raw_signals)))
+  print('signals max {:.04f}'.format(np.max(raw_signals)))
+  print('signals mean {:.04f}'.format(np.mean(raw_signals)))
+
   if hparams.normalize:
-    print('apply {} normalization'.format(hparams.normalize))
-    raw_signals = normalize(raw_signals, norm=hparams.normalize, axis=1)
+    print('apply normalization')
+    raw_signals = normalize(raw_signals, hparams.signals_min,
+                            hparams.signals_max)
+    print('signals min {:.04f}'.format(np.min(raw_signals)))
+    print('signals max {:.04f}'.format(np.max(raw_signals)))
+    print('signals mean {:.04f}'.format(np.mean(raw_signals)))
 
   num_neurons = raw_signals.shape[0]
   num_samples = raw_signals.shape[1] - hparams.sequence_length
@@ -151,7 +167,9 @@ def main(hparams):
         'num_train_shards': hparams.num_train_shards,
         'num_validation_shards': hparams.num_validation_shards,
         'num_per_shard': hparams.num_per_shard,
-        'normalize': hparams.normalize
+        'normalize': hparams.normalize,
+        'signals_min': hparams.signals_min,
+        'signals_max': hparams.signals_max
     }, file)
 
   print('saved {} tfrecords to {}'.format(
@@ -166,8 +184,7 @@ if __name__ == '__main__':
   parser.add_argument('--output_dir', default='tfrecords', type=str)
   parser.add_argument('--sequence_length', default=120, type=int)
   parser.add_argument('--num_per_shard', default=1100, type=int)
-  parser.add_argument(
-      '--normalize', default='', type=str, choices=['', 'l1', 'l2', 'max'])
+  parser.add_argument('--normalize', action='store_true')
   parser.add_argument('--replace', action='store_true')
   hparams = parser.parse_args()
 

@@ -41,6 +41,8 @@ def get_dataset_info(hparams):
   hparams.num_validation_shards = info['num_validation_shards']
   hparams.buffer_size = info['num_per_shard']
   hparams.normalize = info['normalize']
+  hparams.signals_min = float(info['signals_min'])
+  hparams.signals_max = float(info['signals_max'])
 
 
 def get_calcium_signals(hparams):
