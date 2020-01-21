@@ -24,11 +24,13 @@ def conv1d(hparams):
   signals = tf.keras.Input(hparams.signal_shape, name='signals')
 
   outputs = tf.keras.layers.Conv1D(
-      filters=2024, kernel_size=3, strides=2, padding='causal')(signals)
-  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
+      filters=2024, kernel_size=3, strides=2, padding='valid')(signals)
+  outputs = tf.keras.layers.LeakyReLU()(outputs)
+  outputs = tf.keras.layers.Dropout(0.3)(outputs)
   outputs = tf.keras.layers.Conv1D(
-      filters=1024, kernel_size=3, strides=2, padding='causal')(outputs)
-  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
+      filters=1024, kernel_size=3, strides=2, padding='valid')(outputs)
+  outputs = tf.keras.layers.LeakyReLU()(outputs)
+  outputs = tf.keras.layers.Dropout(0.3)(outputs)
   outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(1024, activation='relu')(outputs)
   outputs = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)

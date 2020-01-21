@@ -28,11 +28,13 @@ def conv1d(hparams):
   inputs = tf.keras.Input(shape=hparams.generator_input_shape, name='inputs')
 
   outputs = tf.keras.layers.Conv1D(
-      filters=256, kernel_size=3, strides=2, padding='causal')(inputs)
-  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
+      filters=256, kernel_size=3, strides=2, padding='valid')(inputs)
+  outputs = tf.keras.layers.BatchNormalization()(outputs)
+  outputs = tf.keras.layers.LeakyReLU()(outputs)
   outputs = tf.keras.layers.Conv1D(
-      filters=128, kernel_size=3, strides=2, padding='causal')(outputs)
-  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
+      filters=128, kernel_size=3, strides=2, padding='valid')(outputs)
+  outputs = tf.keras.layers.BatchNormalization()(outputs)
+  outputs = tf.keras.layers.LeakyReLU()(outputs)
   outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(np.prod(hparams.signal_shape))(outputs)
   outputs = tf.keras.layers.Reshape(hparams.signal_shape)(outputs)

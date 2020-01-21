@@ -173,7 +173,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
   # evaluate spike metrics every 5 epochs
-  if epoch % 5 == 0 or epoch == hparams.epochs - 1:
+  if not hparams.skip_spike_metrics or epoch % 5 == 0 or epoch == hparams.epochs - 1:
     measure_spike_metrics(hparams, epoch, summary)
 
   # delete generated signals and spike train
@@ -294,5 +294,9 @@ if __name__ == '__main__':
       default=6,
       type=int,
       help='number of processing cores to use for metrics calculation')
+  parser.add_argument(
+      '--skip_spike_metrics',
+      action='store_true',
+      help='flag to skip calculating spike metrics')
   hparams = parser.parse_args()
   main(hparams)
