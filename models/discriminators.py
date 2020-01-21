@@ -24,15 +24,14 @@ def conv1d(hparams):
   signals = tf.keras.Input(hparams.signal_shape, name='signals')
 
   outputs = tf.keras.layers.Conv1D(
-      filters=2024, kernel_size=3, strides=2, padding='valid')(signals)
-  outputs = tf.keras.layers.LeakyReLU()(outputs)
+      filters=512, kernel_size=3, strides=2, padding='valid')(signals)
+  outputs = tf.keras.activations.tanh(outputs)
   outputs = tf.keras.layers.Dropout(0.3)(outputs)
   outputs = tf.keras.layers.Conv1D(
-      filters=1024, kernel_size=3, strides=2, padding='valid')(outputs)
-  outputs = tf.keras.layers.LeakyReLU()(outputs)
+      filters=256, kernel_size=3, strides=2, padding='valid')(outputs)
+  outputs = tf.keras.activations.tanh(outputs)
   outputs = tf.keras.layers.Dropout(0.3)(outputs)
   outputs = tf.keras.layers.Flatten()(outputs)
-  outputs = tf.keras.layers.Dense(1024, activation='relu')(outputs)
   outputs = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)
 
   return tf.keras.Model(inputs=signals, outputs=outputs, name='discriminator')
