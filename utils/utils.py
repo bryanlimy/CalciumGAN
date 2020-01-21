@@ -80,18 +80,19 @@ def deconvolve_saved_signals(hparams, filename):
   print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
 
 
-def get_mean_van_rossum_distance(hparams, real_spikes, fake_spikes):
+def van_rossum_distance_loop(args):
+  real_spikes, fake_spikes = args
+  assert real_spikes.shape == fake_spikes.shape
+  shape = real_spikes.shape
+  distances = np.zeros((shape[0], shape[1]), dtype=np.float32)
+  for i in range(shape[0]):
+    for neuron in range(shape[1]):
+      distances[i][neuron] = van_rossum_distance(real_spikes[i][neuron],
+                                                 fake_spikes[i][neuron])
+  return distances
 
-  def _van_rossum_distance(args):
-    real_spikes, fake_spikes = args
-    assert real_spikes.shape == fake_spikes.shape
-    shape = real_spikes.shape
-    distances = np.zeros((shape[0], shape[1]), dtype=np.float32)
-    for i in range(shape[0]):
-      for neuron in range(shape[1]):
-        distances[i][neuron] = van_rossum_distance(real_spikes[i][neuron],
-                                                   fake_spikes[i][neuron])
-    return distances
+
+def get_mean_van_rossum_distance(hparams, real_spikes, fake_spikes):
 
   start = time()
   if hparams.num_processors > 2:
@@ -99,12 +100,12 @@ def get_mean_van_rossum_distance(hparams, real_spikes, fake_spikes):
     real_spikes_split = split(real_spikes, n=num_jobs)
     fake_spikes_split = split(fake_spikes, n=num_jobs)
     pool = Pool(processes=num_jobs)
-    distances = pool.map(_van_rossum_distance,
+    distances = pool.map(van_rossum_distance_loop,
                          list(zip(real_spikes_split, fake_spikes_split)))
     pool.close()
     distances = np.concatenate(distances, axis=0)
   else:
-    distances = _van_rossum_distance((real_spikes, fake_spikes))
+    distances = van_rossum_distance_loop((real_spikes, fake_spikes))
   mean_distance = np.mean(distances)
   elapse = time() - start
   print('mean van Rossum distance in {:.2f}s'.format(elapse))
