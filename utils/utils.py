@@ -134,3 +134,8 @@ def measure_spike_metrics(hparams, epoch, summary):
 
   if not hparams.keep_generated:
     os.remove(filename)
+
+
+def delete_generated_file(hparams, epoch):
+  filename = get_signal_filename(hparams, epoch)
+  os.remove(filename)

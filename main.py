@@ -16,7 +16,7 @@ from models.registry import get_model
 from utils.summary_helper import Summary
 from utils.dataset_helper import get_dataset
 from utils.utils import store_hparams, save_signals, measure_spike_metrics, \
-  save_models, load_models
+  save_models, load_models, delete_generated_file
 
 
 def gradient_penalty(inputs, generated, discriminator, training=True):
@@ -175,6 +175,10 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   # evaluate spike metrics every 5 epochs
   if epoch % 5 == 0 or epoch == hparams.epochs:
     measure_spike_metrics(hparams, epoch, summary)
+
+  # delete generated signals and spike train
+  if not hparams.keep_generated:
+    delete_generated_file(hparams, epoch)
 
   summary.scalar('generator_loss', gen_losses, training=False)
   summary.scalar('discriminator_loss', dis_losses, training=False)
