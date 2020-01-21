@@ -93,7 +93,6 @@ def van_rossum_distance_loop(args):
 
 
 def get_mean_van_rossum_distance(hparams, real_spikes, fake_spikes):
-
   start = time()
   if hparams.num_processors > 2:
     num_jobs = min(len(real_spikes), hparams.num_processors)
@@ -132,9 +131,6 @@ def measure_spike_metrics(hparams, epoch, summary):
 
   summary.scalar('spike_count_mse', mean_spike_error, training=False)
   summary.scalar('van_rossum_distance', van_rossum_distance, training=False)
-
-  if not hparams.keep_generated:
-    os.remove(filename)
 
 
 def delete_generated_file(hparams, epoch):
