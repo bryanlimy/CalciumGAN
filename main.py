@@ -173,7 +173,7 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
   # evaluate spike metrics every 5 epochs
-  if epoch % 5 == 0 or epoch == hparams.epochs:
+  if epoch % 5 == 0 or epoch == hparams.epochs - 1:
     measure_spike_metrics(hparams, epoch, summary)
 
   # delete generated signals and spike train
@@ -229,7 +229,7 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
 
     summary.scalar('elapse (s)', elapse, step=epoch, training=True)
 
-    if epoch % 5 == 0:
+    if epoch % 5 == 0 or epoch == hparams.epochs - 1:
       save_models(hparams, generator, discriminator, epoch)
 
 
