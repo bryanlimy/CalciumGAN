@@ -98,7 +98,7 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
 
   for signal, spike in tqdm(
       train_ds,
-      desc='Epoch {:02d}/{:02d}'.format(epoch, hparams.epochs),
+      desc='Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs),
       total=hparams.steps_per_epoch):
 
     gen_loss, dis_loss, penalty = train_step(
@@ -173,7 +173,8 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
   gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
 
   # evaluate spike metrics every 5 epochs
-  if not hparams.skip_spike_metrics or epoch % 5 == 0 or epoch == hparams.epochs - 1:
+  if not hparams.skip_spike_metrics and (epoch % 5 == 0 or
+                                         epoch == hparams.epochs - 1):
     measure_spike_metrics(hparams, epoch, summary)
 
   # delete generated signals and spike train
