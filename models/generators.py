@@ -3,6 +3,8 @@ from .registry import generator_register as register
 import numpy as np
 import tensorflow as tf
 
+from .utils import get_activation_fn
+
 
 @register
 def mlp(hparams):
@@ -30,11 +32,11 @@ def conv1d(hparams):
   outputs = tf.keras.layers.Conv1D(
       filters=256, kernel_size=3, strides=2, padding='valid')(inputs)
   outputs = tf.keras.layers.BatchNormalization()(outputs)
-  outputs = tf.keras.layers.LeakyReLU()(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Conv1D(
       filters=128, kernel_size=3, strides=2, padding='valid')(outputs)
   outputs = tf.keras.layers.BatchNormalization()(outputs)
-  outputs = tf.keras.layers.LeakyReLU()(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
 
   outputs = tf.keras.layers.Flatten()(outputs)
 

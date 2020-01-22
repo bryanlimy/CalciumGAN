@@ -282,6 +282,7 @@ if __name__ == '__main__':
   parser.add_argument('--verbose', default=1, type=int)
   parser.add_argument('--generator', default='conv1d', type=str)
   parser.add_argument('--discriminator', default='conv1d', type=str)
+  parser.add_argument('--activation', default='tanh', type=str)
   parser.add_argument(
       '--clear_output_dir',
       action='store_true',
