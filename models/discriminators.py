@@ -25,11 +25,11 @@ def conv1d(hparams):
 
   outputs = tf.keras.layers.Conv1D(
       filters=512, kernel_size=3, strides=2, padding='valid')(signals)
-  outputs = tf.keras.activations.tanh(outputs)
+  outputs = tf.keras.layers.LeakyReLU()(outputs)
   outputs = tf.keras.layers.Dropout(0.3)(outputs)
   outputs = tf.keras.layers.Conv1D(
       filters=256, kernel_size=3, strides=2, padding='valid')(outputs)
-  outputs = tf.keras.activations.tanh(outputs)
+  outputs = tf.keras.layers.LeakyReLU()(outputs)
   outputs = tf.keras.layers.Dropout(0.3)(outputs)
   outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)

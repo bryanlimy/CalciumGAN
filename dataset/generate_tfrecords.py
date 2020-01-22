@@ -17,8 +17,8 @@ def split(sequence, n):
 
 
 def normalize(x, x_min, x_max):
-  # scale x to be between -1 and 1
-  return 2 * (x - x_min) / (x_max - x_min) - 1
+  # scale x to be between 0 and 1
+  return (x - x_min) / (x_max - x_min)
 
 
 def get_segments(hparams):
@@ -40,17 +40,15 @@ def get_segments(hparams):
   hparams.signals_min = np.min(raw_signals)
   hparams.signals_max = np.max(raw_signals)
 
-  print('signals min {:.04f}'.format(np.min(raw_signals)))
-  print('signals max {:.04f}'.format(np.max(raw_signals)))
-  print('signals mean {:.04f}'.format(np.mean(raw_signals)))
+  print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
+      np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
 
   if hparams.normalize:
     print('apply normalization')
     raw_signals = normalize(raw_signals, hparams.signals_min,
                             hparams.signals_max)
-    print('signals min {:.04f}'.format(np.min(raw_signals)))
-    print('signals max {:.04f}'.format(np.max(raw_signals)))
-    print('signals mean {:.04f}'.format(np.mean(raw_signals)))
+    print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
+        np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
 
   num_neurons = raw_signals.shape[0]
   num_samples = raw_signals.shape[1] - hparams.sequence_length

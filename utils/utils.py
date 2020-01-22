@@ -21,7 +21,7 @@ def split(sequence, n):
 
 def denormalize(x, x_min, x_max):
   """ re-scale signals back to its original range """
-  return (x_max - x_min) * (x + 1) / 2 + x_min
+  return x * (x_max - x_min) + x_min
 
 
 def store_hparams(hparams):
@@ -59,7 +59,7 @@ def save_models(hparams, generator, discriminator, epoch):
         'generator_weights': generator_weights,
         'discriminator_weights': discriminator_weights
     }, file)
-  print('saved weights to {}'.format(filename))
+  print('saved weights to {}\n'.format(filename))
 
 
 def load_models(hparams, generator, discriminator):
