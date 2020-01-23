@@ -11,11 +11,13 @@ def mlp(hparams):
 
   outputs = tf.keras.layers.Flatten()(signals)
 
-  outputs = tf.keras.layers.Dense(512, activation='tanh')(outputs)
+  outputs = tf.keras.layers.Dense(512)(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
-  outputs = tf.keras.layers.Dense(256, activation='tanh')(outputs)
+  outputs = tf.keras.layers.Dense(256)(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
-  outputs = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)
+  outputs = tf.keras.layers.Dense(1)(outputs)
 
   return tf.keras.Model(inputs=signals, outputs=outputs, name='discriminator')
 

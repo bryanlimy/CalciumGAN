@@ -11,9 +11,11 @@ def mlp(hparams):
 
   outputs = tf.keras.layers.Flatten()(inputs)
 
-  outputs = tf.keras.layers.Dense(512, activation='tanh')(outputs)
+  outputs = tf.keras.layers.Dense(512)(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
-  outputs = tf.keras.layers.Dense(256, activation='tanh')(outputs)
+  outputs = tf.keras.layers.Dense(256)(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
   outputs = tf.keras.layers.Dense(np.prod(hparams.signal_shape))(outputs)
   outputs = tf.keras.layers.Reshape(hparams.signal_shape)(outputs)
