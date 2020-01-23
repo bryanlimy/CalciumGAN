@@ -119,6 +119,9 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
 
+    if hparams.plot_weights and hparams.global_step % 500 == 0:
+      summary.plot_weights(generator, discriminator, training=True)
+
     hparams.global_step += 1
 
   end = time()
@@ -216,17 +219,17 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
         summary=summary,
         epoch=epoch)
 
+    # test generated data and plot in TensorBoard
     test_generation = generator(test_noise, training=False)
     if hparams.input == 'fashion_mnist':
       summary.image('fake', signals=test_generation, training=False)
     else:
       summary.plot_traces('fake', signals=test_generation, training=False)
 
-    print('Train generator loss {:.4f} Train discriminator loss {:.4f} '
-          'Time {:.2f}s\nEval generator loss {:.4f} '
-          'Eval discriminator loss {:.4f}\n'.format(train_gen_loss,
-                                                    train_dis_loss, elapse,
-                                                    val_gen_loss, val_dis_loss))
+    print(
+        'Train: generator loss {:.4f} discriminator loss {:.4f} Time {:.2f}s\n'
+        'Eval: generator loss {:.4f} discriminator loss {:.4f}\n'.format(
+            train_gen_loss, train_dis_loss, elapse, val_gen_loss, val_dis_loss))
 
     summary.scalar('elapse (s)', elapse, step=epoch, training=True)
 
@@ -300,5 +303,9 @@ if __name__ == '__main__':
       '--skip_spike_metrics',
       action='store_true',
       help='flag to skip calculating spike metrics')
+  parser.add_argument(
+      '--plot_weights',
+      action='store_true',
+      help='flag to plot weights and activations in TensorBoard')
   hparams = parser.parse_args()
   main(hparams)

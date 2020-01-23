@@ -59,7 +59,7 @@ def save_models(hparams, generator, discriminator, epoch):
         'generator_weights': generator_weights,
         'discriminator_weights': discriminator_weights
     }, file)
-  print('saved weights to {}\n'.format(filename))
+  print('Saved model checkpoint to {}\n'.format(filename))
 
 
 def load_models(hparams, generator, discriminator):
