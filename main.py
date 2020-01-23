@@ -12,46 +12,32 @@ tf.random.set_seed(1234)
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-from models.registry import get_model
+from models.registry import get_models
 from utils.summary_helper import Summary
+from losses.registry import get_losses
 from utils.dataset_helper import get_dataset
 from utils.utils import store_hparams, save_signals, measure_spike_metrics, \
   save_models, load_models, delete_generated_file
 
 
-def gradient_penalty(inputs, generated, discriminator, training=True):
-  shape = (inputs.shape[0],) + (1,) * (len(inputs.shape) - 1)
-  epsilon = tf.random.uniform(shape, minval=0.0, maxval=1.0)
-  x_hat = epsilon * inputs + (1 - epsilon) * generated
-  with tf.GradientTape() as tape:
-    tape.watch(x_hat)
-    d_hat = discriminator(x_hat, training=training)
-  gradients = tape.gradient(d_hat, x_hat)
-  axis = list(range(len(inputs.shape)))[1:]
-  slope = tf.sqrt(tf.reduce_sum(tf.square(gradients), axis=axis))
-  penalty = tf.reduce_mean(tf.square(slope - 1.0))
-  return penalty
-
-
-def compute_loss(inputs,
-                 generator,
-                 discriminator,
-                 num_neurons,
-                 noise_dim,
-                 penalty_weight=10.0,
-                 training=True):
+def step(inputs,
+         generator,
+         discriminator,
+         generator_loss,
+         discriminator_loss,
+         num_neurons,
+         noise_dim,
+         training=True):
   noise = tf.random.normal((inputs.shape[0], num_neurons, noise_dim))
 
   generated = generator(noise, training=training)
 
-  real = discriminator(inputs, training=training)
-  fake = discriminator(generated, training=training)
+  real_output = discriminator(inputs, training=training)
+  fake_output = discriminator(generated, training=training)
 
-  penalty = gradient_penalty(
-      inputs, generated, discriminator, training=training)
-  dis_loss = tf.reduce_mean(real) - tf.reduce_mean(
-      fake) + penalty_weight * penalty
-  gen_loss = tf.reduce_mean(fake)
+  gen_loss = generator_loss(real_output, fake_output)
+  dis_loss, penalty = discriminator_loss(real_output, fake_output,
+                                         discriminator, inputs, generated)
 
   kl_divergence = tf.reduce_mean(
       tf.keras.losses.KLD(y_true=inputs, y_pred=generated))
@@ -65,18 +51,20 @@ def train_step(inputs,
                discriminator,
                gen_optimizer,
                dis_optimizer,
+               generator_loss,
+               discriminator_loss,
                num_neurons,
-               noise_dim=64,
-               penalty_weight=10.0):
+               noise_dim=64):
 
   with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
-    _, gen_loss, dis_loss, penalty, _ = compute_loss(
+    _, gen_loss, dis_loss, penalty, _ = step(
         inputs,
         generator=generator,
         discriminator=discriminator,
+        generator_loss=generator_loss,
+        discriminator_loss=discriminator_loss,
         num_neurons=num_neurons,
         noise_dim=noise_dim,
-        penalty_weight=penalty_weight,
         training=True)
 
   gen_gradients = gen_tape.gradient(gen_loss, generator.trainable_variables)
@@ -91,7 +79,7 @@ def train_step(inputs,
 
 
 def train(hparams, train_ds, generator, discriminator, gen_optimizer,
-          dis_optimizer, summary, epoch):
+          dis_optimizer, generator_loss, discriminator_loss, summary, epoch):
   gen_losses, dis_losses = [], []
 
   start = time()
@@ -107,9 +95,10 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
         discriminator=discriminator,
         gen_optimizer=gen_optimizer,
         dis_optimizer=dis_optimizer,
+        generator_loss=generator_loss,
+        discriminator_loss=discriminator_loss,
         num_neurons=hparams.num_neurons,
-        noise_dim=hparams.noise_dim,
-        penalty_weight=hparams.gradient_penalty)
+        noise_dim=hparams.noise_dim)
 
     if hparams.global_step % hparams.summary_freq == 0:
       summary.scalar('generator_loss', gen_loss, training=True)
@@ -129,22 +118,24 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
 
 
 @tf.function
-def validation_step(inputs, generator, discriminator, noise_dim, num_neurons,
-                    penalty_weight):
+def validation_step(inputs, generator, discriminator, generator_loss,
+                    discriminator_loss, noise_dim, num_neurons):
 
-  generated, gen_loss, dis_loss, penalty, kl_divergence = compute_loss(
+  generated, gen_loss, dis_loss, penalty, kl_divergence = step(
       inputs,
       generator,
       discriminator,
+      generator_loss=generator_loss,
+      discriminator_loss=discriminator_loss,
       num_neurons=num_neurons,
       noise_dim=noise_dim,
-      penalty_weight=penalty_weight,
       training=False)
 
   return generated, gen_loss, dis_loss, penalty, kl_divergence
 
 
-def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
+def validate(hparams, validation_ds, generator, discriminator, generator_loss,
+             discriminator_loss, summary, epoch):
   gen_losses, dis_losses, penalties, kl_divergences = [], [], [], []
 
   start = time()
@@ -154,9 +145,10 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
         signal,
         generator,
         discriminator,
+        generator_loss=generator_loss,
+        discriminator_loss=discriminator_loss,
         num_neurons=hparams.num_neurons,
-        noise_dim=hparams.noise_dim,
-        penalty_weight=hparams.gradient_penalty)
+        noise_dim=hparams.noise_dim)
 
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
@@ -193,10 +185,15 @@ def validate(hparams, validation_ds, generator, discriminator, summary, epoch):
 
 
 def train_and_validate(hparams, train_ds, validation_ds, generator,
-                       discriminator, gen_optimizer, dis_optimizer, summary):
+                       discriminator, summary):
 
   # noise to test generator and plot to TensorBoard
   test_noise = tf.random.normal((1, hparams.num_neurons, hparams.noise_dim))
+
+  generator_loss, discriminator_loss = get_losses(hparams)
+
+  gen_optimizer = tf.keras.optimizers.Adam(hparams.lr)
+  dis_optimizer = tf.keras.optimizers.Adam(hparams.lr)
 
   for epoch in range(hparams.epochs):
 
@@ -205,6 +202,8 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
         train_ds,
         generator=generator,
         discriminator=discriminator,
+        generator_loss=generator_loss,
+        discriminator_loss=discriminator_loss,
         gen_optimizer=gen_optimizer,
         dis_optimizer=dis_optimizer,
         summary=summary,
@@ -215,15 +214,17 @@ def train_and_validate(hparams, train_ds, validation_ds, generator,
         validation_ds,
         generator=generator,
         discriminator=discriminator,
+        generator_loss=generator_loss,
+        discriminator_loss=discriminator_loss,
         summary=summary,
         epoch=epoch)
 
     # test generated data and plot in TensorBoard
-    test_generation = generator(test_noise, training=False)
+    generated = generator(test_noise, training=False)
     if hparams.input == 'fashion_mnist':
-      summary.image('fake', signals=test_generation, training=False)
+      summary.image('fake', signals=generated, training=False)
     else:
-      summary.plot_traces('fake', signals=test_generation, training=False)
+      summary.plot_traces('fake', signals=generated, training=False)
 
     print(
         'Train: generator loss {:.4f} discriminator loss {:.4f} Time {:.2f}s\n'
@@ -246,10 +247,7 @@ def main(hparams):
 
   train_ds, validation_ds = get_dataset(hparams, summary)
 
-  gen_optimizer = tf.keras.optimizers.Adam(hparams.lr)
-  dis_optimizer = tf.keras.optimizers.Adam(hparams.lr)
-
-  generator, discriminator = get_model(hparams)
+  generator, discriminator = get_models(hparams)
 
   generator.summary()
   discriminator.summary()
@@ -264,8 +262,6 @@ def main(hparams):
       validation_ds=validation_ds,
       generator=generator,
       discriminator=discriminator,
-      gen_optimizer=gen_optimizer,
-      dis_optimizer=dis_optimizer,
       summary=summary)
 
 
@@ -285,6 +281,7 @@ if __name__ == '__main__':
   parser.add_argument('--generator', default='conv1d', type=str)
   parser.add_argument('--discriminator', default='conv1d', type=str)
   parser.add_argument('--activation', default='tanh', type=str)
+  parser.add_argument('--loss', default='gan', type=str)
   parser.add_argument(
       '--clear_output_dir',
       action='store_true',

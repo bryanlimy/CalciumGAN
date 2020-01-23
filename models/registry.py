@@ -13,7 +13,7 @@ def discriminator_register(fn):
   return fn
 
 
-def get_model(hparams):
+def get_models(hparams):
   if hparams.generator not in _GENERATORS:
     print('generator model {} not found'.format(hparams.generator))
     exit()
