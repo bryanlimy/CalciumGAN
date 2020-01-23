@@ -115,41 +115,33 @@ class Summary(object):
       name = variable.name
     mean = tf.reduce_mean(variable)
     stddev = tf.sqrt(tf.reduce_mean(tf.square(variable - mean)))
+    self.scalar('{}/0_mean'.format(name), mean, step=step, training=training)
     self.scalar(
-        'variable_summary/{}/0_mean'.format(name),
-        mean,
-        step=step,
-        training=training)
+        '{}/1_stddev'.format(name), stddev, step=step, training=training)
     self.scalar(
-        'variable_summary/{}/1_stddev'.format(name),
-        stddev,
-        step=step,
-        training=training)
-    self.scalar(
-        'variable_summary/{}/2_min'.format(name),
+        '{}/2_min'.format(name),
         tf.reduce_min(variable),
         step=step,
         training=training)
     self.scalar(
-        'variable_summary/{}/3_max'.format(name),
+        '{}/3_max'.format(name),
         tf.reduce_max(variable),
         step=step,
         training=training)
     self.histogram(name, variable, step=step, training=training)
 
   def plot_weights(self, generator, discriminator, step=None, training=True):
-    for var in sorted(generator.trainable_variables, key=lambda var: var.name):
+    for i, var in enumerate(generator.trainable_variables):
       self.variable_summary(
           var,
-          name='generator/{}'.format(var.name),
+          name='plots_generator/{:02d}/{}'.format(i + 1, var.name),
           step=step,
           training=training,
       )
-    for var in sorted(
-        discriminator.trainable_variables, key=lambda var: var.name):
+    for i, var in enumerate(discriminator.trainable_variables):
       self.variable_summary(
           var,
-          name='discriminator/{}'.format(var.name),
+          name='plots_discriminator/{:02d}/{}'.format(i + 1, var.name),
           step=step,
           training=training,
       )

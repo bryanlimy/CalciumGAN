@@ -115,12 +115,11 @@ def train(hparams, train_ds, generator, discriminator, gen_optimizer,
       summary.scalar('generator_loss', gen_loss, training=True)
       summary.scalar('discriminator_loss', dis_loss, training=True)
       summary.scalar('gradient_penalty', penalty, training=True)
+      if hparams.plot_weights:
+        summary.plot_weights(generator, discriminator, training=True)
 
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
-
-    if hparams.plot_weights and hparams.global_step % 500 == 0:
-      summary.plot_weights(generator, discriminator, training=True)
 
     hparams.global_step += 1
 
