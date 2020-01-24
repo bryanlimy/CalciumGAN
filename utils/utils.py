@@ -69,7 +69,7 @@ def save_models(hparams, generator, discriminator, epoch):
 
 
 def load_models(hparams, generator, discriminator):
-  ckpts = glob(os.path.join(hparams.output_dir, 'ckpt-*'))
+  ckpts = glob(os.path.join(hparams.output_dir, 'epoch-*'))
   if ckpts:
     ckpts.sort()
     filename = ckpts[-1]
