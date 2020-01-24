@@ -50,18 +50,21 @@ def save_signals(hparams, epoch, real_signals, real_spikes, fake_signals):
 
 
 def save_models(hparams, generator, discriminator, epoch):
-  generator_weights = generator.get_weights()
-  discriminator_weights = discriminator.get_weights()
   ckpt_dir = os.path.join(hparams.output_dir, 'checkpoints')
   if not os.path.exists(ckpt_dir):
     os.makedirs(ckpt_dir)
   filename = os.path.join(ckpt_dir, 'epoch-{:03d}.pkl'.format(epoch))
+
+  generator_weights = generator.get_weights()
+  discriminator_weights = discriminator.get_weights()
+
   with open(filename, 'wb') as file:
     pickle.dump({
         'epoch': epoch,
         'generator_weights': generator_weights,
         'discriminator_weights': discriminator_weights
     }, file)
+
   print('Saved model checkpoint to {}\n'.format(filename))
 
 
