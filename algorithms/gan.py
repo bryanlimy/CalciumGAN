@@ -65,7 +65,7 @@ class GAN(object):
 
     return gen_loss, dis_loss, gradient_penalty, kl
 
-  #@tf.function
+  @tf.function
   def validate(self, inputs):
     noise = tf.random.normal((inputs.shape[0], self._num_neurons,
                               self._noise_dim))
