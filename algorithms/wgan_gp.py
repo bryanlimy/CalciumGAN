@@ -23,8 +23,10 @@ class WGAN_GP(GAN):
     return (alpha * inputs) + ((1 - alpha) * fake)
 
   @tf.function
-  def gradient_penalty(self, prediction, average):
-    gradients = tf.gradients(prediction, average)[0]
+  def gradient_penalty(self, real, fake):
+    interpolated = self.random_weighted_average(real, fake)
+    interpolated_output = self.discriminator(interpolated, training=True)
+    gradients = tf.gradients(interpolated_output, interpolated)
     gradients_sqr = tf.square(gradients)
     gradients_sqr_sum = tf.reduce_sum(
         gradients_sqr, axis=np.arange(1, len(gradients_sqr.shape)))
@@ -32,15 +34,10 @@ class WGAN_GP(GAN):
     gradient_penalty = tf.square(gradients_l2_norm)
     return tf.reduce_mean(gradient_penalty)
 
-  def discriminator_loss(self,
-                         real_output,
-                         fake_output,
-                         interpolated_samples=None,
-                         validity_interpolated=None):
+  def discriminator_loss(self, real_output, fake_output, real=None, fake=None):
     real_loss = -tf.reduce_mean(real_output)
     fake_loss = tf.reduce_mean(fake_output)
-    gradient_penalty = self.gradient_penalty(validity_interpolated,
-                                             interpolated_samples)
+    gradient_penalty = self.gradient_penalty(real, fake)
     loss = real_loss + fake_loss + self._lambda * gradient_penalty
     return loss, gradient_penalty
 
@@ -75,21 +72,16 @@ class WGAN_GP(GAN):
       fake_output = self.discriminator(fake, training=True)
 
       interpolated_samples = self.random_weighted_average(inputs, fake)
-      validity_interpolated = self.discriminator(
-          interpolated_samples, training=True)
 
-      disc_loss, gradient_penalty = self.discriminator_loss(
-          real_output,
-          fake_output,
-          interpolated_samples=interpolated_samples,
-          validity_interpolated=validity_interpolated)
+      dis_loss, gradient_penalty = self.discriminator_loss(
+          real_output, fake_output, real=inputs, fake=fake)
 
-    dis_gradients = tape.gradient(disc_loss,
+    dis_gradients = tape.gradient(dis_loss,
                                   self.discriminator.trainable_variables)
     self.dis_optimizer.apply_gradients(
         zip(dis_gradients, self.discriminator.trainable_variables))
 
-    return disc_loss, gradient_penalty
+    return dis_loss, gradient_penalty
 
   def train(self, inputs):
     dis_losses, gradient_penalties = [], []
