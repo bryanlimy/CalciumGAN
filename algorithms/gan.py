@@ -25,7 +25,12 @@ class GAN(object):
   def generator_loss(self, fake_output):
     return self._cross_entropy(tf.ones_like(fake_output), fake_output)
 
-  def discriminator_loss(self, real_output, fake_output, real=None, fake=None):
+  def discriminator_loss(self,
+                         real_output,
+                         fake_output,
+                         real=None,
+                         fake=None,
+                         training=True):
     real_loss = self._cross_entropy(tf.ones_like(real_output), real_output)
     fake_loss = self._cross_entropy(tf.zeros_like(fake_output), fake_output)
     gradient_penalty = None
@@ -40,7 +45,7 @@ class GAN(object):
 
     gen_loss = self.generator_loss(fake_output)
     dis_loss, gradient_penalty = self.discriminator_loss(
-        real_output, fake_output, real=inputs, fake=fake)
+        real_output, fake_output, real=inputs, fake=fake, trainin=training)
 
     kl = self.kl_divergence(real=inputs, fake=fake)
 

@@ -23,9 +23,9 @@ class WGAN_GP(GAN):
     return (alpha * inputs) + ((1 - alpha) * fake)
 
   @tf.function
-  def gradient_penalty(self, real, fake):
+  def gradient_penalty(self, real, fake, training=True):
     interpolated = self.random_weighted_average(real, fake)
-    interpolated_output = self.discriminator(interpolated, training=True)
+    interpolated_output = self.discriminator(interpolated, training=training)
     gradients = tf.gradients(interpolated_output, interpolated)
     gradients_sqr = tf.square(gradients)
     gradients_sqr_sum = tf.reduce_sum(
@@ -34,10 +34,15 @@ class WGAN_GP(GAN):
     gradient_penalty = tf.square(gradients_l2_norm)
     return tf.reduce_mean(gradient_penalty)
 
-  def discriminator_loss(self, real_output, fake_output, real=None, fake=None):
+  def discriminator_loss(self,
+                         real_output,
+                         fake_output,
+                         real=None,
+                         fake=None,
+                         training=True):
     real_loss = -tf.reduce_mean(real_output)
     fake_loss = tf.reduce_mean(fake_output)
-    gradient_penalty = self.gradient_penalty(real, fake)
+    gradient_penalty = self.gradient_penalty(real, fake, training=training)
     loss = real_loss + fake_loss + self._lambda * gradient_penalty
     return loss, gradient_penalty
 
