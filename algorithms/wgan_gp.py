@@ -71,8 +71,6 @@ class WGAN_GP(GAN):
       real_output = self.discriminator(inputs, training=True)
       fake_output = self.discriminator(fake, training=True)
 
-      interpolated_samples = self.random_weighted_average(inputs, fake)
-
       dis_loss, gradient_penalty = self.discriminator_loss(
           real_output, fake_output, real=inputs, fake=fake)
 
