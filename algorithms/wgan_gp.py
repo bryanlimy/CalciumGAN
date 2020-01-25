@@ -22,6 +22,7 @@ class WGAN_GP(GAN):
     alpha = tf.random.uniform((inputs.shape[0], 1, 1))
     return (alpha * inputs) + ((1 - alpha) * fake)
 
+  @tf.function
   def gradient_penalty(self, prediction, average):
     gradients = tf.gradients(prediction, average)[0]
     gradients_sqr = tf.square(gradients)
