@@ -22,11 +22,12 @@ class WGAN_GP(GAN):
     alpha = tf.random.uniform((inputs.shape[0], 1, 1))
     return (alpha * inputs) + ((1 - alpha) * fake)
 
-  @tf.function
   def gradient_penalty(self, real, fake, training=True):
     interpolated = self.random_weighted_average(real, fake)
-    interpolated_output = self.discriminator(interpolated, training=training)
-    gradients = tf.gradients(interpolated_output, interpolated)
+    with tf.GradientTape() as tape:
+      tape.watch(interpolated)
+      interpolated_output = self.discriminator(interpolated, training=training)
+    gradients = tape.gradient(interpolated_output, interpolated)
     gradients_sqr = tf.square(gradients)
     gradients_sqr_sum = tf.reduce_sum(
         gradients_sqr, axis=np.arange(1, len(gradients_sqr.shape)))
@@ -46,7 +47,6 @@ class WGAN_GP(GAN):
     loss = real_loss + fake_loss + self._lambda * gradient_penalty
     return loss, gradient_penalty
 
-  @tf.function
   def _train_generator(self, inputs):
     noise = tf.random.normal((inputs.shape[0], self._num_neurons,
                               self._noise_dim))
@@ -65,7 +65,6 @@ class WGAN_GP(GAN):
 
     return gen_loss, kl
 
-  @tf.function
   def _train_discriminator(self, inputs):
     noise = tf.random.normal((inputs.shape[0], self._num_neurons,
                               self._noise_dim))
@@ -86,6 +85,7 @@ class WGAN_GP(GAN):
 
     return dis_loss, gradient_penalty
 
+  #@tf.function
   def train(self, inputs):
     dis_losses, gradient_penalties = [], []
     for i in range(self._n_critic):
