@@ -45,7 +45,7 @@ class GAN(object):
 
     gen_loss = self.generator_loss(fake_output)
     dis_loss, gradient_penalty = self.discriminator_loss(
-        real_output, fake_output, real=inputs, fake=fake, trainin=training)
+        real_output, fake_output, real=inputs, fake=fake, training=training)
 
     kl = self.kl_divergence(real=inputs, fake=fake)
 
