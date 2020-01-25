@@ -23,6 +23,7 @@ class WGAN_GP(GAN):
     return (alpha * inputs) + ((1 - alpha) * fake)
 
   def gradient_penalty(self, real, fake, training=True):
+    # TODO check the math
     interpolated = self.random_weighted_average(real, fake)
     with tf.GradientTape() as tape:
       tape.watch(interpolated)
