@@ -130,15 +130,15 @@ class Summary(object):
         training=training)
     self.histogram(name, variable, step=step, training=training)
 
-  def plot_weights(self, generator, discriminator, step=None, training=True):
-    for i, var in enumerate(generator.trainable_variables):
+  def plot_weights(self, gan, step=None, training=True):
+    for i, var in enumerate(gan.generator.trainable_variables):
       self.variable_summary(
           var,
           name='plots_generator/{:02d}/{}'.format(i + 1, var.name),
           step=step,
           training=training,
       )
-    for i, var in enumerate(discriminator.trainable_variables):
+    for i, var in enumerate(gan.discriminator.trainable_variables):
       self.variable_summary(
           var,
           name='plots_discriminator/{:02d}/{}'.format(i + 1, var.name),
