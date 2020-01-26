@@ -18,23 +18,18 @@ class WGAN_GP(GAN):
   def generator_loss(self, fake_output):
     return -tf.reduce_mean(fake_output)
 
-  def random_weighted_average(self, inputs, fake):
-    alpha = tf.random.uniform((inputs.shape[0], 1, 1))
-    return (alpha * inputs) + ((1 - alpha) * fake)
+  def interpolation(self, real, fake):
+    alpha = tf.random.uniform((real.shape[0], 1, 1), minval=0.0, maxval=1.0)
+    return (alpha * real) + ((1 - alpha) * fake)
 
   def gradient_penalty(self, real, fake, training=True):
-    # TODO check the math
-    interpolated = self.random_weighted_average(real, fake)
+    interpolated = self.interpolation(real, fake)
     with tf.GradientTape() as tape:
       tape.watch(interpolated)
       interpolated_output = self.discriminator(interpolated, training=training)
-    gradients = tape.gradient(interpolated_output, interpolated)
-    gradients_sqr = tf.square(gradients)
-    gradients_sqr_sum = tf.reduce_sum(
-        gradients_sqr, axis=np.arange(1, len(gradients_sqr.shape)))
-    gradients_l2_norm = tf.sqrt(gradients_sqr_sum)
-    gradient_penalty = tf.square(gradients_l2_norm)
-    return tf.reduce_mean(gradient_penalty)
+    gradient = tape.gradient(interpolated_output, interpolated)
+    norm = tf.norm(tf.reshape(gradient, shape=(gradient.shape[0], -1)), axis=1)
+    return tf.reduce_mean(tf.square(norm - 1.0))
 
   def discriminator_loss(self,
                          real_output,
