@@ -40,3 +40,34 @@ def conv1d(hparams):
   outputs = tf.keras.layers.Dense(1)(outputs)
 
   return tf.keras.Model(inputs=signals, outputs=outputs, name='discriminator')
+
+
+@register
+def rnn(hparams):
+  inputs = tf.keras.Input(shape=hparams.signal_shape, name='signals')
+
+  outputs = tf.keras.layers.GRU(
+      512,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(inputs)
+  outputs = tf.keras.layers.GRU(
+      256,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(outputs)
+  outputs = tf.keras.layers.GRU(
+      hparams.signal_shape[-1],
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      time_major=False)(outputs)
+
+  outputs = tf.keras.layers.Flatten()(outputs)
+  outputs = tf.keras.layers.Dense(1)(outputs)
+
+  return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')

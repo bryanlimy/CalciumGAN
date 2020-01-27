@@ -49,3 +49,34 @@ def conv1d(hparams):
     outputs = tf.keras.activations.sigmoid(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
+
+
+@register
+def rnn(hparams):
+  inputs = tf.keras.Input(shape=hparams.generator_input_shape, name='inputs')
+
+  outputs = tf.keras.layers.GRU(
+      512,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(inputs)
+  outputs = tf.keras.layers.GRU(
+      256,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(outputs)
+  outputs = tf.keras.layers.GRU(
+      hparams.signal_shape[-1],
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(outputs)
+
+  if hparams.normalize:
+    outputs = tf.keras.activations.sigmoid(outputs)
+
+  return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
