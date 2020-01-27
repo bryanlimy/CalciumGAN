@@ -145,3 +145,23 @@ class Summary(object):
           step=step,
           training=training,
       )
+
+  def log(self,
+          gen_loss,
+          dis_loss,
+          gradient_penalty,
+          metrics=None,
+          elapse=None,
+          gan=None,
+          training=True):
+    self.scalar('generator_loss', gen_loss, training=training)
+    self.scalar('discriminator_loss', dis_loss, training=training)
+    if gradient_penalty is not None:
+      self.scalar('gradient_penalty', gradient_penalty, training=training)
+    if metrics is not None:
+      for tag, value in metrics.items():
+        self.scalar(tag, value, training=training)
+    if elapse is not None:
+      self.scalar('elapse (s)', elapse, training=training)
+    if gan is not None and self._hparams.plot_weights:
+      self.plot_weights(gan, training=training)

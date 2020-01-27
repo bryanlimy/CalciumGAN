@@ -8,7 +8,7 @@ from multiprocessing import Pool
 
 from .oasis_helper import deconvolve_signals
 from .h5_helpers import open_h5, create_or_append_h5
-from .metrics_helper import mean_spike_count, van_rossum_distance
+from .spike_metrics import mean_spike_count, van_rossum_distance
 
 
 def split(sequence, n):
@@ -38,10 +38,11 @@ def get_signal_filename(hparams, epoch):
 def save_signals(hparams, epoch, real_signals, real_spikes, fake_signals):
   filename = get_signal_filename(hparams, epoch)
 
-  real_signals = denormalize(
-      real_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
-  fake_signals = denormalize(
-      fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
+  if hparams.normalize:
+    real_signals = denormalize(
+        real_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
+    fake_signals = denormalize(
+        fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
   with open_h5(filename, mode='a') as file:
     create_or_append_h5(file, 'real_spikes', real_spikes)

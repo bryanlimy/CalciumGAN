@@ -30,16 +30,16 @@ def train(hparams, train_ds, gan, summary, epoch):
       desc='Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs),
       total=hparams.steps_per_epoch):
 
-    gen_loss, dis_loss, gradient_penalty, kl = gan.train(signal)
+    gen_loss, dis_loss, gradient_penalty, metrics = gan.train(signal)
 
     if hparams.global_step % hparams.summary_freq == 0:
-      summary.scalar('generator_loss', gen_loss, training=True)
-      summary.scalar('discriminator_loss', dis_loss, training=True)
-      if gradient_penalty is not None:
-        summary.scalar('gradient_penalty', gradient_penalty, training=True)
-      summary.scalar('kl_divergence', kl, training=True)
-      if hparams.plot_weights:
-        summary.plot_weights(gan, training=True)
+      summary.log(
+          gen_loss,
+          dis_loss,
+          gradient_penalty,
+          metrics=metrics,
+          gan=gan,
+          training=True)
 
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
@@ -54,18 +54,20 @@ def train(hparams, train_ds, gan, summary, epoch):
 
 
 def validate(hparams, validation_ds, gan, summary, epoch):
-  gen_losses, dis_losses, gradient_penalties, kl_divergences = [], [], [], []
+  gen_losses, dis_losses, gradient_penalties = [], [], []
+  kl_divergences, mean_signals_errors = [], []
 
   start = time()
 
   for signal, spike in validation_ds:
-    fake, gen_loss, dis_loss, gradient_penalty, kl = gan.validate(signal)
+    fake, gen_loss, dis_loss, gradient_penalty, metrics = gan.validate(signal)
 
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
     if gradient_penalty is not None:
       gradient_penalties.append(gradient_penalty)
-    kl_divergences.append(kl)
+    kl_divergences.append(metrics['kl_divergence'])
+    mean_signals_errors.append(metrics['mean_signals_error'])
 
     save_signals(
         hparams,
@@ -76,7 +78,19 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
   end = time()
 
-  gen_losses, dis_losses = np.mean(gen_losses), np.mean(dis_losses)
+  gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
+  gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
+
+  summary.log(
+      gen_loss,
+      dis_loss,
+      gradient_penalty,
+      metrics={
+          'kl_divergence': np.mean(kl_divergences),
+          'mean_signals_error': np.mean(mean_signals_errors)
+      },
+      elapse=end - start,
+      training=False)
 
   # evaluate spike metrics every 5 epochs
   if not hparams.skip_spike_metrics and (epoch % 5 == 0 or
@@ -87,15 +101,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
   if not hparams.keep_generated:
     delete_generated_file(hparams, epoch)
 
-  summary.scalar('generator_loss', gen_losses, training=False)
-  summary.scalar('discriminator_loss', dis_losses, training=False)
-  if gradient_penalties:
-    summary.scalar(
-        'gradient_penalty', np.mean(gradient_penalties), training=False)
-  summary.scalar('kl_divergence', np.mean(kl_divergences), training=False)
-  summary.scalar('elapse (s)', end - start, step=epoch, training=False)
-
-  return gen_losses, dis_losses
+  return gen_loss, dis_loss
 
 
 def train_and_validate(hparams, train_ds, validation_ds, gan, summary):

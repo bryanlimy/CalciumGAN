@@ -13,14 +13,35 @@ class GAN(object):
     self._summary = summary
     self._num_neurons = hparams.num_neurons
     self._noise_dim = hparams.noise_dim
+    self._signals_min = hparams.signals_min
+    self._signals_max = hparams.signals_max
+    self._normalize = hparams.normalize
 
     self.gen_optimizer = tf.keras.optimizers.Adam(hparams.learning_rate)
     self.dis_optimizer = tf.keras.optimizers.Adam(hparams.learning_rate)
 
     self._cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
+  def denormalize(self, x):
+    ''' re-scale signals back to its original range '''
+    return x * (self._signals_max - self._signals_min) + self._signals_min
+
+  def mean_signals_error(self, real, fake):
+    ''' return the MSE of the mean of the real and fake traces '''
+    if self._normalize:
+      real = self.denormalize(real)
+      fake = self.denormalize(fake)
+    return tf.reduce_mean(
+        tf.square(tf.reduce_mean(real) - tf.reduce_mean(fake)))
+
   def kl_divergence(self, real, fake):
     return tf.reduce_mean(tf.keras.losses.KLD(y_true=real, y_pred=fake))
+
+  def metrics(self, real, fake):
+    return {
+        'kl_divergence': self.kl_divergence(real, fake),
+        'mean_signals_error': self.mean_signals_error(real, fake)
+    }
 
   def generator_loss(self, fake_output):
     return self._cross_entropy(tf.ones_like(fake_output), fake_output)
@@ -37,26 +58,27 @@ class GAN(object):
     loss = real_loss + fake_loss
     return loss, gradient_penalty
 
-  def _step(self, inputs, noise, training=True):
+  def _step(self, real, noise, training=True):
     fake = self.generator(noise, training=training)
 
-    real_output = self.discriminator(inputs, training=training)
+    real_output = self.discriminator(real, training=training)
     fake_output = self.discriminator(fake, training=training)
 
     gen_loss = self.generator_loss(fake_output)
     dis_loss, gradient_penalty = self.discriminator_loss(
-        real_output, fake_output, real=inputs, fake=fake, training=training)
+        real_output, fake_output, real=real, fake=fake, training=training)
 
-    kl = self.kl_divergence(real=inputs, fake=fake)
+    metrics = self.metrics(real=real, fake=fake)
 
-    return fake, gen_loss, dis_loss, gradient_penalty, kl
+    return fake, gen_loss, dis_loss, gradient_penalty, metrics
 
   @tf.function
   def train(self, inputs):
     noise = tf.random.normal((inputs.shape[0], self._num_neurons,
                               self._noise_dim))
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
-      _, gen_loss, dis_loss, gradient_penalty, kl = self._step(inputs, noise)
+      _, gen_loss, dis_loss, gradient_penalty, metrics = self._step(
+          inputs, noise)
 
     gen_gradients = gen_tape.gradient(gen_loss,
                                       self.generator.trainable_variables)
@@ -68,7 +90,7 @@ class GAN(object):
     self.dis_optimizer.apply_gradients(
         zip(dis_gradients, self.discriminator.trainable_variables))
 
-    return gen_loss, dis_loss, gradient_penalty, kl
+    return gen_loss, dis_loss, gradient_penalty, metrics
 
   @tf.function
   def validate(self, inputs):

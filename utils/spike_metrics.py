@@ -3,8 +3,7 @@ import tensorflow as tf
 
 
 def mean_spike_count(spikes):
-  binarized = (spikes > np.random.random(spikes.shape)).astype(np.float32)
-  spike_count = np.sum(binarized, axis=-1)
+  spike_count = np.sum(spikes, axis=-1)
   mean_spike_count = np.mean(spike_count, axis=0)
   return mean_spike_count
 

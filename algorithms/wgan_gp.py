@@ -57,9 +57,9 @@ class WGAN_GP(GAN):
     self.gen_optimizer.apply_gradients(
         zip(gen_gradients, self.generator.trainable_variables))
 
-    kl = self.kl_divergence(real=inputs, fake=fake)
+    metrics = self.metrics(real=inputs, fake=fake)
 
-    return gen_loss, kl
+    return gen_loss, metrics
 
   def _train_discriminator(self, inputs):
     noise = tf.random.normal((inputs.shape[0], self._num_neurons,
@@ -89,7 +89,9 @@ class WGAN_GP(GAN):
       dis_losses.append(dis_loss)
       gradient_penalties.append(gradient_penalty)
 
-    gen_loss, kl = self._train_generator(inputs)
+    gen_loss, metrics = self._train_generator(inputs)
 
-    return gen_loss, tf.reduce_mean(dis_losses), tf.reduce_mean(
-        gradient_penalties), kl
+    dis_loss = tf.reduce_mean(dis_loss)
+    gradient_penalty = tf.reduce_mean(gradient_penalties)
+
+    return gen_loss, dis_loss, gradient_penalty, metrics
