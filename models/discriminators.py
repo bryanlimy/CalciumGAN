@@ -70,4 +70,4 @@ def rnn(hparams):
   outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(1)(outputs)
 
-  return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
+  return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
