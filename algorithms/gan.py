@@ -76,6 +76,7 @@ class GAN(object):
   def train(self, inputs):
     noise = tf.random.normal((inputs.shape[0], self._num_neurons,
                               self._noise_dim))
+
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
       _, gen_loss, dis_loss, gradient_penalty, metrics = self._step(
           inputs, noise)

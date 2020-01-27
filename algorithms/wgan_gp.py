@@ -4,7 +4,6 @@ import numpy as np
 import tensorflow as tf
 
 from .gan import GAN
-import sys
 
 
 @register('wgan-gp')

@@ -67,7 +67,6 @@ def rnn(hparams):
       dropout=hparams.dropout,
       time_major=False)(outputs)
 
-  outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(1)(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
