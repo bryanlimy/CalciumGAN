@@ -5,6 +5,19 @@ import tensorflow as tf
 
 from .gan import GAN
 
+import sys
+
+
+def all_close(a1, a2):
+  if tf.is_tensor(a1):
+    a1 = a1.numpy()
+  if tf.is_tensor(a2):
+    a2 = a2.numpy()
+
+  allclose = np.allclose(a1, a2)
+  print(allclose)
+  return allclose
+
 
 @register('wgan-gp')
 class WGAN_GP(GAN):
@@ -22,12 +35,11 @@ class WGAN_GP(GAN):
     alpha = tf.random.uniform((real.shape[0], 1, 1), minval=0.0, maxval=1.0)
     return (alpha * real) + ((1 - alpha) * fake)
 
+  @tf.function
   def gradient_penalty(self, real, fake, training=True):
     interpolated = self.interpolation(real, fake)
-    with tf.GradientTape() as tape:
-      tape.watch(interpolated)
-      interpolated_output = self.discriminator(interpolated, training=training)
-    gradient = tape.gradient(interpolated_output, interpolated)
+    interpolated_output = self.discriminator(interpolated, training=training)
+    gradient = tf.gradients(interpolated_output, interpolated)[0]
     norm = tf.norm(tf.reshape(gradient, shape=(gradient.shape[0], -1)), axis=1)
     return tf.reduce_mean(tf.square(norm - 1.0))
 
@@ -72,12 +84,12 @@ class WGAN_GP(GAN):
       fake_output = self.discriminator(fake, training=True)
 
       dis_loss, gradient_penalty = self.discriminator_loss(
-          real_output, fake_output, real=inputs, fake=fake)
+          real_output, fake_output, real=inputs, fake=fake, training=True)
 
-    dis_gradients = tape.gradient(dis_loss,
-                                  self.discriminator.trainable_variables)
-    self.dis_optimizer.apply_gradients(
-        zip(dis_gradients, self.discriminator.trainable_variables))
+    variables = self.discriminator.trainable_variables
+
+    dis_gradients = tape.gradient(dis_loss, variables)
+    self.dis_optimizer.apply_gradients(zip(dis_gradients, variables))
 
     return dis_loss, gradient_penalty
 
