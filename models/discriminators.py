@@ -46,21 +46,21 @@ def conv1d(hparams):
 def rnn(hparams):
   inputs = tf.keras.Input(shape=hparams.signal_shape, name='signals')
 
-  outputs = tf.keras.layers.LSTM(
+  outputs = tf.keras.layers.GRU(
       512,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
       return_sequences=True,
       time_major=False)(inputs)
-  outputs = tf.keras.layers.LSTM(
+  outputs = tf.keras.layers.GRU(
       256,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
       return_sequences=True,
       time_major=False)(outputs)
-  outputs = tf.keras.layers.LSTM(
+  outputs = tf.keras.layers.GRU(
       128,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
