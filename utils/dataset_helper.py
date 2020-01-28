@@ -4,6 +4,8 @@ import numpy as np
 from math import ceil
 import tensorflow as tf
 
+from .utils import denormalize
+
 
 def get_fashion_mnist(hparams):
   (x_train, _), (x_test, _) = tf.keras.datasets.fashion_mnist.load_data()
@@ -41,6 +43,8 @@ def get_dataset_info(hparams):
   hparams.num_validation_shards = info['num_validation_shards']
   hparams.buffer_size = info['num_per_shard']
   hparams.normalize = info['normalize']
+  hparams.signals_min = float(info['signals_min'])
+  hparams.signals_max = float(info['signals_max'])
 
 
 def get_calcium_signals(hparams):
@@ -84,16 +88,17 @@ def get_calcium_signals(hparams):
 
 
 def get_dataset(hparams, summary):
+  hparams.noise_shape = (hparams.noise_dim,)
   if hparams.input == 'fashion_mnist':
     train_ds, validation_ds = get_fashion_mnist(hparams)
-    hparams.generator_input_shape = (hparams.noise_dim,)
   else:
     train_ds, validation_ds = get_calcium_signals(hparams)
     hparams.num_neurons = hparams.signal_shape[0]
-    hparams.generator_input_shape = (hparams.num_neurons, hparams.noise_dim)
 
     # plot signals and spikes from validation set
     sample_signals, sample_spikes = next(iter(validation_ds))
+    sample_signals = denormalize(
+        sample_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
     summary.plot_traces(
         'real', signals=sample_signals, spikes=sample_spikes, training=False)
 

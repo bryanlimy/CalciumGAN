@@ -3,8 +3,7 @@ import tensorflow as tf
 
 
 def mean_spike_count(spikes):
-  binarized = (spikes > np.random.random(spikes.shape)).astype(np.float32)
-  spike_count = np.sum(binarized, axis=-1)
+  spike_count = np.sum(spikes, axis=-1)
   mean_spike_count = np.mean(spike_count, axis=0)
   return mean_spike_count
 
@@ -78,5 +77,4 @@ def van_rossum_distance(spike1, spike2, tc=1000, bin_width=0.0001, t_extra=1):
           f[t_ind] = decay.spike()
           st.pop(0)
 
-  distance = np.sqrt((bin_width / tc) * np.linalg.norm((f_0 - f_1), 1))
-  return distance
+  return np.sqrt((bin_width / tc) * np.linalg.norm((f_0 - f_1), 1))

@@ -3,17 +3,23 @@ from .registry import generator_register as register
 import numpy as np
 import tensorflow as tf
 
+from .utils import get_activation_fn, Conv1DTranspose
+
 
 @register
 def mlp(hparams):
-  inputs = tf.keras.Input(shape=hparams.generator_input_shape, name='inputs')
+  inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
   outputs = tf.keras.layers.Flatten()(inputs)
 
-  outputs = tf.keras.layers.Dense(512, activation='tanh')(outputs)
+  outputs = tf.keras.layers.Dense(512)(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
-  outputs = tf.keras.layers.Dense(256, activation='tanh')(outputs)
+
+  outputs = tf.keras.layers.Dense(256)(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
+
   outputs = tf.keras.layers.Dense(np.prod(hparams.signal_shape))(outputs)
   outputs = tf.keras.layers.Reshape(hparams.signal_shape)(outputs)
 
@@ -25,17 +31,52 @@ def mlp(hparams):
 
 @register
 def conv1d(hparams):
-  inputs = tf.keras.Input(shape=hparams.generator_input_shape, name='inputs')
+  inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  outputs = tf.keras.layers.Conv1D(
-      filters=256, kernel_size=3, strides=2, padding='causal')(inputs)
-  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
-  outputs = tf.keras.layers.Conv1D(
-      filters=128, kernel_size=3, strides=2, padding='causal')(outputs)
-  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
-  outputs = tf.keras.layers.Flatten()(outputs)
-  outputs = tf.keras.layers.Dense(np.prod(hparams.signal_shape))(outputs)
-  outputs = tf.keras.layers.Reshape(hparams.signal_shape)(outputs)
+  outputs = tf.keras.layers.Dense(256)(inputs)
+  outputs = tf.keras.layers.Reshape((16, 16))(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+
+  outputs = Conv1DTranspose(filters=128, kernel_size=4, strides=3)(outputs)
+  outputs = tf.keras.layers.BatchNormalization()(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+
+  outputs = Conv1DTranspose(filters=256, kernel_size=6, strides=2)(outputs)
+  outputs = tf.keras.layers.BatchNormalization()(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+
+  outputs = tf.keras.layers.Dense(hparams.signal_shape[-1])(outputs)
+
+  if hparams.normalize:
+    outputs = tf.keras.activations.sigmoid(outputs)
+
+  return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
+
+
+@register
+def rnn(hparams):
+  inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
+
+  outputs = tf.keras.layers.Dense(256)(inputs)
+  outputs = tf.keras.layers.Reshape((16, 16))(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+
+  outputs = tf.keras.layers.GRU(
+      128,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(outputs)
+  outputs = tf.keras.layers.GRU(
+      256,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(outputs)
+
+  outputs = tf.keras.layers.Dense(hparams.signal_shape[-1])(outputs)
 
   if hparams.normalize:
     outputs = tf.keras.activations.sigmoid(outputs)

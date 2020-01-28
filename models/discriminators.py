@@ -3,6 +3,8 @@ from .registry import discriminator_register as register
 import numpy as np
 import tensorflow as tf
 
+from .utils import get_activation_fn
+
 
 @register
 def mlp(hparams):
@@ -10,11 +12,15 @@ def mlp(hparams):
 
   outputs = tf.keras.layers.Flatten()(signals)
 
-  outputs = tf.keras.layers.Dense(512, activation='tanh')(outputs)
+  outputs = tf.keras.layers.Dense(512)(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
-  outputs = tf.keras.layers.Dense(256, activation='tanh')(outputs)
+
+  outputs = tf.keras.layers.Dense(256)(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
-  outputs = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)
+
+  outputs = tf.keras.layers.Dense(1)(outputs)
 
   return tf.keras.Model(inputs=signals, outputs=outputs, name='discriminator')
 
@@ -24,12 +30,40 @@ def conv1d(hparams):
   signals = tf.keras.Input(hparams.signal_shape, name='signals')
 
   outputs = tf.keras.layers.Conv1D(
-      filters=128, kernel_size=3, strides=2, padding='causal')(signals)
-  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
+      filters=256, kernel_size=3, strides=2, padding='causal')(signals)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+  outputs = tf.keras.layers.Dropout(0.3)(outputs)
+
   outputs = tf.keras.layers.Conv1D(
-      filters=256, kernel_size=3, strides=2, padding='causal')(outputs)
-  outputs = tf.keras.layers.LeakyReLU(0.2)(outputs)
+      filters=128, kernel_size=3, strides=2, padding='causal')(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+  outputs = tf.keras.layers.Dropout(0.3)(outputs)
+
   outputs = tf.keras.layers.Flatten()(outputs)
-  outputs = tf.keras.layers.Dense(1, activation='sigmoid')(outputs)
+  outputs = tf.keras.layers.Dense(1)(outputs)
 
   return tf.keras.Model(inputs=signals, outputs=outputs, name='discriminator')
+
+
+@register
+def rnn(hparams):
+  inputs = tf.keras.Input(shape=hparams.signal_shape, name='signals')
+
+  outputs = tf.keras.layers.GRU(
+      256,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(inputs)
+  outputs = tf.keras.layers.GRU(
+      128,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(outputs)
+
+  outputs = tf.keras.layers.Dense(1)(outputs)
+
+  return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')

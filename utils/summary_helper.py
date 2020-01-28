@@ -48,6 +48,7 @@ class Summary(object):
 
   def _plot_trace(self, signal, spike):
     plt.figure(figsize=(20, 4))
+    # plot signal
     plt.subplot(211)
     plt.plot(signal, label='signal', zorder=-12, c='r')
     plt.legend(ncol=3, frameon=False, loc=(.02, .85))
@@ -55,7 +56,7 @@ class Summary(object):
     plt.tight_layout()
     # plot spike train
     plt.subplot(212)
-    plt.bar(np.arange(len(spike)), spike, width=0.3, label='oasis', color='b')
+    plt.bar(np.arange(len(spike)), spike, width=0.3, label='spike', color='b')
     plt.ylim(0, 1.3)
     plt.legend(ncol=3, frameon=False, loc=(.02, .85))
     self._simple_axis(plt.gca())
@@ -108,3 +109,59 @@ class Summary(object):
     writer = self._get_writer(training=True)
     with writer.as_default():
       tf.summary.trace_export(name='models', step=0)
+
+  def variable_summary(self, variable, name=None, step=None, training=True):
+    if name is None:
+      name = variable.name
+    mean = tf.reduce_mean(variable)
+    stddev = tf.sqrt(tf.reduce_mean(tf.square(variable - mean)))
+    self.scalar('{}/0_mean'.format(name), mean, step=step, training=training)
+    self.scalar(
+        '{}/1_stddev'.format(name), stddev, step=step, training=training)
+    self.scalar(
+        '{}/2_min'.format(name),
+        tf.reduce_min(variable),
+        step=step,
+        training=training)
+    self.scalar(
+        '{}/3_max'.format(name),
+        tf.reduce_max(variable),
+        step=step,
+        training=training)
+    self.histogram(name, variable, step=step, training=training)
+
+  def plot_weights(self, gan, step=None, training=True):
+    for i, var in enumerate(gan.generator.trainable_variables):
+      self.variable_summary(
+          var,
+          name='plots_generator/{:02d}/{}'.format(i + 1, var.name),
+          step=step,
+          training=training,
+      )
+    for i, var in enumerate(gan.discriminator.trainable_variables):
+      self.variable_summary(
+          var,
+          name='plots_discriminator/{:02d}/{}'.format(i + 1, var.name),
+          step=step,
+          training=training,
+      )
+
+  def log(self,
+          gen_loss,
+          dis_loss,
+          gradient_penalty,
+          metrics=None,
+          elapse=None,
+          gan=None,
+          training=True):
+    self.scalar('generator_loss', gen_loss, training=training)
+    self.scalar('discriminator_loss', dis_loss, training=training)
+    if gradient_penalty is not None:
+      self.scalar('gradient_penalty', gradient_penalty, training=training)
+    if metrics is not None:
+      for tag, value in metrics.items():
+        self.scalar(tag, value, training=training)
+    if elapse is not None:
+      self.scalar('elapse (s)', elapse, training=training)
+    if gan is not None and self._hparams.plot_weights:
+      self.plot_weights(gan, training=training)
