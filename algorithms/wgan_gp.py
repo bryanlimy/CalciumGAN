@@ -5,19 +5,6 @@ import tensorflow as tf
 
 from .gan import GAN
 
-import sys
-
-
-def all_close(a1, a2):
-  if tf.is_tensor(a1):
-    a1 = a1.numpy()
-  if tf.is_tensor(a2):
-    a2 = a2.numpy()
-
-  allclose = np.allclose(a1, a2)
-  print(allclose)
-  return allclose
-
 
 @register('wgan-gp')
 class WGAN_GP(GAN):

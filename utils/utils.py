@@ -66,7 +66,8 @@ def save_models(hparams, gan, epoch):
         'discriminator_weights': discriminator_weights
     }, file)
 
-  print('Saved model checkpoint to {}\n'.format(filename))
+  if hparams.verbose:
+    print('Saved model checkpoint to {}\n'.format(filename))
 
 
 def load_models(hparams, generator, discriminator):
@@ -78,7 +79,9 @@ def load_models(hparams, generator, discriminator):
       ckpt = pickle.load(file)
     generator.set_weights(ckpt['generator_weights'])
     discriminator.set_weights(ckpt['discriminator_weights'])
-    print('restore checkpoint {}'.format(filename))
+
+    if hparams.verbose:
+      print('restore checkpoint {}'.format(filename))
 
 
 def deconvolve_saved_signals(hparams, filename):
@@ -94,7 +97,9 @@ def deconvolve_saved_signals(hparams, filename):
         chunks=True,
         maxshape=(None, fake_spikes.shape[1], fake_spikes.shape[2]))
   elapse = time() - start
-  print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
+
+  if hparams.verbose:
+    print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
 
 
 def van_rossum_distance_loop(args):
@@ -124,7 +129,10 @@ def get_mean_van_rossum_distance(hparams, real_spikes, fake_spikes):
     distances = van_rossum_distance_loop((real_spikes, fake_spikes))
   mean_distance = np.mean(distances)
   elapse = time() - start
-  print('mean van Rossum distance in {:.2f}s'.format(elapse))
+
+  if hparams.verbose:
+    print('mean van Rossum distance in {:.2f}s'.format(elapse))
+
   return mean_distance
 
 

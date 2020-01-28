@@ -33,7 +33,7 @@ def get_fashion_mnist(hparams):
 
 def get_dataset_info(hparams):
   """ Get dataset information """
-  with open(os.path.join(hparams.input, 'info.pkl'), 'rb') as file:
+  with open(os.path.join(hparams.input_dir, 'info.pkl'), 'rb') as file:
     info = pickle.load(file)
   hparams.train_size = info['train_size']
   hparams.validation_size = info['validation_size']
@@ -48,8 +48,8 @@ def get_dataset_info(hparams):
 
 
 def get_calcium_signals(hparams):
-  if not os.path.exists(hparams.input):
-    print('input directory {} cannot be found'.format(hparams.input))
+  if not os.path.exists(hparams.input_dir):
+    print('input directory {} cannot be found'.format(hparams.input_dir))
     exit()
 
   get_dataset_info(hparams)
@@ -68,7 +68,7 @@ def get_calcium_signals(hparams):
     return signal, spike
 
   train_files = tf.data.Dataset.list_files(
-      os.path.join(hparams.input, 'train-*.record'))
+      os.path.join(hparams.input_dir, 'train-*.record'))
   train_ds = train_files.interleave(tf.data.TFRecordDataset, cycle_length=4)
   train_ds = train_ds.map(
       _parse_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
@@ -77,7 +77,7 @@ def get_calcium_signals(hparams):
   train_ds = train_ds.prefetch(tf.data.experimental.AUTOTUNE)
 
   validation_files = tf.data.Dataset.list_files(
-      os.path.join(hparams.input, 'validation-*.record'))
+      os.path.join(hparams.input_dir, 'validation-*.record'))
   validation_ds = validation_files.interleave(
       tf.data.TFRecordDataset, cycle_length=4)
   validation_ds = validation_ds.map(
@@ -89,7 +89,7 @@ def get_calcium_signals(hparams):
 
 def get_dataset(hparams, summary):
   hparams.noise_shape = (hparams.noise_dim,)
-  if hparams.input == 'fashion_mnist':
+  if hparams.input_dir == 'fashion_mnist':
     train_ds, validation_ds = get_fashion_mnist(hparams)
   else:
     train_ds, validation_ds = get_calcium_signals(hparams)
