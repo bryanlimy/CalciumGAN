@@ -107,7 +107,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 
   # noise to test generator and plot to TensorBoard
-  test_noise = tf.random.normal((1, hparams.num_neurons, hparams.noise_dim))
+  test_noise = tf.random.normal((1, hparams.noise_dim))
 
   for epoch in range(hparams.epochs):
 

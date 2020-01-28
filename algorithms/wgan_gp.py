@@ -56,8 +56,7 @@ class WGAN_GP(GAN):
     return loss, gradient_penalty
 
   def _train_generator(self, inputs):
-    noise = tf.random.normal((inputs.shape[0], self._num_neurons,
-                              self._noise_dim))
+    noise = tf.random.normal((inputs.shape[0], self._noise_dim))
 
     with tf.GradientTape() as tape:
       fake = self.generator(noise, training=True)
@@ -74,8 +73,7 @@ class WGAN_GP(GAN):
     return gen_loss, metrics
 
   def _train_discriminator(self, inputs):
-    noise = tf.random.normal((inputs.shape[0], self._num_neurons,
-                              self._noise_dim))
+    noise = tf.random.normal((inputs.shape[0], self._noise_dim))
 
     with tf.GradientTape() as tape:
       fake = self.generator(noise, training=True)
