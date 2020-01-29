@@ -16,11 +16,11 @@ def mlp(hparams):
       hparams.num_neurons * hparams.noise_dim, use_bias=False)(inputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
 
-  outputs = tf.keras.layers.Dense(num_units // 6)(outputs)
+  outputs = tf.keras.layers.Dense(num_units // 20)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = tf.keras.layers.Dense(num_units // 3)(outputs)
+  outputs = tf.keras.layers.Dense(num_units // 10)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
