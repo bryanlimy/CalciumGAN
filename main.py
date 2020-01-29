@@ -107,7 +107,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
 def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
   # noise to test generator and plot to TensorBoard
-  test_noise = tf.random.normal((1, hparams.noise_dim))
+  test_noise = tf.random.normal((1, hparams.num_neurons, hparams.noise_dim))
 
   for epoch in range(hparams.epochs):
 
@@ -129,7 +129,8 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
             'Eval: generator loss {:.4f} discriminator loss {:.4f}\n'.format(
                 train_gen_loss, train_dis_loss, val_gen_loss, val_dis_loss))
 
-    if epoch % 5 == 0 or epoch == hparams.epochs - 1:
+    if not hparams.skip_checkpoint and (epoch % 5 == 0 or
+                                        epoch == hparams.epochs - 1):
       save_models(hparams, gan, epoch)
 
 
@@ -230,6 +231,10 @@ if __name__ == '__main__':
       '--plot_weights',
       action='store_true',
       help='flag to plot weights and activations in TensorBoard')
+  parser.add_argument(
+      '--skip_checkpoint',
+      action='store_true',
+      help='flag to skip storing model checkpoints')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 

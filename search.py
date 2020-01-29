@@ -16,10 +16,12 @@ class HParams(object):
 
   def __init__(self, args, session, dropout, noise_dim, gradient_penalty,
                generator, discriminator, activation, algorithm, n_critic):
+    self.session = session
     self.input_dir = args.input_dir
     self.output_dir = os.path.join(
-        args.output_dir, '{:03d}_{}_{}_{}_{}'.format(
-            session, algorithm, generator, discriminator, activation))
+        args.output_dir,
+        '{:03d}_{}_{}_{}_{}_{}'.format(session, algorithm, generator,
+                                       discriminator, activation, noise_dim))
     self.batch_size = 64
     self.epochs = args.epochs
     self.num_units = 256
@@ -39,6 +41,7 @@ class HParams(object):
     self.skip_spike_metrics = args.skip_spike_metrics
     self.plot_weights = False
     self.verbose = 0
+    self.skip_checkpoint = True
 
     self.global_step = 0
 
@@ -55,9 +58,11 @@ def print_experiment_settings(session, hparams):
                                  hparams.noise_dim))
 
 
-def run_experiment(output_dir, hparams, hp_hparams):
-  with tf.summary.create_file_writer(os.path.join(output_dir,
-                                                  'test')).as_default():
+def run_experiment(hparams, hp_hparams):
+  print_experiment_settings(hparams.session, hparams)
+
+  logdir = os.path.join(hparams.output_dir, 'test')
+  with tf.summary.create_file_writer(logdir).as_default():
     hp.hparams(hp_hparams)
     metrics = train(hparams, return_metrics=True)
     tf.summary.scalar(
@@ -73,7 +78,7 @@ def search(args):
     rmtree(args.output_dir)
 
   hp_algorithm = hp.HParam('algorithm', hp.Discrete(['gan', 'wgan-gp']))
-  hp_model = hp.HParam('models', hp.Discrete(['mlp', 'conv1d', 'rnn']))
+  hp_model = hp.HParam('models', hp.Discrete(['mlp', 'rnn']))
   hp_activation = hp.HParam('activation',
                             hp.Discrete(['sigmoid', 'tanh', 'relu']))
   hp_noise_dim = hp.HParam('noise_dim', hp.Discrete([32, 64, 128, 256]))
@@ -131,11 +136,9 @@ def search(args):
                       hp_n_critic: n_critic
                   }
 
-                  print_experiment_settings(session, hparams)
-
                   try:
                     start = time()
-                    run_experiment(args.output_dir, hparams, hp_hparams)
+                    run_experiment(hparams, hp_hparams)
                     end = time()
                     print('\nExperiment {:03d} completed in {:.2f}s\n'.format(
                         session, end - start))

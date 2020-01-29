@@ -88,12 +88,14 @@ def get_calcium_signals(hparams):
 
 
 def get_dataset(hparams, summary):
-  hparams.noise_shape = (hparams.noise_dim,)
+
   if hparams.input_dir == 'fashion_mnist':
     train_ds, validation_ds = get_fashion_mnist(hparams)
+    hparams.noise_shape = (hparams.noise_dim,)
   else:
     train_ds, validation_ds = get_calcium_signals(hparams)
     hparams.num_neurons = hparams.signal_shape[0]
+    hparams.noise_shape = (hparams.num_neurons, hparams.noise_dim)
 
     # plot signals and spikes from validation set
     sample_signals, sample_spikes = next(iter(validation_ds))

@@ -22,6 +22,9 @@ class GAN(object):
 
     self._cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
+  def get_noise(self, batch_size):
+    return tf.random.normal((batch_size, self._num_neurons, self._noise_dim))
+
   def denormalize(self, x):
     ''' re-scale signals back to its original range '''
     return x * (self._signals_max - self._signals_min) + self._signals_min
@@ -74,7 +77,7 @@ class GAN(object):
 
   @tf.function
   def train(self, inputs):
-    noise = tf.random.normal((inputs.shape[0], self._noise_dim))
+    noise = self.get_noise(batch_size=inputs.shape[0])
 
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
       _, gen_loss, dis_loss, gradient_penalty, metrics = self._step(
@@ -94,9 +97,9 @@ class GAN(object):
 
   @tf.function
   def validate(self, inputs):
-    noise = tf.random.normal((inputs.shape[0], self._noise_dim))
+    noise = self.get_noise(batch_size=inputs.shape[0])
     return self._step(inputs, noise, training=False)
 
   @tf.function
-  def samples(self, noise):
+  def generate(self, noise):
     return self.generator(noise, training=False)
