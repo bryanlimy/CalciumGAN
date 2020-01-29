@@ -10,7 +10,9 @@ from .utils import get_activation_fn
 def mlp(hparams):
   signals = tf.keras.Input(shape=hparams.signal_shape, name='signals')
 
-  outputs = tf.keras.layers.Dense(512)(signals)
+  outputs = tf.keras.layers.Flatten()(signals)
+
+  outputs = tf.keras.layers.Dense(512)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
@@ -22,7 +24,6 @@ def mlp(hparams):
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(1)(outputs)
 
   return tf.keras.Model(inputs=signals, outputs=outputs, name='discriminator')
