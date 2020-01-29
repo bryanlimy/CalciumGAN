@@ -56,7 +56,7 @@ def train(hparams, train_ds, gan, summary, epoch):
 
 def validate(hparams, validation_ds, gan, summary, epoch):
   gen_losses, dis_losses, gradient_penalties = [], [], []
-  kl_divergences, mean_signals_errors = [], []
+  kl_divergences, mean_signals_errors, std_signals_errors = [], [], []
 
   start = time()
 
@@ -69,6 +69,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       gradient_penalties.append(gradient_penalty)
     kl_divergences.append(metrics['kl_divergence'])
     mean_signals_errors.append(metrics['mean_signals_error'])
+    std_signals_errors.append(metrics['std_signals_error'])
 
     save_signals(
         hparams,
@@ -88,7 +89,8 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       gradient_penalty,
       metrics={
           'kl_divergence': np.mean(kl_divergences),
-          'mean_signals_error': np.mean(mean_signals_errors)
+          'mean_signals_error': np.mean(mean_signals_errors),
+          'std_signals_error': np.mean(std_signals_errors)
       },
       elapse=end - start,
       training=False)
@@ -136,7 +138,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 
 def test(validation_ds, gan):
   gen_losses, dis_losses, gradient_penalties = [], [], []
-  kl_divergences, mean_signals_errors = [], []
+  kl_divergences, mean_signals_errors, std_signals_errors = [], [], []
 
   for signal, spike in validation_ds:
     _, gen_loss, dis_loss, _, metrics = gan.validate(signal)
@@ -145,10 +147,12 @@ def test(validation_ds, gan):
     dis_losses.append(dis_loss)
     kl_divergences.append(metrics['kl_divergence'])
     mean_signals_errors.append(metrics['mean_signals_error'])
+    std_signals_errors.append(metrics['std_signals_error'])
 
   return {
       'kl_divergence': np.mean(kl_divergences),
-      'mean_signals_error': np.mean(mean_signals_errors)
+      'mean_signals_error': np.mean(mean_signals_errors),
+      'std_signals_error': np.mean(std_signals_errors)
   }
 
 

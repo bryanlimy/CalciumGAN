@@ -1,6 +1,7 @@
 from .registry import register
 
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 
 @register('gan')
@@ -30,20 +31,28 @@ class GAN(object):
     return x * (self._signals_max - self._signals_min) + self._signals_min
 
   def mean_signals_error(self, real, fake):
-    ''' return the MSE of the mean of the real and fake traces '''
-    if self._normalize:
-      real = self.denormalize(real)
-      fake = self.denormalize(fake)
     return tf.reduce_mean(
         tf.square(tf.reduce_mean(real) - tf.reduce_mean(fake)))
+
+  def std_signals_error(self, real, fake):
+    return tf.reduce_mean(
+        tf.square(tf.math.reduce_std(real) - tf.math.reduce_std(fake)))
 
   def kl_divergence(self, real, fake):
     return tf.reduce_mean(tf.keras.losses.KLD(y_true=real, y_pred=fake))
 
+  def cross_correlation(self, real, fake):
+    corr = tfp.stats.correlation(x=real, y=fake, sample_axis=0, event_axis=None)
+    return corr
+
   def metrics(self, real, fake):
+    if self._normalize:
+      real = self.denormalize(real)
+      fake = self.denormalize(fake)
     return {
         'kl_divergence': self.kl_divergence(real, fake),
-        'mean_signals_error': self.mean_signals_error(real, fake)
+        'mean_signals_error': self.mean_signals_error(real, fake),
+        'std_signals_error': self.std_signals_error(real, fake),
     }
 
   def generator_loss(self, fake_output):

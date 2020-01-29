@@ -18,6 +18,10 @@ def mlp(hparams):
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
+  outputs = tf.keras.layers.Dense(128)(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+  outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
+
   outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(1)(outputs)
 

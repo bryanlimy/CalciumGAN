@@ -10,6 +10,10 @@ from .utils import get_activation_fn, Conv1DTranspose
 def mlp(hparams):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
+  outputs = tf.keras.layers.Dense(128)(inputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+  outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
+
   outputs = tf.keras.layers.Dense(256)(inputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
@@ -19,7 +23,6 @@ def mlp(hparams):
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
   outputs = tf.keras.layers.Dense(hparams.signal_shape[-1])(outputs)
-  # outputs = tf.keras.layers.Reshape(hparams.signal_shape)(outputs)
 
   if hparams.normalize:
     outputs = tf.keras.activations.sigmoid(outputs)
