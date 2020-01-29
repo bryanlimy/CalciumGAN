@@ -10,7 +10,9 @@ from .utils import get_activation_fn, Conv1DTranspose
 def mlp(hparams):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  outputs = tf.keras.layers.Flatten()(inputs)
+  outputs = tf.keras.layers.Dense(
+      hparams.num_neurons * hparams.noise_dim, use_bias=False)(inputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
 
   outputs = tf.keras.layers.Dense(128)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
@@ -37,7 +39,13 @@ def mlp(hparams):
 def conv1d(hparams):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  outputs = Conv1DTranspose(filters=128, kernel_size=4, strides=3)(inputs)
+  outputs = tf.keras.layers.Dense(
+      hparams.num_neurons * hparams.noise_dim, use_bias=False)(inputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+  outputs = tf.keras.layers.Reshape((hparams.num_neurons,
+                                     hparams.noise_dim))(outputs)
+
+  outputs = Conv1DTranspose(filters=128, kernel_size=4, strides=3)(outputs)
   outputs = tf.keras.layers.BatchNormalization()(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
 
@@ -57,13 +65,19 @@ def conv1d(hparams):
 def rnn(hparams):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
+  outputs = tf.keras.layers.Dense(
+      hparams.num_neurons * hparams.noise_dim, use_bias=False)(inputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+  outputs = tf.keras.layers.Reshape((hparams.num_neurons,
+                                     hparams.noise_dim))(outputs)
+
   outputs = tf.keras.layers.GRU(
       128,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
       return_sequences=True,
-      time_major=False)(inputs)
+      time_major=False)(outputs)
   outputs = tf.keras.layers.GRU(
       256,
       activation=hparams.activation,

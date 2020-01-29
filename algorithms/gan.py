@@ -24,7 +24,7 @@ class GAN(object):
     self._cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
   def get_noise(self, batch_size):
-    return tf.random.normal((batch_size, self._num_neurons, self._noise_dim))
+    return tf.random.normal((batch_size, self._noise_dim))
 
   def denormalize(self, x):
     ''' re-scale signals back to its original range '''

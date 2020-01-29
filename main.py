@@ -109,7 +109,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
 def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
   # noise to test generator and plot to TensorBoard
-  test_noise = tf.random.normal((1, hparams.num_neurons, hparams.noise_dim))
+  test_noise = gan.get_noise(batch_size=1)
 
   for epoch in range(hparams.epochs):
 
@@ -198,7 +198,7 @@ if __name__ == '__main__':
   parser.add_argument('--num_units', default=256, type=int)
   parser.add_argument('--dropout', default=0.2, type=float)
   parser.add_argument('--learning_rate', default=0.0001, type=float)
-  parser.add_argument('--noise_dim', default=200, type=int)
+  parser.add_argument('--noise_dim', default=128, type=int)
   parser.add_argument('--summary_freq', default=200, type=int)
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
   parser.add_argument('--generator', default='conv1d', type=str)
