@@ -78,10 +78,10 @@ def search(args):
     rmtree(args.output_dir)
 
   hp_algorithm = hp.HParam('algorithm', hp.Discrete(['gan', 'wgan-gp']))
-  hp_model = hp.HParam('models', hp.Discrete(['mlp', 'rnn']))
+  hp_model = hp.HParam('models', hp.Discrete(['mlp']))
   hp_activation = hp.HParam('activation',
                             hp.Discrete(['sigmoid', 'tanh', 'relu']))
-  hp_noise_dim = hp.HParam('noise_dim', hp.Discrete([32, 64, 128, 256]))
+  hp_noise_dim = hp.HParam('noise_dim', hp.Discrete([16, 32, 64, 128]))
   hp_dropout = hp.HParam('dropout', hp.Discrete([0.2]))
   hp_gradient_penalty = hp.HParam('gradient_penalty', hp.Discrete([10.0]))
   hp_n_critic = hp.HParam('n_critic', hp.Discrete([5]))

@@ -8,33 +8,31 @@ from .utils import get_activation_fn
 
 @register
 def mlp(hparams):
-  signals = tf.keras.Input(shape=hparams.signal_shape, name='signals')
+  inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
-  outputs = tf.keras.layers.Flatten()(signals)
+  num_units = np.prod(hparams.signal_shape)
 
-  outputs = tf.keras.layers.Dense(512)(outputs)
+  outputs = tf.keras.layers.Flatten()(inputs)
+
+  outputs = tf.keras.layers.Dense(num_units // 3)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = tf.keras.layers.Dense(256)(outputs)
-  outputs = get_activation_fn(hparams.activation)(outputs)
-  outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
-
-  outputs = tf.keras.layers.Dense(128)(outputs)
+  outputs = tf.keras.layers.Dense(num_units // 6)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
   outputs = tf.keras.layers.Dense(1)(outputs)
 
-  return tf.keras.Model(inputs=signals, outputs=outputs, name='discriminator')
+  return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
 
 
 @register
 def conv1d(hparams):
-  signals = tf.keras.Input(hparams.signal_shape, name='signals')
+  inputs = tf.keras.Input(hparams.signal_shape, name='signals')
 
   outputs = tf.keras.layers.Conv1D(
-      filters=256, kernel_size=3, strides=2, padding='causal')(signals)
+      filters=256, kernel_size=3, strides=2, padding='causal')(inputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(0.3)(outputs)
 
@@ -46,12 +44,12 @@ def conv1d(hparams):
   outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(1)(outputs)
 
-  return tf.keras.Model(inputs=signals, outputs=outputs, name='discriminator')
+  return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
 
 
 @register
 def rnn(hparams):
-  inputs = tf.keras.Input(shape=hparams.signal_shape, name='signals')
+  inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
   outputs = tf.keras.layers.GRU(
       256,
