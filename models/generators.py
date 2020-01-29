@@ -83,6 +83,13 @@ def rnn(hparams):
       dropout=hparams.dropout,
       return_sequences=True,
       time_major=False)(outputs)
+  outputs = tf.keras.layers.GRU(
+      hparams.signal_shape[-1],
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(outputs)
 
   outputs = tf.keras.layers.Dense(hparams.signal_shape[-1])(outputs)
 

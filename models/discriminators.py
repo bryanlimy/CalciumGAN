@@ -52,12 +52,19 @@ def rnn(hparams):
   inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
   outputs = tf.keras.layers.GRU(
-      256,
+      hparams.signal_shape[-1],
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
       return_sequences=True,
       time_major=False)(inputs)
+  outputs = tf.keras.layers.GRU(
+      256,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(outputs)
   outputs = tf.keras.layers.GRU(
       128,
       activation=hparams.activation,
