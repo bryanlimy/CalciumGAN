@@ -118,7 +118,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
 
     # test generated data and plot in TensorBoard
-    fake = gan.samples(test_noise)
+    fake = gan.generate(test_noise)
     if hparams.input_dir == 'fashion_mnist':
       summary.image('fake', signals=fake, training=False)
     else:
