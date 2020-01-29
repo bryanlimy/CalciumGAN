@@ -70,7 +70,7 @@ def rnn(hparams):
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
-      return_sequences=True,
+      return_sequences=False,
       time_major=False)(outputs)
 
   outputs = tf.keras.layers.Dense(1)(outputs)
