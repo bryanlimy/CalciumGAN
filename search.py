@@ -70,6 +70,14 @@ def run_experiment(hparams, hp_hparams):
         'test/mean_signals_error',
         metrics['mean_signals_error'],
         step=hparams.epochs + 1)
+    tf.summary.scalar(
+        'test/min_signals_error',
+        metrics['min_signals_error'],
+        step=hparams.epochs + 1)
+    tf.summary.scalar(
+        'test/max_signals_error',
+        metrics['max_signals_error'],
+        step=hparams.epochs + 1)
 
 
 def search(args):
@@ -77,9 +85,10 @@ def search(args):
     rmtree(args.output_dir)
 
   hp_algorithm = hp.HParam('algorithm', hp.Discrete(['gan', 'wgan-gp']))
-  hp_model = hp.HParam('models', hp.Discrete(['rnn']))
-  hp_activation = hp.HParam('activation', hp.Discrete(['tanh']))
-  hp_noise_dim = hp.HParam('noise_dim', hp.Discrete([16]))
+  hp_model = hp.HParam('models', hp.Discrete(['mlp']))
+  hp_activation = hp.HParam('activation',
+                            hp.Discrete(['sigmoid', 'tanh', 'relu']))
+  hp_noise_dim = hp.HParam('noise_dim', hp.Discrete([16, 32, 64, 128]))
   hp_dropout = hp.HParam('dropout', hp.Discrete([0.2]))
   hp_gradient_penalty = hp.HParam('gradient_penalty', hp.Discrete([10.0]))
   hp_n_critic = hp.HParam('n_critic', hp.Discrete([5]))
@@ -93,7 +102,11 @@ def search(args):
         metrics=[
             hp.Metric('test/kl_divergence', display_name='kl_divergence'),
             hp.Metric(
-                'test/mean_signals_error', display_name='mean_signals_error')
+                'test/mean_signals_error', display_name='mean_signals_error'),
+            hp.Metric(
+                'test/min_signals_error', display_name='min_signals_error'),
+            hp.Metric(
+                'test/max_signals_error', display_name='max_signals_error')
         ])
 
     session = 0
