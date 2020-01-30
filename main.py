@@ -57,6 +57,7 @@ def train(hparams, train_ds, gan, summary, epoch):
 def validate(hparams, validation_ds, gan, summary, epoch):
   gen_losses, dis_losses, gradient_penalties = [], [], []
   kl_divergences, mean_signals_errors, std_signals_errors = [], [], []
+  min_signals_errors, max_signals_errors = [], []
 
   start = time()
 
@@ -68,6 +69,8 @@ def validate(hparams, validation_ds, gan, summary, epoch):
     if gradient_penalty is not None:
       gradient_penalties.append(gradient_penalty)
     kl_divergences.append(metrics['kl_divergence'])
+    min_signals_errors.append(metrics['min_signals_error'])
+    max_signals_errors.append(metrics['max_signals_error'])
     mean_signals_errors.append(metrics['mean_signals_error'])
     std_signals_errors.append(metrics['std_signals_error'])
 
@@ -89,6 +92,8 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       gradient_penalty,
       metrics={
           'kl_divergence': np.mean(kl_divergences),
+          'min_signals_error': np.mean(min_signals_errors),
+          'max_signals_error': np.mean(max_signals_errors),
           'mean_signals_error': np.mean(mean_signals_errors),
           'std_signals_error': np.mean(std_signals_errors)
       },

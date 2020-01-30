@@ -30,6 +30,12 @@ class GAN(object):
     ''' re-scale signals back to its original range '''
     return x * (self._signals_max - self._signals_min) + self._signals_min
 
+  def min_signals_error(self, real, fake):
+    return tf.reduce_mean(tf.square(tf.reduce_min(real) - tf.reduce_min(fake)))
+
+  def max_signals_error(self, real, fake):
+    return tf.reduce_mean(tf.square(tf.reduce_max(real) - tf.reduce_max(fake)))
+
   def mean_signals_error(self, real, fake):
     return tf.reduce_mean(
         tf.square(tf.reduce_mean(real) - tf.reduce_mean(fake)))
@@ -51,6 +57,8 @@ class GAN(object):
       fake = self.denormalize(fake)
     return {
         'kl_divergence': self.kl_divergence(real, fake),
+        'min_signals_error': self.min_signals_error(real, fake),
+        'max_signals_error': self.max_signals_error(real, fake),
         'mean_signals_error': self.mean_signals_error(real, fake),
         'std_signals_error': self.std_signals_error(real, fake),
     }
