@@ -42,7 +42,6 @@ class HParams(object):
     self.plot_weights = False
     self.verbose = 0
     self.skip_checkpoint = True
-
     self.global_step = 0
 
 
@@ -81,7 +80,7 @@ def search(args):
   hp_model = hp.HParam('models', hp.Discrete(['mlp']))
   hp_activation = hp.HParam('activation',
                             hp.Discrete(['sigmoid', 'tanh', 'relu']))
-  hp_noise_dim = hp.HParam('noise_dim', hp.Discrete([16, 32, 64, 128]))
+  hp_noise_dim = hp.HParam('noise_dim', hp.Discrete([16, 32, 64]))
   hp_dropout = hp.HParam('dropout', hp.Discrete([0.2]))
   hp_gradient_penalty = hp.HParam('gradient_penalty', hp.Discrete([10.0]))
   hp_n_critic = hp.HParam('n_critic', hp.Discrete([5]))
@@ -153,7 +152,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--input_dir', default='dataset/')
   parser.add_argument('--output_dir', default='runs/hparams_turning')
-  parser.add_argument('--epochs', default=150, type=int)
+  parser.add_argument('--epochs', default=100, type=int)
   parser.add_argument(
       '--keep_generated',
       action='store_true',
