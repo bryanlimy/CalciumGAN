@@ -72,29 +72,17 @@ def rnn(hparams):
   outputs = tf.keras.layers.Reshape((hparams.num_neurons,
                                      hparams.noise_dim))(outputs)
 
+  num_units = hparams.signal_shape[-1]
+
   outputs = tf.keras.layers.GRU(
-      128,
-      activation=hparams.activation,
-      recurrent_initializer='glorot_uniform',
-      dropout=hparams.dropout,
-      return_sequences=True,
-      time_major=False)(outputs)
-  outputs = tf.keras.layers.GRU(
-      256,
-      activation=hparams.activation,
-      recurrent_initializer='glorot_uniform',
-      dropout=hparams.dropout,
-      return_sequences=True,
-      time_major=False)(outputs)
-  outputs = tf.keras.layers.GRU(
-      hparams.signal_shape[-1],
+      num_units,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
       return_sequences=True,
       time_major=False)(outputs)
 
-  outputs = tf.keras.layers.Dense(hparams.signal_shape[-1])(outputs)
+  outputs = tf.keras.layers.Dense(num_units)(outputs)
 
   if hparams.normalize:
     outputs = tf.keras.activations.sigmoid(outputs)

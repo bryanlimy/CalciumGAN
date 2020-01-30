@@ -50,28 +50,17 @@ def conv1d(hparams):
 def rnn(hparams):
   inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
+  num_units = hparams.signal_shape[-1]
+
   outputs = tf.keras.layers.GRU(
-      hparams.signal_shape[-1],
-      activation=hparams.activation,
-      recurrent_initializer='glorot_uniform',
-      dropout=hparams.dropout,
-      return_sequences=True,
-      time_major=False)(inputs)
-  outputs = tf.keras.layers.GRU(
-      256,
-      activation=hparams.activation,
-      recurrent_initializer='glorot_uniform',
-      dropout=hparams.dropout,
-      return_sequences=True,
-      time_major=False)(outputs)
-  outputs = tf.keras.layers.GRU(
-      128,
+      num_units,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
       return_sequences=False,
-      time_major=False)(outputs)
+      time_major=False)(inputs)
 
+  outputs = tf.keras.layers.Flatten()(outputs)
   outputs = tf.keras.layers.Dense(1)(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
