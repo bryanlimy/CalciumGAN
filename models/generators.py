@@ -10,17 +10,20 @@ from .utils import get_activation_fn, Conv1DTranspose
 def mlp(hparams):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  num_units = np.prod(hparams.signal_shape)
+  num_units = hparams.signal_shape[-1]
 
   outputs = tf.keras.layers.Dense(
       hparams.num_neurons * hparams.noise_dim, use_bias=False)(inputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
 
-  outputs = tf.keras.layers.Dense(num_units // 20)(outputs)
+  outputs = tf.keras.layers.Reshape((hparams.num_neurons,
+                                     hparams.noise_dim))(outputs)
+
+  outputs = tf.keras.layers.Dense(num_units // 6)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = tf.keras.layers.Dense(num_units // 10)(outputs)
+  outputs = tf.keras.layers.Dense(num_units // 3)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
