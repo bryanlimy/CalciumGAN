@@ -70,7 +70,7 @@ def get_calcium_signals(hparams):
 
   train_ds = tf.data.TFRecordDataset(
       glob(os.path.join(hparams.input_dir, 'train-*.record')),
-      num_parallel_reads=tf.data.experimental.AUTOTUNE)
+      num_parallel_reads=4)
   train_ds = train_ds.map(
       _parse_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
   train_ds = train_ds.shuffle(buffer_size=hparams.buffer_size)
@@ -79,7 +79,7 @@ def get_calcium_signals(hparams):
 
   validation_ds = tf.data.TFRecordDataset(
       filename=glob(os.path.join(hparams.input_dir, 'validation-*.record')),
-      num_parallel_reads=tf.data.experimental.AUTOTUNE)
+      num_parallel_reads=4)
   validation_ds = validation_ds.map(
       _parse_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
   validation_ds = validation_ds.batch(hparams.batch_size)
