@@ -78,7 +78,7 @@ def get_calcium_signals(hparams):
   train_ds = train_ds.prefetch(tf.data.experimental.AUTOTUNE)
 
   validation_ds = tf.data.TFRecordDataset(
-      filename=glob(os.path.join(hparams.input_dir, 'validation-*.record')),
+      glob(os.path.join(hparams.input_dir, 'validation-*.record')),
       num_parallel_reads=4)
   validation_ds = validation_ds.map(
       _parse_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
