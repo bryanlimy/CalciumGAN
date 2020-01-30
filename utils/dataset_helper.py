@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 from math import ceil
+from glob import glob
 import tensorflow as tf
 
 from .utils import denormalize
@@ -67,19 +68,18 @@ def get_calcium_signals(hparams):
     spike = tf.reshape(spike, shape=hparams.spike_shape)
     return signal, spike
 
-  train_files = tf.data.Dataset.list_files(
-      os.path.join(hparams.input_dir, 'train-*.record'))
-  train_ds = train_files.interleave(tf.data.TFRecordDataset, cycle_length=4)
+  train_ds = tf.data.TFRecordDataset(
+      glob(os.path.join(hparams.input_dir, 'train-*.record')),
+      num_parallel_reads=tf.data.experimental.AUTOTUNE)
   train_ds = train_ds.map(
       _parse_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
   train_ds = train_ds.shuffle(buffer_size=hparams.buffer_size)
   train_ds = train_ds.batch(hparams.batch_size)
   train_ds = train_ds.prefetch(tf.data.experimental.AUTOTUNE)
 
-  validation_files = tf.data.Dataset.list_files(
-      os.path.join(hparams.input_dir, 'validation-*.record'))
-  validation_ds = validation_files.interleave(
-      tf.data.TFRecordDataset, cycle_length=4)
+  validation_ds = tf.data.TFRecordDataset(
+      filename=glob(os.path.join(hparams.input_dir, 'validation-*.record')),
+      num_parallel_reads=tf.data.experimental.AUTOTUNE)
   validation_ds = validation_ds.map(
       _parse_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
   validation_ds = validation_ds.batch(hparams.batch_size)
