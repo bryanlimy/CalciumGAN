@@ -64,20 +64,8 @@ def run_experiment(hparams, hp_hparams):
   with tf.summary.create_file_writer(logdir).as_default():
     hp.hparams(hp_hparams)
     metrics = train(hparams, return_metrics=True)
-    tf.summary.scalar(
-        'test/kl_divergence', metrics['kl_divergence'], step=hparams.epochs + 1)
-    tf.summary.scalar(
-        'test/mean_signals_error',
-        metrics['mean_signals_error'],
-        step=hparams.epochs + 1)
-    tf.summary.scalar(
-        'test/min_signals_error',
-        metrics['min_signals_error'],
-        step=hparams.epochs + 1)
-    tf.summary.scalar(
-        'test/max_signals_error',
-        metrics['max_signals_error'],
-        step=hparams.epochs + 1)
+    for key, item in metrics.items():
+      tf.summary.scalar('test/{}'.format(key), item, step=hparams.epochs + 1)
 
 
 def search(args):
