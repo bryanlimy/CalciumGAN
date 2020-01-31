@@ -30,37 +30,43 @@ class GAN(object):
     ''' re-scale signals back to its original range '''
     return x * (self._signals_max - self._signals_min) + self._signals_min
 
-  def min_signals_error(self, real, fake):
-    return tf.reduce_mean(tf.square(tf.reduce_min(real) - tf.reduce_min(fake)))
-
-  def max_signals_error(self, real, fake):
-    return tf.reduce_mean(tf.square(tf.reduce_max(real) - tf.reduce_max(fake)))
-
-  def mean_signals_error(self, real, fake):
-    return tf.reduce_mean(
-        tf.square(tf.reduce_mean(real) - tf.reduce_mean(fake)))
-
-  def std_signals_error(self, real, fake):
-    return tf.reduce_mean(
-        tf.square(tf.math.reduce_std(real) - tf.math.reduce_std(fake)))
-
   def kl_divergence(self, real, fake):
     return tf.reduce_mean(tf.keras.losses.KLD(y_true=real, y_pred=fake))
 
-  def cross_correlation(self, real, fake):
-    corr = tfp.stats.correlation(x=real, y=fake, sample_axis=0, event_axis=None)
-    return corr
+  def min_signals_error(self, real, fake):
+    return tf.reduce_mean(
+        tf.square(tf.reduce_min(real, axis=-1) - tf.reduce_min(fake, axis=-1)))
+
+  def max_signals_error(self, real, fake):
+    return tf.reduce_mean(
+        tf.square(tf.reduce_max(real, axis=-1) - tf.reduce_max(fake, axis=-1)))
+
+  def mean_signals_error(self, real, fake):
+    return tf.reduce_mean(
+        tf.square(
+            tf.reduce_mean(real, axis=-1) - tf.reduce_mean(fake, axis=-1)))
+
+  def std_signals_error(self, real, fake):
+    return tf.reduce_mean(
+        tf.square(
+            tf.math.reduce_std(real, axis=-1) -
+            tf.math.reduce_std(fake, axis=-1)))
+
+  def pearson_correlation(self, real, fake):
+    pearson = tfp.stats.correlation(
+        x=real, y=fake, sample_axis=0, event_axis=None)
+    return tf.reduce_mean(pearson)
 
   def metrics(self, real, fake):
     if self._normalize:
       real = self.denormalize(real)
       fake = self.denormalize(fake)
     return {
-        'kl_divergence': self.kl_divergence(real, fake),
         'min_signals_error': self.min_signals_error(real, fake),
         'max_signals_error': self.max_signals_error(real, fake),
         'mean_signals_error': self.mean_signals_error(real, fake),
         'std_signals_error': self.std_signals_error(real, fake),
+        'pearson_correlation': self.pearson_correlation(real, fake)
     }
 
   def generator_loss(self, fake_output):

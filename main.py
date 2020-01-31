@@ -55,9 +55,7 @@ def train(hparams, train_ds, gan, summary, epoch):
 
 
 def validate(hparams, validation_ds, gan, summary, epoch):
-  gen_losses, dis_losses, gradient_penalties = [], [], []
-  kl_divergences, mean_signals_errors, std_signals_errors = [], [], []
-  min_signals_errors, max_signals_errors = [], []
+  gen_losses, dis_losses, gradient_penalties, results = [], [], [], {}
 
   start = time()
 
@@ -68,11 +66,10 @@ def validate(hparams, validation_ds, gan, summary, epoch):
     dis_losses.append(dis_loss)
     if gradient_penalty is not None:
       gradient_penalties.append(gradient_penalty)
-    kl_divergences.append(metrics['kl_divergence'])
-    min_signals_errors.append(metrics['min_signals_error'])
-    max_signals_errors.append(metrics['max_signals_error'])
-    mean_signals_errors.append(metrics['mean_signals_error'])
-    std_signals_errors.append(metrics['std_signals_error'])
+    for key, item in metrics.items():
+      if key not in results:
+        results[key] = []
+      results[key].append(item)
 
     save_signals(
         hparams,
@@ -85,18 +82,13 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
   gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
+  results = {key: np.mean(item) for key, item in results.items()}
 
   summary.log(
       gen_loss,
       dis_loss,
       gradient_penalty,
-      metrics={
-          'kl_divergence': np.mean(kl_divergences),
-          'min_signals_error': np.mean(min_signals_errors),
-          'max_signals_error': np.mean(max_signals_errors),
-          'mean_signals_error': np.mean(mean_signals_errors),
-          'std_signals_error': np.mean(std_signals_errors)
-      },
+      metrics=results,
       elapse=end - start,
       training=False)
 
@@ -142,27 +134,19 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 
 
 def test(validation_ds, gan):
-  gen_losses, dis_losses, gradient_penalties = [], [], []
-  kl_divergences, mean_signals_errors, std_signals_errors = [], [], []
-  min_signals_errors, max_signals_errors = [], []
+  gen_losses, dis_losses, results = [], [], {}
+
   for signal, spike in validation_ds:
     _, gen_loss, dis_loss, _, metrics = gan.validate(signal)
 
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
-    kl_divergences.append(metrics['kl_divergence'])
-    mean_signals_errors.append(metrics['mean_signals_error'])
-    std_signals_errors.append(metrics['std_signals_error'])
-    min_signals_errors.append(metrics['min_signals_error'])
-    max_signals_errors.append(metrics['max_signals_error'])
+    for key, item in metrics.items():
+      if key not in results:
+        results[key] = []
+      results[key].append(item)
 
-  return {
-      'kl_divergence': np.mean(kl_divergences),
-      'mean_signals_error': np.mean(mean_signals_errors),
-      'std_signals_error': np.mean(std_signals_errors),
-      'min_signals_error': np.mean(min_signals_errors),
-      'max_signals_error': np.mean(max_signals_errors)
-  }
+  return {key: np.mean(item) for key, item in results.items()}
 
 
 def main(hparams, return_metrics=False):
