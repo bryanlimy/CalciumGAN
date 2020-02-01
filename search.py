@@ -22,7 +22,7 @@ class HParams(object):
         args.output_dir,
         '{:03d}_{}_{}_{}_{}_{}'.format(session, algorithm, generator,
                                        discriminator, activation, noise_dim))
-    self.batch_size = 64
+    self.batch_size = args.batch_size
     self.epochs = args.epochs
     self.num_units = 256
     self.dropout = dropout
@@ -152,6 +152,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--input_dir', default='dataset/')
   parser.add_argument('--output_dir', default='runs/hparams_turning')
+  parser.add_argument('--batch_size', default=64, type=int)
   parser.add_argument('--epochs', default=100, type=int)
   parser.add_argument(
       '--keep_generated',
