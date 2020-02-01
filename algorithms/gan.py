@@ -65,8 +65,7 @@ class GAN(object):
         'min_signals_error': self.min_signals_error(real, fake),
         'max_signals_error': self.max_signals_error(real, fake),
         'mean_signals_error': self.mean_signals_error(real, fake),
-        'std_signals_error': self.std_signals_error(real, fake),
-        'pearson_correlation': self.pearson_correlation(real, fake)
+        'std_signals_error': self.std_signals_error(real, fake)
     }
 
   def generator_loss(self, fake_output):
