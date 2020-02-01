@@ -201,7 +201,7 @@ if __name__ == '__main__':
       '--algorithm',
       default='gan',
       type=str,
-      help='which alogrithm to train models')
+      help='which algorithm to train models')
   parser.add_argument(
       '--n_critic',
       default=5,
