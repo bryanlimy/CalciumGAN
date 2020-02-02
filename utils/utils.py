@@ -154,8 +154,10 @@ def measure_spike_metrics(hparams, epoch, summary):
   van_rossum_distance = get_mean_van_rossum_distance(hparams, real_spikes,
                                                      fake_spikes)
 
-  summary.scalar('spike_count_mse', mean_spike_error, training=False)
-  summary.scalar('van_rossum_distance', van_rossum_distance, training=False)
+  summary.scalar(
+      'spike_metrics/spike_count_mse', mean_spike_error, training=False)
+  summary.scalar(
+      'spike_metrics/van_rossum_distance', van_rossum_distance, training=False)
 
 
 def delete_generated_file(hparams, epoch):

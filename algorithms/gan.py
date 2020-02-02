@@ -1,5 +1,6 @@
 from .registry import register
 
+import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 
@@ -52,20 +53,30 @@ class GAN(object):
             tf.math.reduce_std(real, axis=-1) -
             tf.math.reduce_std(fake, axis=-1)))
 
-  def pearson_correlation(self, real, fake):
-    pearson = tfp.stats.correlation(
-        x=real, y=fake, sample_axis=0, event_axis=None)
-    return tf.reduce_mean(pearson)
+  def cross_correlation(self, real, fake):
+    shape = (real.shape[0] * real.shape[1], real.shape[2])
+    real = tf.reshape(real, shape=shape)
+    fake = tf.reshape(fake, shape=shape)
+
+    def _cross_correlation(x, y):
+      _results = np.corrcoef(x, y)
+      _results = np.diagonal(_results, offset=len(x))
+      return _results
+
+    results = tf.py_function(
+        _cross_correlation, inp=[real, fake], Tout=tf.float32)
+
+    return tf.reduce_mean(results)
 
   def metrics(self, real, fake):
     if self._normalize:
       real = self.denormalize(real)
       fake = self.denormalize(fake)
     return {
-        'min_signals_error': self.min_signals_error(real, fake),
-        'max_signals_error': self.max_signals_error(real, fake),
-        'mean_signals_error': self.mean_signals_error(real, fake),
-        'std_signals_error': self.std_signals_error(real, fake)
+        'signals_metrics/min': self.min_signals_error(real, fake),
+        'signals_metrics/max': self.max_signals_error(real, fake),
+        'signals_metrics/mean': self.mean_signals_error(real, fake),
+        'signals_metrics/std': self.std_signals_error(real, fake)
     }
 
   def generator_loss(self, fake_output):
