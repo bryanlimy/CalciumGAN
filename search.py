@@ -24,7 +24,6 @@ class HParams(object):
                                        discriminator, activation, noise_dim))
     self.batch_size = args.batch_size
     self.epochs = args.epochs
-    self.num_units = 256
     self.dropout = dropout
     self.learning_rate = 0.0001
     self.noise_dim = noise_dim

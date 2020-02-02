@@ -10,13 +10,13 @@ from .utils import get_activation_fn
 def mlp(hparams):
   inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
-  num_units = hparams.signal_shape[-1]
+  signal_length = hparams.singal_shape[-1]
 
-  outputs = tf.keras.layers.Dense(num_units // 3)(inputs)
+  outputs = tf.keras.layers.Dense(signal_length // 3)(inputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = tf.keras.layers.Dense(num_units // 6)(outputs)
+  outputs = tf.keras.layers.Dense(signal_length // 6)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
@@ -30,13 +30,17 @@ def mlp(hparams):
 def conv1d(hparams):
   inputs = tf.keras.Input(hparams.signal_shape, name='signals')
 
+  signal_length = hparams.signal_shape[-1]
+
   outputs = tf.keras.layers.Conv1D(
-      filters=256, kernel_size=3, strides=2, padding='causal')(inputs)
+      filters=signal_length // 2, kernel_size=4, strides=2,
+      padding='causal')(inputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(0.3)(outputs)
 
   outputs = tf.keras.layers.Conv1D(
-      filters=128, kernel_size=3, strides=2, padding='causal')(outputs)
+      filters=signal_length // 4, kernel_size=4, strides=2,
+      padding='causal')(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(0.3)(outputs)
 

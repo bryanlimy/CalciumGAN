@@ -188,7 +188,6 @@ if __name__ == '__main__':
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--batch_size', default=64, type=int)
   parser.add_argument('--epochs', default=20, type=int)
-  parser.add_argument('--num_units', default=256, type=int)
   parser.add_argument('--dropout', default=0.2, type=float)
   parser.add_argument('--learning_rate', default=0.0001, type=float)
   parser.add_argument('--noise_dim', default=128, type=int)
