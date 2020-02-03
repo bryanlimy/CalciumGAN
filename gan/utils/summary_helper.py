@@ -7,7 +7,6 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-from .utils import denormalize
 from .oasis_helper import deconvolve_signals
 
 
@@ -158,10 +157,10 @@ class Summary(object):
           elapse=None,
           gan=None,
           training=True):
-    self.scalar('generator_loss', gen_loss, training=training)
-    self.scalar('discriminator_loss', dis_loss, training=training)
+    self.scalar('loss/generator', gen_loss, training=training)
+    self.scalar('loss/discriminator', dis_loss, training=training)
     if gradient_penalty is not None:
-      self.scalar('gradient_penalty', gradient_penalty, training=training)
+      self.scalar('loss/gradient_penalty', gradient_penalty, training=training)
     if metrics is not None:
       for tag, value in metrics.items():
         self.scalar(tag, value, training=training)

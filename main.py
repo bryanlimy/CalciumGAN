@@ -70,12 +70,13 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    utils.save_signals(
-        hparams,
-        epoch,
-        real_signals=signal.numpy(),
-        real_spikes=spike.numpy(),
-        fake_signals=fake.numpy())
+    if not hparams.skip_spike_metrics:
+      utils.save_signals(
+          hparams,
+          epoch,
+          real_signals=signal.numpy(),
+          real_spikes=spike.numpy(),
+          fake_signals=fake.numpy())
 
   end = time()
 
