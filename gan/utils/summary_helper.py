@@ -2,11 +2,13 @@ import os
 import io
 import numpy as np
 import tensorflow as tf
-from .oasis_helper import deconvolve_signals
 
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
+from .utils import denormalize
+from .oasis_helper import deconvolve_signals
 
 
 class Summary(object):
@@ -91,14 +93,16 @@ class Summary(object):
     if len(signals.shape) > 2:
       signals = signals[0]
 
+    # deconvolve signals if spikes aren't provided
     if spikes is None:
       spikes = deconvolve_signals(signals)
+
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
     if len(spikes.shape) > 2:
       spikes = spikes[0]
 
-    # plot 20 neurons at most
+    # plot traces at most
     for i in range(min(20, signals.shape[0])):
       image = self._plot_trace(signals[i], spikes[i])
       images.append(image)

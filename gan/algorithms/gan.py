@@ -94,5 +94,8 @@ class GAN(object):
     return self._step(inputs, noise, training=False)
 
   @tf.function
-  def generate(self, noise):
-    return self.generator(noise, training=False)
+  def generate(self, noise, denorm=False):
+    fake = self.generator(noise, training=False)
+    if denorm and self._normalize:
+      fake = denormalize(fake, x_min=self._signals_min, x_max=self._signals_max)
+    return fake

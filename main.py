@@ -12,12 +12,11 @@ tf.random.set_seed(1234)
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-from gan.models import get_models
-from gan.utils import Summary
-from gan.utils import get_dataset
+from gan.utils import utils
+from gan.models.registry import get_models
+from gan.utils.summary_helper import Summary
+from gan.utils.dataset_helper import get_dataset
 from gan.algorithms.registry import get_algorithm
-from gan.utils import store_hparams, save_signals, measure_spike_metrics, \
-  save_models, load_models, delete_generated_file
 
 
 def train(hparams, train_ds, gan, summary, epoch):
@@ -71,7 +70,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    save_signals(
+    utils.save_signals(
         hparams,
         epoch,
         real_signals=signal.numpy(),
@@ -95,11 +94,11 @@ def validate(hparams, validation_ds, gan, summary, epoch):
   # evaluate spike metrics every 5 epochs
   if not hparams.skip_spike_metrics and (epoch % 5 == 0 or
                                          epoch == hparams.epochs - 1):
-    measure_spike_metrics(hparams, epoch, summary)
+    utils.measure_spike_metrics(hparams, epoch, summary)
 
   # delete generated signals and spike train
   if not hparams.keep_generated:
-    delete_generated_file(hparams, epoch)
+    utils.delete_generated_file(hparams, epoch)
 
   return gen_loss, dis_loss
 
@@ -117,11 +116,8 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
 
     # test generated data and plot in TensorBoard
-    fake = gan.generate(test_noise)
-    if hparams.input_dir == 'fashion_mnist':
-      summary.image('fake', signals=fake, training=False)
-    else:
-      summary.plot_traces('fake', signals=fake, training=False)
+    summary.plot_traces(
+        'fake', signals=gan.generate(test_noise, denorm=True), training=False)
 
     if hparams.verbose:
       print('Train: generator loss {:.4f} discriminator loss {:.4f}\n'
@@ -130,7 +126,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 
     if not hparams.skip_checkpoint and (epoch % 5 == 0 or
                                         epoch == hparams.epochs - 1):
-      save_models(hparams, gan, epoch)
+      utils.save_models(hparams, gan, epoch)
 
 
 def test(validation_ds, gan):
@@ -165,9 +161,9 @@ def main(hparams, return_metrics=False):
     generator.summary()
     discriminator.summary()
 
-  store_hparams(hparams)
+  utils.store_hparams(hparams)
 
-  load_models(hparams, generator, discriminator)
+  utils.load_models(hparams, generator, discriminator)
 
   gan = get_algorithm(hparams, generator, discriminator, summary)
 
