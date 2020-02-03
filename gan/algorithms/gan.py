@@ -1,8 +1,9 @@
 from .registry import register
 
-import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp
+
+from ..utils import signals_metrics
+from ..utils.utils import denormalize
 
 
 @register('gan')
@@ -27,56 +28,15 @@ class GAN(object):
   def get_noise(self, batch_size):
     return tf.random.normal((batch_size, self._noise_dim))
 
-  def denormalize(self, x):
-    ''' re-scale signals back to its original range '''
-    return x * (self._signals_max - self._signals_min) + self._signals_min
-
-  def kl_divergence(self, real, fake):
-    return tf.reduce_mean(tf.keras.losses.KLD(y_true=real, y_pred=fake))
-
-  def min_signals_error(self, real, fake):
-    return tf.reduce_mean(
-        tf.square(tf.reduce_min(real, axis=-1) - tf.reduce_min(fake, axis=-1)))
-
-  def max_signals_error(self, real, fake):
-    return tf.reduce_mean(
-        tf.square(tf.reduce_max(real, axis=-1) - tf.reduce_max(fake, axis=-1)))
-
-  def mean_signals_error(self, real, fake):
-    return tf.reduce_mean(
-        tf.square(
-            tf.reduce_mean(real, axis=-1) - tf.reduce_mean(fake, axis=-1)))
-
-  def std_signals_error(self, real, fake):
-    return tf.reduce_mean(
-        tf.square(
-            tf.math.reduce_std(real, axis=-1) -
-            tf.math.reduce_std(fake, axis=-1)))
-
-  def cross_correlation(self, real, fake):
-    shape = (real.shape[0] * real.shape[1], real.shape[2])
-    real = tf.reshape(real, shape=shape)
-    fake = tf.reshape(fake, shape=shape)
-
-    def _cross_correlation(x, y):
-      _results = np.corrcoef(x, y)
-      _results = np.diagonal(_results, offset=len(x))
-      return _results
-
-    results = tf.py_function(
-        _cross_correlation, inp=[real, fake], Tout=tf.float32)
-
-    return tf.reduce_mean(results)
-
   def metrics(self, real, fake):
     if self._normalize:
-      real = self.denormalize(real)
-      fake = self.denormalize(fake)
+      real = denormalize(real, x_min=self._signals_min, x_max=self._signals_max)
+      fake = denormalize(fake, x_min=self._signals_min, x_max=self._signals_max)
     return {
-        'signals_metrics/min': self.min_signals_error(real, fake),
-        'signals_metrics/max': self.max_signals_error(real, fake),
-        'signals_metrics/mean': self.mean_signals_error(real, fake),
-        'signals_metrics/std': self.std_signals_error(real, fake)
+        'signals_metrics/min': signals_metrics.min_signals_error(real, fake),
+        'signals_metrics/max': signals_metrics.max_signals_error(real, fake),
+        'signals_metrics/mean': signals_metrics.mean_signals_error(real, fake),
+        'signals_metrics/std': signals_metrics.std_signals_error(real, fake)
     }
 
   def generator_loss(self, fake_output):

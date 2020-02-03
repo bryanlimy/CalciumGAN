@@ -7,6 +7,8 @@ from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
 
+from gan.utils.utils import normalize
+
 
 def split(sequence, n):
   """ divide sequence into n sub-sequence evenly"""
@@ -14,11 +16,6 @@ def split(sequence, n):
   return [
       sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
   ]
-
-
-def normalize(x, x_min, x_max):
-  # scale x to be between 0 and 1
-  return (x - x_min) / (x_max - x_min)
 
 
 def get_segments(hparams):

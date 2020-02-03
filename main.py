@@ -12,11 +12,11 @@ tf.random.set_seed(1234)
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-from models.registry import get_models
-from utils.summary_helper import Summary
-from utils.dataset_helper import get_dataset
-from algorithms.registry import get_algorithm
-from utils.utils import store_hparams, save_signals, measure_spike_metrics, \
+from gan.models import get_models
+from gan.utils import Summary
+from gan.utils import get_dataset
+from gan.algorithms.registry import get_algorithm
+from gan.utils import store_hparams, save_signals, measure_spike_metrics, \
   save_models, load_models, delete_generated_file
 
 

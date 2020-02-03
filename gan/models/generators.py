@@ -43,7 +43,7 @@ def conv1d(hparams):
   shape, num_units = calculate_input_config(
       num_neurons=hparams.num_neurons,
       noise_dim=hparams.noise_dim,
-      conv_layers=2,
+      num_convolution=3,
       kernel_size=kernel_size,
       strides=strides)
   signal_length = hparams.signal_shape[-1]
@@ -60,6 +60,10 @@ def conv1d(hparams):
   outputs = tf.keras.layers.BatchNormalization()(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
 
+  outputs = Conv1DTranspose(signal_length, kernel_size, strides)(outputs)
+  outputs = tf.keras.layers.BatchNormalization()(outputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+
   outputs = tf.keras.layers.Dense(hparams.signal_shape[-1])(outputs)
 
   if hparams.normalize:
@@ -72,16 +76,34 @@ def conv1d(hparams):
 def rnn(hparams):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  outputs = tf.keras.layers.Dense(
-      hparams.num_neurons * hparams.noise_dim, use_bias=False)(inputs)
+  shape, num_units = calculate_input_config(
+      num_neurons=hparams.num_neurons, noise_dim=hparams.noise_dim)
+  signal_length = hparams.singal_shape[-1]
+
+  outputs = tf.keras.layers.Dense(num_units, use_bias=False)(inputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
-  outputs = tf.keras.layers.Reshape((hparams.num_neurons,
-                                     hparams.noise_dim))(outputs)
+  outputs = tf.keras.layers.Reshape(shape)(outputs)
 
   num_units = hparams.signal_shape[-1]
 
   outputs = tf.keras.layers.GRU(
-      num_units,
+      signal_length // 4,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(outputs)
+
+  outputs = tf.keras.layers.GRU(
+      signal_length // 2,
+      activation=hparams.activation,
+      recurrent_initializer='glorot_uniform',
+      dropout=hparams.dropout,
+      return_sequences=True,
+      time_major=False)(outputs)
+
+  outputs = tf.keras.layers.GRU(
+      signal_length,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
