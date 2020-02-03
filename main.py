@@ -48,7 +48,7 @@ def train(hparams, train_ds, gan, summary, epoch):
 
   end = time()
 
-  summary.scalar('elapse (s)', end - start, step=epoch, training=True)
+  summary.scalar('elapse (s)', end - start, training=True)
 
   return np.mean(gen_losses), np.mean(dis_losses)
 
