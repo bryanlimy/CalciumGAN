@@ -10,13 +10,13 @@ from .utils import get_activation_fn
 def mlp(hparams):
   inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
-  signal_length = hparams.singal_shape[-1]
+  signal_shape = hparams.signal_shape[-1]
 
-  outputs = tf.keras.layers.Dense(signal_length // 3)(inputs)
+  outputs = tf.keras.layers.Dense(signal_shape // 3)(inputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = tf.keras.layers.Dense(signal_length // 6)(outputs)
+  outputs = tf.keras.layers.Dense(signal_shape // 6)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 

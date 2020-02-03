@@ -12,7 +12,7 @@ def mlp(hparams):
 
   shape, num_units = calculate_input_config(
       num_neurons=hparams.num_neurons, noise_dim=hparams.noise_dim)
-  signal_length = hparams.singal_shape[-1]
+  signal_length = hparams.signal_shape[-1]
 
   outputs = tf.keras.layers.Dense(num_units, use_bias=False)(inputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
@@ -78,7 +78,7 @@ def rnn(hparams):
 
   shape, num_units = calculate_input_config(
       num_neurons=hparams.num_neurons, noise_dim=hparams.noise_dim)
-  signal_length = hparams.singal_shape[-1]
+  signal_length = hparams.signal_shape[-1]
 
   outputs = tf.keras.layers.Dense(num_units, use_bias=False)(inputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
