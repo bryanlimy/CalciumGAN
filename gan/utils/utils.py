@@ -20,13 +20,11 @@ def split(sequence, n):
   ]
 
 
-@tf.function
 def normalize(x, x_min, x_max):
   # scale x to be between 0 and 1
   return (x - x_min) / (x_max - x_min)
 
 
-@tf.function
 def denormalize(x, x_min, x_max):
   ''' re-scale signals back to its original range '''
   return x * (x_max - x_min) + x_min
