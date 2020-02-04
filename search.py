@@ -142,7 +142,6 @@ def search(args):
                         session, end - start))
                   except Exception as e:
                     print('\nExperiment {:03d} ERROR: {}'.format(session, e))
-                    rmtree(hparams.output_dir)
 
   print('\nExperiment completed, TensorBoard log at {}'.format(args.output_dir))
 
