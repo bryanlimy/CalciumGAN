@@ -12,12 +12,11 @@ tf.random.set_seed(1234)
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-from models.registry import get_models
-from utils.summary_helper import Summary
-from utils.dataset_helper import get_dataset
-from algorithms.registry import get_algorithm
-from utils.utils import store_hparams, save_signals, measure_spike_metrics, \
-  save_models, load_models, delete_generated_file
+from gan.utils import utils
+from gan.models.registry import get_models
+from gan.utils.summary_helper import Summary
+from gan.utils.dataset_helper import get_dataset
+from gan.algorithms.registry import get_algorithm
 
 
 def train(hparams, train_ds, gan, summary, epoch):
@@ -28,7 +27,8 @@ def train(hparams, train_ds, gan, summary, epoch):
   for signal, spike in tqdm(
       train_ds,
       desc='Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs),
-      total=hparams.steps_per_epoch):
+      total=hparams.steps_per_epoch,
+      disable=not bool(hparams.verbose)):
 
     gen_loss, dis_loss, gradient_penalty, metrics = gan.train(signal)
 
@@ -48,14 +48,13 @@ def train(hparams, train_ds, gan, summary, epoch):
 
   end = time()
 
-  summary.scalar('elapse (s)', end - start, step=epoch, training=True)
+  summary.scalar('elapse (s)', end - start, training=True)
 
   return np.mean(gen_losses), np.mean(dis_losses)
 
 
 def validate(hparams, validation_ds, gan, summary, epoch):
-  gen_losses, dis_losses, gradient_penalties = [], [], []
-  kl_divergences, mean_signals_errors = [], []
+  gen_losses, dis_losses, gradient_penalties, results = [], [], [], {}
 
   start = time()
 
@@ -66,48 +65,48 @@ def validate(hparams, validation_ds, gan, summary, epoch):
     dis_losses.append(dis_loss)
     if gradient_penalty is not None:
       gradient_penalties.append(gradient_penalty)
-    kl_divergences.append(metrics['kl_divergence'])
-    mean_signals_errors.append(metrics['mean_signals_error'])
+    for key, item in metrics.items():
+      if key not in results:
+        results[key] = []
+      results[key].append(item)
 
-    save_signals(
-        hparams,
-        epoch,
-        real_signals=signal.numpy(),
-        real_spikes=spike.numpy(),
-        fake_signals=fake.numpy())
+    if not hparams.skip_spike_metrics:
+      utils.save_signals(
+          hparams,
+          epoch,
+          real_signals=signal.numpy(),
+          real_spikes=spike.numpy(),
+          fake_signals=fake.numpy())
 
   end = time()
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
   gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
+  results = {key: np.mean(item) for key, item in results.items()}
 
   summary.log(
       gen_loss,
       dis_loss,
       gradient_penalty,
-      metrics={
-          'kl_divergence': np.mean(kl_divergences),
-          'mean_signals_error': np.mean(mean_signals_errors)
-      },
+      metrics=results,
       elapse=end - start,
       training=False)
 
   # evaluate spike metrics every 5 epochs
   if not hparams.skip_spike_metrics and (epoch % 5 == 0 or
                                          epoch == hparams.epochs - 1):
-    measure_spike_metrics(hparams, epoch, summary)
+    utils.measure_spike_metrics(hparams, epoch, summary)
 
   # delete generated signals and spike train
   if not hparams.keep_generated:
-    delete_generated_file(hparams, epoch)
+    utils.delete_generated_file(hparams, epoch)
 
   return gen_loss, dis_loss
 
 
 def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
-
   # noise to test generator and plot to TensorBoard
-  test_noise = tf.random.normal((1, hparams.noise_dim))
+  test_noise = gan.get_noise(batch_size=1)
 
   for epoch in range(hparams.epochs):
 
@@ -118,23 +117,40 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
 
     # test generated data and plot in TensorBoard
-    fake = gan.samples(test_noise)
-    if hparams.input == 'fashion_mnist':
-      summary.image('fake', signals=fake, training=False)
-    else:
-      summary.plot_traces('fake', signals=fake, training=False)
+    summary.plot_traces(
+        'fake', signals=gan.generate(test_noise, denorm=True), training=False)
 
-    print('Train: generator loss {:.4f} discriminator loss {:.4f}\n'
-          'Eval: generator loss {:.4f} discriminator loss {:.4f}\n'.format(
-              train_gen_loss, train_dis_loss, val_gen_loss, val_dis_loss))
+    if hparams.verbose:
+      print('Train: generator loss {:.4f} discriminator loss {:.4f}\n'
+            'Eval: generator loss {:.4f} discriminator loss {:.4f}\n'.format(
+                train_gen_loss, train_dis_loss, val_gen_loss, val_dis_loss))
 
-    if epoch % 5 == 0 or epoch == hparams.epochs - 1:
-      save_models(hparams, gan, epoch)
+    if not hparams.skip_checkpoint and (epoch % 5 == 0 or
+                                        epoch == hparams.epochs - 1):
+      utils.save_models(hparams, gan, epoch)
 
 
-def main(hparams):
+def test(validation_ds, gan):
+  gen_losses, dis_losses, results = [], [], {}
+
+  for signal, spike in validation_ds:
+    _, gen_loss, dis_loss, _, metrics = gan.validate(signal)
+
+    gen_losses.append(gen_loss)
+    dis_losses.append(dis_loss)
+    for key, item in metrics.items():
+      if key not in results:
+        results[key] = []
+      results[key].append(item)
+
+  return {key: np.mean(item) for key, item in results.items()}
+
+
+def main(hparams, return_metrics=False):
   if hparams.clear_output_dir and os.path.exists(hparams.output_dir):
     rmtree(hparams.output_dir)
+
+  tf.keras.backend.clear_session()
 
   summary = Summary(hparams)
 
@@ -142,12 +158,13 @@ def main(hparams):
 
   generator, discriminator = get_models(hparams)
 
-  generator.summary()
-  discriminator.summary()
+  if hparams.verbose:
+    generator.summary()
+    discriminator.summary()
 
-  store_hparams(hparams)
+  utils.store_hparams(hparams)
 
-  load_models(hparams, generator, discriminator)
+  utils.load_models(hparams, generator, discriminator)
 
   gan = get_algorithm(hparams, generator, discriminator, summary)
 
@@ -158,20 +175,21 @@ def main(hparams):
       gan=gan,
       summary=summary)
 
+  if return_metrics:
+    return test(validation_ds, gan)
+
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input', default='dataset/tfrecords')
+  parser.add_argument('--input_dir', default='dataset/tfrecords')
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--batch_size', default=64, type=int)
   parser.add_argument('--epochs', default=20, type=int)
-  parser.add_argument('--num_units', default=256, type=int)
   parser.add_argument('--dropout', default=0.2, type=float)
   parser.add_argument('--learning_rate', default=0.0001, type=float)
-  parser.add_argument('--noise_dim', default=200, type=int)
+  parser.add_argument('--noise_dim', default=128, type=int)
   parser.add_argument('--summary_freq', default=200, type=int)
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
-  parser.add_argument('--verbose', default=1, type=int)
   parser.add_argument('--generator', default='conv1d', type=str)
   parser.add_argument('--discriminator', default='conv1d', type=str)
   parser.add_argument('--activation', default='tanh', type=str)
@@ -179,7 +197,7 @@ if __name__ == '__main__':
       '--algorithm',
       default='gan',
       type=str,
-      help='which alogrithm to train models')
+      help='which algorithm to train models')
   parser.add_argument(
       '--n_critic',
       default=5,
@@ -206,6 +224,13 @@ if __name__ == '__main__':
       '--plot_weights',
       action='store_true',
       help='flag to plot weights and activations in TensorBoard')
+  parser.add_argument(
+      '--skip_checkpoint',
+      action='store_true',
+      help='flag to skip storing model checkpoints')
+  parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
+
   hparams.global_step = 0
+
   main(hparams)

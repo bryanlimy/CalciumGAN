@@ -2,11 +2,12 @@ import os
 import io
 import numpy as np
 import tensorflow as tf
-from .oasis_helper import deconvolve_signals
 
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
+from .oasis_helper import deconvolve_signals
 
 
 class Summary(object):
@@ -91,14 +92,16 @@ class Summary(object):
     if len(signals.shape) > 2:
       signals = signals[0]
 
+    # deconvolve signals if spikes aren't provided
     if spikes is None:
       spikes = deconvolve_signals(signals)
+
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
     if len(spikes.shape) > 2:
       spikes = spikes[0]
 
-    # plot 20 neurons at most
+    # plot traces at most
     for i in range(min(20, signals.shape[0])):
       image = self._plot_trace(signals[i], spikes[i])
       images.append(image)
@@ -154,10 +157,10 @@ class Summary(object):
           elapse=None,
           gan=None,
           training=True):
-    self.scalar('generator_loss', gen_loss, training=training)
-    self.scalar('discriminator_loss', dis_loss, training=training)
+    self.scalar('loss/generator', gen_loss, training=training)
+    self.scalar('loss/discriminator', dis_loss, training=training)
     if gradient_penalty is not None:
-      self.scalar('gradient_penalty', gradient_penalty, training=training)
+      self.scalar('loss/gradient_penalty', gradient_penalty, training=training)
     if metrics is not None:
       for tag, value in metrics.items():
         self.scalar(tag, value, training=training)

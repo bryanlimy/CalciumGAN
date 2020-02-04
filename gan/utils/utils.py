@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 from time import time
 from glob import glob
+import tensorflow as tf
 from multiprocessing import Pool
 
 from .oasis_helper import deconvolve_signals
@@ -19,8 +20,13 @@ def split(sequence, n):
   ]
 
 
+def normalize(x, x_min, x_max):
+  # scale x to be between 0 and 1
+  return (x - x_min) / (x_max - x_min)
+
+
 def denormalize(x, x_min, x_max):
-  """ re-scale signals back to its original range """
+  ''' re-scale signals back to its original range '''
   return x * (x_max - x_min) + x_min
 
 
@@ -66,7 +72,8 @@ def save_models(hparams, gan, epoch):
         'discriminator_weights': discriminator_weights
     }, file)
 
-  print('Saved model checkpoint to {}\n'.format(filename))
+  if hparams.verbose:
+    print('Saved model checkpoint to {}\n'.format(filename))
 
 
 def load_models(hparams, generator, discriminator):
@@ -78,7 +85,9 @@ def load_models(hparams, generator, discriminator):
       ckpt = pickle.load(file)
     generator.set_weights(ckpt['generator_weights'])
     discriminator.set_weights(ckpt['discriminator_weights'])
-    print('restore checkpoint {}'.format(filename))
+
+    if hparams.verbose:
+      print('restore checkpoint {}'.format(filename))
 
 
 def deconvolve_saved_signals(hparams, filename):
@@ -94,7 +103,9 @@ def deconvolve_saved_signals(hparams, filename):
         chunks=True,
         maxshape=(None, fake_spikes.shape[1], fake_spikes.shape[2]))
   elapse = time() - start
-  print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
+
+  if hparams.verbose:
+    print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
 
 
 def van_rossum_distance_loop(args):
@@ -124,7 +135,10 @@ def get_mean_van_rossum_distance(hparams, real_spikes, fake_spikes):
     distances = van_rossum_distance_loop((real_spikes, fake_spikes))
   mean_distance = np.mean(distances)
   elapse = time() - start
-  print('mean van Rossum distance in {:.2f}s'.format(elapse))
+
+  if hparams.verbose:
+    print('mean van Rossum distance in {:.2f}s'.format(elapse))
+
   return mean_distance
 
 
@@ -146,8 +160,10 @@ def measure_spike_metrics(hparams, epoch, summary):
   van_rossum_distance = get_mean_van_rossum_distance(hparams, real_spikes,
                                                      fake_spikes)
 
-  summary.scalar('spike_count_mse', mean_spike_error, training=False)
-  summary.scalar('van_rossum_distance', van_rossum_distance, training=False)
+  summary.scalar(
+      'spike_metrics/spike_count_mse', mean_spike_error, training=False)
+  summary.scalar(
+      'spike_metrics/van_rossum_distance', van_rossum_distance, training=False)
 
 
 def delete_generated_file(hparams, epoch):

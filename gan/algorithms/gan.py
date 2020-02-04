@@ -2,6 +2,9 @@ from .registry import register
 
 import tensorflow as tf
 
+from ..utils import signals_metrics
+from ..utils.utils import denormalize
+
 
 @register('gan')
 class GAN(object):
@@ -22,25 +25,18 @@ class GAN(object):
 
     self._cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
-  def denormalize(self, x):
-    ''' re-scale signals back to its original range '''
-    return x * (self._signals_max - self._signals_min) + self._signals_min
-
-  def mean_signals_error(self, real, fake):
-    ''' return the MSE of the mean of the real and fake traces '''
-    if self._normalize:
-      real = self.denormalize(real)
-      fake = self.denormalize(fake)
-    return tf.reduce_mean(
-        tf.square(tf.reduce_mean(real) - tf.reduce_mean(fake)))
-
-  def kl_divergence(self, real, fake):
-    return tf.reduce_mean(tf.keras.losses.KLD(y_true=real, y_pred=fake))
+  def get_noise(self, batch_size):
+    return tf.random.normal((batch_size, self._noise_dim))
 
   def metrics(self, real, fake):
+    if self._normalize:
+      real = denormalize(real, x_min=self._signals_min, x_max=self._signals_max)
+      fake = denormalize(fake, x_min=self._signals_min, x_max=self._signals_max)
     return {
-        'kl_divergence': self.kl_divergence(real, fake),
-        'mean_signals_error': self.mean_signals_error(real, fake)
+        'signals_metrics/min': signals_metrics.min_signals_error(real, fake),
+        'signals_metrics/max': signals_metrics.max_signals_error(real, fake),
+        'signals_metrics/mean': signals_metrics.mean_signals_error(real, fake),
+        'signals_metrics/std': signals_metrics.std_signals_error(real, fake)
     }
 
   def generator_loss(self, fake_output):
@@ -74,7 +70,7 @@ class GAN(object):
 
   @tf.function
   def train(self, inputs):
-    noise = tf.random.normal((inputs.shape[0], self._noise_dim))
+    noise = self.get_noise(batch_size=inputs.shape[0])
 
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
       _, gen_loss, dis_loss, gradient_penalty, metrics = self._step(
@@ -94,9 +90,12 @@ class GAN(object):
 
   @tf.function
   def validate(self, inputs):
-    noise = tf.random.normal((inputs.shape[0], self._noise_dim))
+    noise = self.get_noise(batch_size=inputs.shape[0])
     return self._step(inputs, noise, training=False)
 
   @tf.function
-  def samples(self, noise):
-    return self.generator(noise, training=False)
+  def generate(self, noise, denorm=False):
+    fake = self.generator(noise, training=False)
+    if denorm and self._normalize:
+      fake = denormalize(fake, x_min=self._signals_min, x_max=self._signals_max)
+    return fake

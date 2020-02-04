@@ -103,8 +103,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-.DS_Store
+*.DS_Store
 .idea
-runs/
+runs
+tfrecords
 *.pkl
 oasis/
