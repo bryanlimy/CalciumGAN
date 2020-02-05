@@ -47,7 +47,7 @@ def get_dataset_info(hparams):
   hparams.spike_shape = info['spike_shape']
   hparams.num_train_shards = info['num_train_shards']
   hparams.num_validation_shards = info['num_validation_shards']
-  hparams.buffer_size = info['num_per_shard'] * 10
+  hparams.buffer_size = info['buffer_size']
   hparams.normalize = info['normalize']
   if not hasattr(hparams, 'cache_dir'):
     hparams.cache_dir = os.path.join(hparams.output_dir, 'cache_dir')
