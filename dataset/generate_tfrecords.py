@@ -97,6 +97,7 @@ def write_to_record(hparams, mode, shard, num_shards, signals, spikes):
 def write_to_records(hparams, mode, signals, spikes):
   if not os.path.exists(hparams.output_dir):
     os.makedirs(hparams.output_dir)
+
   # calculate the number of records to create
   num_shards = 1 if hparams.num_per_shard == 0 else math.ceil(
       len(signals) / hparams.num_per_shard)
@@ -158,6 +159,7 @@ def main(hparams):
 
   # save information of the dataset
   with open(os.path.join(hparams.output_dir, 'info.pkl'), 'wb') as file:
+    buffer_size = hparams.num_per_shard if hparams.num_per_shard > 0 else hparams.train_size
     pickle.dump({
         'train_size': hparams.train_size,
         'validation_size': hparams.validation_size,
@@ -165,7 +167,7 @@ def main(hparams):
         'spike_shape': hparams.spike_shape,
         'num_train_shards': hparams.num_train_shards,
         'num_validation_shards': hparams.num_validation_shards,
-        'num_per_shard': hparams.num_per_shard,
+        'buffer_size': buffer_size,
         'normalize': hparams.normalize,
         'signals_min': hparams.signals_min,
         'signals_max': hparams.signals_max
