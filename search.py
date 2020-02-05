@@ -22,6 +22,9 @@ class HParams(object):
         args.output_dir,
         '{:03d}_{}_{}_{}_{}_{}'.format(session, algorithm, generator,
                                        discriminator, activation, noise_dim))
+    self.cache_dir = os.path.join(args.output_dir, 'cache_dir')
+    self.train_cache = os.path.join(self.cache_dir, 'train')
+    self.validation_cache = os.path.join(self.cache_dir, 'validation')
     self.batch_size = args.batch_size
     self.epochs = args.epochs
     self.dropout = dropout
@@ -41,6 +44,7 @@ class HParams(object):
     self.plot_weights = False
     self.verbose = args.verbose
     self.skip_checkpoint = True
+    self.keep_cache = True
     self.global_step = 0
 
 

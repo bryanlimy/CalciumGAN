@@ -38,6 +38,9 @@ def get_dataset_info(hparams):
   """ Get dataset information """
   with open(os.path.join(hparams.input_dir, 'info.pkl'), 'rb') as file:
     info = pickle.load(file)
+  hparams.train_files = os.path.join(hparams.input_dir, 'train-*.record')
+  hparams.validation_files = os.path.join(hparams.input_dir,
+                                          'validation-*.record')
   hparams.train_size = info['train_size']
   hparams.validation_size = info['validation_size']
   hparams.signal_shape = info['signal_shape']
@@ -46,6 +49,12 @@ def get_dataset_info(hparams):
   hparams.num_validation_shards = info['num_validation_shards']
   hparams.buffer_size = info['num_per_shard'] * 10
   hparams.normalize = info['normalize']
+  if not hasattr(hparams, 'cache_dir'):
+    hparams.cache_dir = os.path.join(hparams.output_dir, 'cache_dir')
+  if not hasattr(hparams, 'train_cache'):
+    hparams.train_cache = os.path.join(hparams.cache_dir, 'train')
+  if not hasattr(hparams, 'validation_cache'):
+    hparams.validation_cache = os.path.join(hparams.cache_dir, 'validation')
   hparams.signals_min = float(info['signals_min'])
   hparams.signals_max = float(info['signals_max'])
 
@@ -70,24 +79,23 @@ def get_calcium_signals(hparams):
     spike = tf.reshape(spike, shape=hparams.spike_shape)
     return signal, spike
 
-  train_files = tf.data.Dataset.list_files(
-      os.path.join(hparams.input_dir, 'train-*.record'))
-  train_ds = train_files.interleave(
+  if not os.path.exists(hparams.cache_dir):
+    os.makedirs(hparams.cache_dir)
+
+  train_ds = tf.data.Dataset.list_files(hparams.train_files)
+  train_ds = train_ds.interleave(
       tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
   train_ds = train_ds.map(_parse_example, num_parallel_calls=AUTOTUNE)
-  train_ds = train_ds.cache(os.path.join(hparams.output_dir, 'train.cache'))
-  train_ds = train_ds.shuffle(buffer_size=hparams.buffer_size)
+  train_ds = train_ds.cache(hparams.train_cache)
+  train_ds = train_ds.shuffle(hparams.buffer_size)
   train_ds = train_ds.batch(hparams.batch_size)
   train_ds = train_ds.prefetch(AUTOTUNE)
 
-  validation_files = tf.data.Dataset.list_files(
-      os.path.join(hparams.input_dir, 'validation-*.record'))
-  validation_ds = validation_files.interleave(
+  validation_ds = tf.data.Dataset.list_files(hparams.validation_files)
+  validation_ds = validation_ds.interleave(
       tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
-  validation_ds = validation_ds.map(
-      _parse_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-  validation_ds = validation_ds.cache(
-      os.path.join(hparams.output_dir, 'validation.cache'))
+  validation_ds = validation_ds.map(_parse_example, num_parallel_calls=AUTOTUNE)
+  validation_ds = validation_ds.cache(hparams.validation_cache)
   validation_ds = validation_ds.batch(hparams.batch_size)
 
   return train_ds, validation_ds

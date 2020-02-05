@@ -5,6 +5,7 @@ import numpy as np
 from time import time
 from glob import glob
 import tensorflow as tf
+from shutil import rmtree
 from multiprocessing import Pool
 
 from .oasis_helper import deconvolve_signals
@@ -170,3 +171,8 @@ def delete_generated_file(hparams, epoch):
   filename = get_signal_filename(hparams, epoch)
   if os.path.exists(filename):
     os.remove(filename)
+
+
+def delete_dataset_cache_file(hparams):
+  if os.path.exists(hparams.cache_dir):
+    rmtree(hparams.cache_dir)
