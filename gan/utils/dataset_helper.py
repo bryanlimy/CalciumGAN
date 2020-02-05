@@ -7,6 +7,8 @@ import tensorflow as tf
 
 from .utils import denormalize
 
+AUTOTUNE = tf.data.experimental.AUTOTUNE
+
 
 def get_fashion_mnist(hparams):
   (x_train, _), (x_test, _) = tf.keras.datasets.fashion_mnist.load_data()
@@ -42,7 +44,7 @@ def get_dataset_info(hparams):
   hparams.spike_shape = info['spike_shape']
   hparams.num_train_shards = info['num_train_shards']
   hparams.num_validation_shards = info['num_validation_shards']
-  hparams.buffer_size = info['num_per_shard']
+  hparams.buffer_size = info['num_per_shard'] * 10
   hparams.normalize = info['normalize']
   hparams.signals_min = float(info['signals_min'])
   hparams.signals_max = float(info['signals_max'])
@@ -68,18 +70,20 @@ def get_calcium_signals(hparams):
     spike = tf.reshape(spike, shape=hparams.spike_shape)
     return signal, spike
 
-  train_ds = tf.data.TFRecordDataset(
-      glob(os.path.join(hparams.input_dir, 'train-*.record')),
-      num_parallel_reads=4)
-  train_ds = train_ds.map(
-      _parse_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+  train_files = tf.data.Dataset.list_files(
+      os.path.join(hparams.input_dir, 'train-*.record'))
+  train_ds = train_files.interleave(
+      tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
+  train_ds = train_ds.map(_parse_example, num_parallel_calls=AUTOTUNE)
+  train_ds = train_ds.cache()
   train_ds = train_ds.shuffle(buffer_size=hparams.buffer_size)
   train_ds = train_ds.batch(hparams.batch_size)
-  train_ds = train_ds.prefetch(tf.data.experimental.AUTOTUNE)
+  train_ds = train_ds.prefetch(AUTOTUNE)
 
-  validation_ds = tf.data.TFRecordDataset(
-      glob(os.path.join(hparams.input_dir, 'validation-*.record')),
-      num_parallel_reads=4)
+  validation_files = tf.data.Dataset.list_files(
+      os.path.join(hparams.input_dir, 'validation-*.record'))
+  validation_ds = validation_files.interleave(
+      tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
   validation_ds = validation_ds.map(
       _parse_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
   validation_ds = validation_ds.batch(hparams.batch_size)
