@@ -159,7 +159,7 @@ def main(hparams):
 
   # save information of the dataset
   with open(os.path.join(hparams.output_dir, 'info.pkl'), 'wb') as file:
-    buffer_size = hparams.num_per_shard if hparams.num_per_shard > 0 else hparams.train_size
+    buffer_size = hparams.train_size if hparams.num_per_shard == 0 else hparams.num_per_shard
     pickle.dump({
         'train_size': hparams.train_size,
         'validation_size': hparams.validation_size,
