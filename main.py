@@ -159,7 +159,7 @@ def main(hparams, return_metrics=False):
 
   train_ds, validation_ds = get_dataset(hparams, summary)
 
-  generator, discriminator = get_models(hparams)
+  generator, discriminator = get_models(hparams, summary)
 
   if hparams.verbose:
     generator.summary()
