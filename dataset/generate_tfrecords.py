@@ -7,8 +7,6 @@ from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
 
-from gan.utils.utils import normalize
-
 
 def split(sequence, n):
   """ divide sequence into n sub-sequence evenly"""
@@ -16,6 +14,11 @@ def split(sequence, n):
   return [
       sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
   ]
+
+
+def normalize(x, x_min, x_max):
+  # scale x to be between 0 and 1
+  return (x - x_min) / (x_max - x_min)
 
 
 def get_segments(hparams):
@@ -95,7 +98,8 @@ def write_to_records(hparams, mode, signals, spikes):
   if not os.path.exists(hparams.output_dir):
     os.makedirs(hparams.output_dir)
   # calculate the number of records to create
-  num_shards = math.ceil(len(signals) / hparams.num_per_shard)
+  num_shards = 1 if hparams.num_per_shard == 0 else math.ceil(
+      len(signals) / hparams.num_per_shard)
 
   print('writing {} segments to {} {} records...'.format(
       len(signals), num_shards, mode))
@@ -177,13 +181,20 @@ if __name__ == '__main__':
   parser.add_argument(
       '--input', default='raw_data/ST260_Day4_signals4Bryan.pkl', type=str)
   parser.add_argument('--output_dir', default='tfrecords', type=str)
-  parser.add_argument('--sequence_length', default=120, type=int)
-  parser.add_argument('--num_per_shard', default=1100, type=int)
+  parser.add_argument('--sequence_length', default=1024, type=int)
   parser.add_argument('--normalize', action='store_true')
   parser.add_argument('--replace', action='store_true')
+  parser.add_argument(
+      '--num_per_shard',
+      default=-1,
+      type=int,
+      help='number of segments save in each TFRecord file. '
+      'if -1 then automatically adjust each shard to be 100MB, '
+      'if 0 then save all data to the same file.')
   hparams = parser.parse_args()
 
   # calculate the number of samples per shard so that each shard is about 100MB
-  hparams.num_per_shard = int((120 / hparams.sequence_length) * 1100)
+  if hparams.num_per_shard == -1:
+    hparams.num_per_shard = int((120 / hparams.sequence_length) * 1100)
 
   main(hparams)
