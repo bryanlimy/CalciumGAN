@@ -75,7 +75,7 @@ def get_calcium_signals(hparams):
   train_ds = train_files.interleave(
       tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
   train_ds = train_ds.map(_parse_example, num_parallel_calls=AUTOTUNE)
-  train_ds = train_ds.cache()
+  train_ds = train_ds.cache(os.path.join(hparams.output_dir, 'train.cache'))
   train_ds = train_ds.shuffle(buffer_size=hparams.buffer_size)
   train_ds = train_ds.batch(hparams.batch_size)
   train_ds = train_ds.prefetch(AUTOTUNE)
@@ -86,6 +86,8 @@ def get_calcium_signals(hparams):
       tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
   validation_ds = validation_ds.map(
       _parse_example, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+  validation_ds = validation_ds.cache(
+      os.path.join(hparams.output_dir, 'validation.cache'))
   validation_ds = validation_ds.batch(hparams.batch_size)
 
   return train_ds, validation_ds
