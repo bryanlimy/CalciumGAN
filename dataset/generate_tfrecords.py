@@ -197,6 +197,7 @@ if __name__ == '__main__':
 
   # calculate the number of samples per shard so that each shard is about 100MB
   if hparams.num_per_shard == -1:
-    hparams.num_per_shard = int((120 / hparams.sequence_length) * 1100)
+    num_per_shard = int((120 / hparams.sequence_length) * 1100)  # 100MB shard
+    hparams.num_per_shard = num_per_shard * 5  # 1GB shard
 
   main(hparams)

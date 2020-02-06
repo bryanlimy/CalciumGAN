@@ -142,8 +142,8 @@ def search(args):
                     start = time()
                     run_experiment(hparams, hp_hparams)
                     end = time()
-                    print('\nExperiment {:03d} completed in {:.2f}s\n'.format(
-                        session, end - start))
+                    print('\nExperiment {:03d} completed in {:.2f}hrs\n'.format(
+                        session, (end - start) / (60 * 60)))
                   except Exception as e:
                     print('\nExperiment {:03d} ERROR: {}'.format(session, e))
 
