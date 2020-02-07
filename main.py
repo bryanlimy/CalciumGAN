@@ -129,9 +129,6 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
                                         epoch == hparams.epochs - 1):
       utils.save_models(hparams, gan, epoch)
 
-  if not hparams.keep_cache:
-    utils.delete_dataset_cache_file(hparams)
-
 
 def test(validation_ds, gan):
   gen_losses, dis_losses, results = [], [], {}
@@ -231,10 +228,6 @@ if __name__ == '__main__':
       '--skip_checkpoint',
       action='store_true',
       help='flag to skip storing model checkpoints')
-  parser.add_argument(
-      '--keep_cache',
-      action='store_true',
-      help='flag to keep tf.data.Dataset cache file')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 

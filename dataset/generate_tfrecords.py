@@ -1,15 +1,15 @@
 import os
-import math
 import pickle
 import argparse
 import numpy as np
+from math import ceil
 from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
 
 
 def split(sequence, n):
-  """ divide sequence into n sub-sequence evenly"""
+  """ divide sequence into n sub-sequence evenly """
   k, m = divmod(len(sequence), n)
   return [
       sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
@@ -17,8 +17,17 @@ def split(sequence, n):
 
 
 def normalize(x, x_min, x_max):
-  # scale x to be between 0 and 1
+  """ scale x to be between 0 and 1 """
   return (x - x_min) / (x_max - x_min)
+
+
+def calculate_num_per_shard(sequence_length, target_size):
+  """ 
+  calculate the number of data per shard given sequence_length such that each 
+  shard is target_size GB
+  """
+  num_per_shard = ceil((120 / sequence_length) * 1100) * 10  # 1GB shard
+  return int(num_per_shard * target_size)
 
 
 def get_segments(hparams):
@@ -99,7 +108,7 @@ def write_to_records(hparams, mode, signals, spikes):
     os.makedirs(hparams.output_dir)
 
   # calculate the number of records to create
-  num_shards = 1 if hparams.num_per_shard == 0 else math.ceil(
+  num_shards = 1 if hparams.num_per_shard == 0 else ceil(
       len(signals) / hparams.num_per_shard)
 
   print('writing {} segments to {} {} records...'.format(
@@ -145,6 +154,12 @@ def main(hparams):
   hparams.signal_shape = signals.shape[1:]
   hparams.spike_shape = spikes.shape[1:]
 
+  hparams.num_per_shard = calculate_num_per_shard(hparams.sequence_length,
+                                                  hparams.target_shard_size)
+
+  print('{} segments in each shard with target shard size {}'.format(
+      hparams.num_per_shard, hparams.target_shard_size))
+
   write_to_records(
       hparams,
       mode='train',
@@ -159,7 +174,6 @@ def main(hparams):
 
   # save information of the dataset
   with open(os.path.join(hparams.output_dir, 'info.pkl'), 'wb') as file:
-    buffer_size = hparams.train_size if hparams.num_per_shard == 0 else hparams.num_per_shard
     pickle.dump({
         'train_size': hparams.train_size,
         'validation_size': hparams.validation_size,
@@ -167,13 +181,13 @@ def main(hparams):
         'spike_shape': hparams.spike_shape,
         'num_train_shards': hparams.num_train_shards,
         'num_validation_shards': hparams.num_validation_shards,
-        'buffer_size': buffer_size,
+        'buffer_size': min(hparams.num_per_shard, hparams.train_size),
         'normalize': hparams.normalize,
         'signals_min': hparams.signals_min,
         'signals_max': hparams.signals_max
     }, file)
 
-  print('saved {} tfrecords to {}'.format(
+  print('saved {} TFRecords to {}'.format(
       hparams.num_train_shards + hparams.num_validation_shards,
       hparams.output_dir))
 
@@ -187,17 +201,10 @@ if __name__ == '__main__':
   parser.add_argument('--normalize', action='store_true')
   parser.add_argument('--replace', action='store_true')
   parser.add_argument(
-      '--num_per_shard',
-      default=-1,
-      type=int,
-      help='number of segments save in each TFRecord file. '
-      'if -1 then automatically adjust each shard to be 100MB, '
-      'if 0 then save all data to the same file.')
+      '--target_shard_size',
+      default=1,
+      type=float,
+      help='target size in GB for each TFRecord file.')
   hparams = parser.parse_args()
-
-  # calculate the number of samples per shard so that each shard is about 100MB
-  if hparams.num_per_shard == -1:
-    num_per_shard = int((120 / hparams.sequence_length) * 1100)  # 100MB shard
-    hparams.num_per_shard = num_per_shard * 5  # 1GB shard
 
   main(hparams)
