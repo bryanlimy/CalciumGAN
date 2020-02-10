@@ -47,14 +47,9 @@ def get_dataset_info(hparams):
   hparams.spike_shape = info['spike_shape']
   hparams.num_train_shards = info['num_train_shards']
   hparams.num_validation_shards = info['num_validation_shards']
-  hparams.buffer_size = info['num_per_shard'] * 10
+  hparams.buffer_size = info['buffer_size']
   hparams.normalize = info['normalize']
-  if not hasattr(hparams, 'cache_dir'):
-    hparams.cache_dir = os.path.join(hparams.output_dir, 'cache_dir')
-  if not hasattr(hparams, 'train_cache'):
-    hparams.train_cache = os.path.join(hparams.cache_dir, 'train')
-  if not hasattr(hparams, 'validation_cache'):
-    hparams.validation_cache = os.path.join(hparams.cache_dir, 'validation')
+
   hparams.signals_min = float(info['signals_min'])
   hparams.signals_max = float(info['signals_max'])
 
@@ -79,23 +74,18 @@ def get_calcium_signals(hparams):
     spike = tf.reshape(spike, shape=hparams.spike_shape)
     return signal, spike
 
-  if not os.path.exists(hparams.cache_dir):
-    os.makedirs(hparams.cache_dir)
-
-  train_ds = tf.data.Dataset.list_files(hparams.train_files)
-  train_ds = train_ds.interleave(
+  train_files = tf.data.Dataset.list_files(hparams.train_files)
+  train_ds = train_files.interleave(
       tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
   train_ds = train_ds.map(_parse_example, num_parallel_calls=AUTOTUNE)
-  train_ds = train_ds.cache(hparams.train_cache)
   train_ds = train_ds.shuffle(hparams.buffer_size)
   train_ds = train_ds.batch(hparams.batch_size)
   train_ds = train_ds.prefetch(AUTOTUNE)
 
-  validation_ds = tf.data.Dataset.list_files(hparams.validation_files)
-  validation_ds = validation_ds.interleave(
+  validation_files = tf.data.Dataset.list_files(hparams.validation_files)
+  validation_ds = validation_files.interleave(
       tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
   validation_ds = validation_ds.map(_parse_example, num_parallel_calls=AUTOTUNE)
-  validation_ds = validation_ds.cache(hparams.validation_cache)
   validation_ds = validation_ds.batch(hparams.batch_size)
 
   return train_ds, validation_ds

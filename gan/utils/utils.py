@@ -63,14 +63,11 @@ def save_models(hparams, gan, epoch):
     os.makedirs(ckpt_dir)
   filename = os.path.join(ckpt_dir, 'epoch-{:03d}.pkl'.format(epoch))
 
-  generator_weights = gan.generator.get_weights()
-  discriminator_weights = gan.discriminator.get_weights()
-
   with open(filename, 'wb') as file:
     pickle.dump({
         'epoch': epoch,
-        'generator_weights': generator_weights,
-        'discriminator_weights': discriminator_weights
+        'generator_weights': gan.generator.get_weights(),
+        'discriminator_weights': gan.discriminator.get_weights()
     }, file)
 
   if hparams.verbose:
@@ -171,8 +168,3 @@ def delete_generated_file(hparams, epoch):
   filename = get_signal_filename(hparams, epoch)
   if os.path.exists(filename):
     os.remove(filename)
-
-
-def delete_dataset_cache_file(hparams):
-  if os.path.exists(hparams.cache_dir):
-    rmtree(hparams.cache_dir)

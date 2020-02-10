@@ -1,4 +1,11 @@
+import numpy as np
 import tensorflow as tf
+
+
+def count_trainable_params(model):
+  ''' return the number of trainable parameters'''
+  return np.sum(
+      [tf.keras.backend.count_params(p) for p in model.trainable_weights])
 
 
 def get_activation_fn(activation):

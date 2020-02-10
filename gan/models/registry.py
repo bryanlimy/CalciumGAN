@@ -1,3 +1,5 @@
+from .utils import count_trainable_params
+
 _GENERATORS, _DISCRIMINATORS = dict(), dict()
 
 
@@ -13,7 +15,7 @@ def discriminator_register(fn):
   return fn
 
 
-def get_models(hparams):
+def get_models(hparams, summary):
   if hparams.generator not in _GENERATORS:
     print('generator model {} not found'.format(hparams.generator))
     exit()
@@ -22,4 +24,9 @@ def get_models(hparams):
     exit()
   generator = _GENERATORS[hparams.generator](hparams)
   discriminator = _DISCRIMINATORS[hparams.discriminator](hparams)
+
+  summary.scalar('trainable_parameters/generator',
+                 count_trainable_params(generator))
+  summary.scalar('trainable_parameters/discriminator',
+                 count_trainable_params(discriminator))
   return generator, discriminator

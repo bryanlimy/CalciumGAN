@@ -22,9 +22,6 @@ class HParams(object):
         args.output_dir,
         '{:03d}_{}_{}_{}_{}_{}'.format(session, algorithm, generator,
                                        discriminator, activation, noise_dim))
-    self.cache_dir = os.path.join(args.output_dir, 'cache_dir')
-    self.train_cache = os.path.join(self.cache_dir, 'train')
-    self.validation_cache = os.path.join(self.cache_dir, 'validation')
     self.batch_size = args.batch_size
     self.epochs = args.epochs
     self.dropout = dropout
@@ -44,7 +41,6 @@ class HParams(object):
     self.plot_weights = False
     self.verbose = args.verbose
     self.skip_checkpoint = True
-    self.keep_cache = True
     self.global_step = 0
 
 
@@ -91,13 +87,10 @@ def search(args):
             hp_gradient_penalty, hp_n_critic
         ],
         metrics=[
-            hp.Metric('test/kl_divergence', display_name='kl_divergence'),
-            hp.Metric(
-                'test/mean_signals_error', display_name='mean_signals_error'),
-            hp.Metric(
-                'test/min_signals_error', display_name='min_signals_error'),
-            hp.Metric(
-                'test/max_signals_error', display_name='max_signals_error')
+            hp.Metric('test/signals_metrics/min', display_name='min'),
+            hp.Metric('test/signals_metrics/max', display_name='max'),
+            hp.Metric('test/signals_metrics/mean', display_name='mean'),
+            hp.Metric('test/signals_metrics/std', display_name='std')
         ])
 
     session = 0
@@ -142,8 +135,8 @@ def search(args):
                     start = time()
                     run_experiment(hparams, hp_hparams)
                     end = time()
-                    print('\nExperiment {:03d} completed in {:.2f}s\n'.format(
-                        session, end - start))
+                    print('\nExperiment {:03d} completed in {:.2f}hrs\n'.format(
+                        session, (end - start) / (60 * 60)))
                   except Exception as e:
                     print('\nExperiment {:03d} ERROR: {}'.format(session, e))
 

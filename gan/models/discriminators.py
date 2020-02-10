@@ -12,7 +12,11 @@ def mlp(hparams):
 
   signal_shape = hparams.signal_shape[-1]
 
-  outputs = tf.keras.layers.Dense(signal_shape // 3)(inputs)
+  outputs = tf.keras.layers.Dense(signal_shape)(inputs)
+  outputs = get_activation_fn(hparams.activation)(outputs)
+  outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
+
+  outputs = tf.keras.layers.Dense(signal_shape // 3)(outputs)
   outputs = get_activation_fn(hparams.activation)(outputs)
   outputs = tf.keras.layers.Dropout(hparams.dropout)(outputs)
 
