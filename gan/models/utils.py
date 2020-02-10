@@ -55,7 +55,8 @@ class Conv1DTranspose(tf.keras.layers.Layer):
       activation=0,
   ):
     super().__init__()
-    self.activation = get_activation_fn(activation) if activation else None
+    self.activation = tf.keras.layers.Activation(
+        activation) if activation else None
 
     self._conv2dtranspose = tf.keras.layers.Conv2DTranspose(
         filters=filters,

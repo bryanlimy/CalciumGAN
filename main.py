@@ -182,13 +182,15 @@ def main(hparams, return_metrics=False):
 
   gan = get_algorithm(hparams, generator, discriminator, summary)
 
+  start = time()
   train_and_validate(
       hparams,
       train_ds=train_ds,
       validation_ds=validation_ds,
       gan=gan,
       summary=summary)
-
+  end = time()
+  summary.scalar('elapse (s)/total', (end - start) / 3600)
   if return_metrics:
     return test(validation_ds, gan)
 
