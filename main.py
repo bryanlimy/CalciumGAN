@@ -6,6 +6,8 @@ from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
 
+from tensorflow.keras.mixed_precision import experimental as mixed_precision
+
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
@@ -17,6 +19,14 @@ from gan.models.registry import get_models
 from gan.utils.summary_helper import Summary
 from gan.utils.dataset_helper import get_dataset
 from gan.algorithms.registry import get_algorithm
+
+
+def set_mixed_precision(hparams):
+  policy = mixed_precision.Policy('mixed_float16')
+  mixed_precision.set_policy(policy)
+  if hparams.verbose:
+    print('Compute dtype: %s' % policy.compute_dtype)
+    print('Variable dtype: %s' % policy.variable_dtype)
 
 
 def train(hparams, train_ds, gan, summary, epoch):
@@ -152,6 +162,9 @@ def main(hparams, return_metrics=False):
 
   tf.keras.backend.clear_session()
 
+  if hparams.mixed_precision:
+    set_mixed_precision(hparams)
+
   summary = Summary(hparams)
 
   train_ds, validation_ds = get_dataset(hparams, summary)
@@ -160,6 +173,7 @@ def main(hparams, return_metrics=False):
 
   if hparams.verbose:
     generator.summary()
+    print('')
     discriminator.summary()
 
   utils.store_hparams(hparams)
@@ -228,6 +242,10 @@ if __name__ == '__main__':
       '--skip_checkpoint',
       action='store_true',
       help='flag to skip storing model checkpoints')
+  parser.add_argument(
+      '--mixed_precision',
+      action='store_true',
+      help='use mixed precision to speed up training')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 
