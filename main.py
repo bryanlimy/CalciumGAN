@@ -134,9 +134,9 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
     if hparams.verbose:
       print('Train: generator loss {:.04f} discriminator loss {:.04f}\n'
             'Eval: generator loss {:.04f} discriminator loss {:.04f}\n'
-            'Elapse: {:.02f} mins'.format(train_gen_loss, train_dis_loss,
-                                          val_gen_loss, val_dis_loss,
-                                          (end - start) / 60))
+            'Elapse: {:.02f} mins\n'.format(train_gen_loss, train_dis_loss,
+                                            val_gen_loss, val_dis_loss,
+                                            (end - start) / 60))
 
     if not hparams.skip_checkpoint and (epoch % 5 == 0 or
                                         epoch == hparams.epochs - 1):
