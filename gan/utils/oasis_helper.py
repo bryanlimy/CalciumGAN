@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
+from multiprocessing import Pool
 
 from oasis.oasis_methods import oasisAR1
-from multiprocessing import Pool
 
 
 def split(sequence, n):

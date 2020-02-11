@@ -10,7 +10,7 @@ from multiprocessing import Pool
 
 from .oasis_helper import deconvolve_signals
 from .h5_helpers import open_h5, create_or_append_h5
-from .spike_metrics import mean_spike_count_error
+from .spike_metrics import mean_spike_count_error, van_rossum_distance
 
 
 def split(sequence, n):

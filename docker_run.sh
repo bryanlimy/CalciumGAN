@@ -27,13 +27,13 @@ done
 
 function main() {
   if [ "$use_gpu" = "true" ]; then
-    docker run --gpus all -it --rm -u $(id -u):$(id -g) \
+    docker run --gpus all -it --rm -u $(id -u):$(id -g) --cpus 8 \
       -v ~/Git/calcium_imaging_gan/:/home/bryanlimy/calcium_imaging_gan \
       -v /media/data0/bryanlimy/calcium_datasets/:/home/bryanlimy/calcium_imaging_gan/dataset/tfrecords \
       -v /media/data0/bryanlimy/runs:/home/bryanlimy/calcium_imaging_gan/runs \
       bryanlimy/projects:0.2-calcium-gan-base zsh
   else
-    docker run -it --rm -u $(id -u):$(id -g) \
+    docker run -it --rm -u $(id -u):$(id -g) --cpus 8 \
       -v ~/Git/calcium_imaging_gan/:/home/bryanlimy/calcium_imaging_gan \
       -v /media/data0/bryanlimy/calcium_datasets/:/home/bryanlimy/calcium_imaging_gan/dataset/tfrecords \
       -v /media/data0/bryanlimy/runs:/home/bryanlimy/calcium_imaging_gan/runs \

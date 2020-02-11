@@ -92,7 +92,7 @@ def rnn(hparams):
   num_units = hparams.signal_shape[-1]
 
   outputs = layers.GRU(
-      signal_length // 4,
+      signal_length // 9,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
@@ -100,7 +100,7 @@ def rnn(hparams):
       time_major=False)(outputs)
 
   outputs = layers.GRU(
-      signal_length // 2,
+      signal_length // 6,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
@@ -108,7 +108,7 @@ def rnn(hparams):
       time_major=False)(outputs)
 
   outputs = layers.GRU(
-      signal_length,
+      signal_length // 3,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
