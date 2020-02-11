@@ -117,6 +117,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
   test_noise = gan.get_noise(batch_size=1)
 
   for epoch in range(hparams.epochs):
+    start = time()
 
     train_gen_loss, train_dis_loss = train(
         hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
@@ -124,14 +125,18 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
 
+    end = time()
+
     # test generated data and plot in TensorBoard
     summary.plot_traces(
         'fake', signals=gan.generate(test_noise, denorm=True), training=False)
 
     if hparams.verbose:
-      print('Train: generator loss {:.4f} discriminator loss {:.4f}\n'
-            'Eval: generator loss {:.4f} discriminator loss {:.4f}\n'.format(
-                train_gen_loss, train_dis_loss, val_gen_loss, val_dis_loss))
+      print('Train: generator loss {:.04f} discriminator loss {:.04f}\n'
+            'Eval: generator loss {:.04f} discriminator loss {:.04f}\n'
+            'Elapse: {:.02f} mins'.format(train_gen_loss, train_dis_loss,
+                                          val_gen_loss, val_dis_loss,
+                                          (end - start) / 60))
 
     if not hparams.skip_checkpoint and (epoch % 5 == 0 or
                                         epoch == hparams.epochs - 1):
