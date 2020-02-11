@@ -165,6 +165,6 @@ class Summary(object):
       for tag, value in metrics.items():
         self.scalar(tag, value, training=training)
     if elapse is not None:
-      self.scalar('elapse (s)', elapse, training=training)
+      self.scalar('elapse', elapse, training=training)
     if gan is not None and self._hparams.plot_weights:
       self.plot_weights(gan, training=training)

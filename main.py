@@ -58,7 +58,7 @@ def train(hparams, train_ds, gan, summary, epoch):
 
   end = time()
 
-  summary.scalar('elapse (s)', end - start, training=True)
+  summary.scalar('elapse', end - start, training=True)
 
   return np.mean(gen_losses), np.mean(dis_losses)
 
@@ -183,14 +183,17 @@ def main(hparams, return_metrics=False):
   gan = get_algorithm(hparams, generator, discriminator, summary)
 
   start = time()
+
   train_and_validate(
       hparams,
       train_ds=train_ds,
       validation_ds=validation_ds,
       gan=gan,
       summary=summary)
+
   end = time()
-  summary.scalar('elapse (s)/total', (end - start) / 3600)
+  summary.scalar('elapse/total', end - start)
+
   if return_metrics:
     return test(validation_ds, gan)
 
