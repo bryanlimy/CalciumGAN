@@ -10,7 +10,7 @@ from multiprocessing import Pool
 
 from .oasis_helper import deconvolve_signals
 from .h5_helpers import open_h5, create_or_append_h5
-from .spike_metrics import mean_spike_count, van_rossum_distance
+from .spike_metrics import mean_spike_count_error
 
 
 def split(sequence, n):
@@ -140,12 +140,6 @@ def get_mean_van_rossum_distance(hparams, real_spikes, fake_spikes):
   return mean_distance
 
 
-def get_mean_spike_error(real_spikes, fake_spikes):
-  real_mean_spike = mean_spike_count(real_spikes)
-  fake_mean_spike = mean_spike_count(fake_spikes)
-  return np.mean(np.square(real_mean_spike - fake_mean_spike))
-
-
 def measure_spike_metrics(hparams, epoch, summary):
   filename = get_signal_filename(hparams, epoch)
   deconvolve_saved_signals(hparams, filename)
@@ -154,7 +148,7 @@ def measure_spike_metrics(hparams, epoch, summary):
     real_spikes = file['real_spikes'][:]
     fake_spikes = file['fake_spikes'][:]
 
-  mean_spike_error = get_mean_spike_error(real_spikes, fake_spikes)
+  mean_spike_error = mean_spike_count_error(real_spikes, fake_spikes)
   van_rossum_distance = get_mean_van_rossum_distance(hparams, real_spikes,
                                                      fake_spikes)
 

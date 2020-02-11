@@ -80,7 +80,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    if not hparams.skip_spike_metrics:
+    if hparams.spike_metrics:
       utils.save_signals(
           hparams,
           epoch,
@@ -102,8 +102,8 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       elapse=end - start,
       training=False)
 
-  if not hparams.skip_spike_metrics and (epoch % hparams.spike_metrics_freq == 0
-                                         or epoch == hparams.epochs - 1):
+  if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
+                                epoch == hparams.epochs - 1):
     utils.measure_spike_metrics(hparams, epoch, summary)
 
   if not hparams.keep_generated:
@@ -138,8 +138,8 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
                                             val_gen_loss, val_dis_loss,
                                             (end - start) / 60))
 
-    if not hparams.skip_checkpoint and (epoch % 5 == 0 or
-                                        epoch == hparams.epochs - 1):
+    if hparams.save_checkpoints and (epoch % 10 == 0 or
+                                     epoch == hparams.epochs - 1):
       utils.save_models(hparams, gan, epoch)
 
 
@@ -235,9 +235,9 @@ if __name__ == '__main__':
       type=int,
       help='number of processing cores to use for metrics calculation')
   parser.add_argument(
-      '--skip_spike_metrics',
+      '--spike_metrics',
       action='store_true',
-      help='flag to skip calculating spike metrics')
+      help='flag to calculate spike metrics')
   parser.add_argument(
       '--spike_metrics_freq',
       default=10,
@@ -248,9 +248,9 @@ if __name__ == '__main__':
       action='store_true',
       help='flag to plot weights and activations in TensorBoard')
   parser.add_argument(
-      '--skip_checkpoint',
+      '--save_checkpoints',
       action='store_true',
-      help='flag to skip storing model checkpoints')
+      help='flag to save model checkpoints')
   parser.add_argument(
       '--mixed_precision', action='store_true', help='use mixed precision')
   parser.add_argument('--verbose', default=1, type=int)
