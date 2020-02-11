@@ -231,7 +231,7 @@ if __name__ == '__main__':
       help='keep generated calcium signals and spike trains')
   parser.add_argument(
       '--num_processors',
-      default=6,
+      default=8,
       type=int,
       help='number of processing cores to use for metrics calculation')
   parser.add_argument(
