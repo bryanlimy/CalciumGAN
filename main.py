@@ -25,8 +25,8 @@ def set_mixed_precision(hparams):
   policy = mixed_precision.Policy('mixed_float16')
   mixed_precision.set_policy(policy)
   if hparams.verbose:
-    print('Compute dtype: %s' % policy.compute_dtype)
-    print('Variable dtype: %s' % policy.variable_dtype)
+    print('\nCompute dtype: {}\nVariable dtype: {}\n'.format(
+        policy.compute_dtype, policy.variable_dtype))
 
 
 def train(hparams, train_ds, gan, summary, epoch):
@@ -102,12 +102,10 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       elapse=end - start,
       training=False)
 
-  # evaluate spike metrics every 5 epochs
-  if not hparams.skip_spike_metrics and (epoch % 5 == 0 or
-                                         epoch == hparams.epochs - 1):
+  if not hparams.skip_spike_metrics and (epoch % hparams.spike_metrics_freq == 0
+                                         or epoch == hparams.epochs - 1):
     utils.measure_spike_metrics(hparams, epoch, summary)
 
-  # delete generated signals and spike train
   if not hparams.keep_generated:
     utils.delete_generated_file(hparams, epoch)
 
@@ -212,11 +210,7 @@ if __name__ == '__main__':
   parser.add_argument('--generator', default='conv1d', type=str)
   parser.add_argument('--discriminator', default='conv1d', type=str)
   parser.add_argument('--activation', default='tanh', type=str)
-  parser.add_argument(
-      '--algorithm',
-      default='gan',
-      type=str,
-      help='which algorithm to train models')
+  parser.add_argument('--algorithm', default='gan', type=str)
   parser.add_argument(
       '--n_critic',
       default=5,
@@ -240,6 +234,11 @@ if __name__ == '__main__':
       action='store_true',
       help='flag to skip calculating spike metrics')
   parser.add_argument(
+      '--spike_metrics_freq',
+      default=10,
+      type=int,
+      help='number of epochs every spike metrics')
+  parser.add_argument(
       '--plot_weights',
       action='store_true',
       help='flag to plot weights and activations in TensorBoard')
@@ -248,9 +247,7 @@ if __name__ == '__main__':
       action='store_true',
       help='flag to skip storing model checkpoints')
   parser.add_argument(
-      '--mixed_precision',
-      action='store_true',
-      help='use mixed precision to speed up training')
+      '--mixed_precision', action='store_true', help='use mixed precision')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 

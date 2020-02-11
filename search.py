@@ -38,9 +38,11 @@ class HParams(object):
     self.keep_generated = args.keep_generated
     self.num_processors = args.num_processors
     self.skip_spike_metrics = args.skip_spike_metrics
+    self.spike_metrics_freq = 20
     self.plot_weights = False
-    self.verbose = args.verbose
     self.skip_checkpoint = True
+    self.mixed_precision = args.mixed_precision
+    self.verbose = args.verbose
     self.global_step = 0
 
 
@@ -166,6 +168,8 @@ if __name__ == '__main__':
       '--skip_spike_metrics',
       action='store_true',
       help='flag to skip calculating spike metrics')
+  parser.add_argument(
+      '--mixed_precision', action='store_true', help='use mixed precision')
   parser.add_argument('--verbose', default=0, type=int)
   args = parser.parse_args()
   search(args)
