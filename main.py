@@ -21,12 +21,15 @@ from gan.utils.dataset_helper import get_dataset
 from gan.algorithms.registry import get_algorithm
 
 
-def set_mixed_precision(hparams):
-  policy = mixed_precision.Policy('mixed_float16')
-  mixed_precision.set_policy(policy)
-  if hparams.verbose:
-    print('\nCompute dtype: {}\nVariable dtype: {}\n'.format(
-        policy.compute_dtype, policy.variable_dtype))
+def set_precision_policy(hparams):
+  policy = None
+  if hparams.mixed_precision:
+    policy = mixed_precision.Policy('mixed_float16')
+    mixed_precision.set_policy(policy)
+    if hparams.verbose:
+      print('\nCompute dtype: {}\nVariable dtype: {}\n'.format(
+          policy.compute_dtype, policy.variable_dtype))
+  return policy
 
 
 def train(hparams, train_ds, gan, summary, epoch):
@@ -165,10 +168,9 @@ def main(hparams, return_metrics=False):
 
   tf.keras.backend.clear_session()
 
-  if hparams.mixed_precision:
-    set_mixed_precision(hparams)
+  policy = set_precision_policy(hparams)
 
-  summary = Summary(hparams)
+  summary = Summary(hparams, policy=policy)
 
   train_ds, validation_ds = get_dataset(hparams, summary)
 

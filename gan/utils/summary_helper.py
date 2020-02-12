@@ -16,18 +16,22 @@ class Summary(object):
   evaluation
   """
 
-  def __init__(self, hparams):
+  def __init__(self, hparams, policy=None):
     self._hparams = hparams
     self.train_writer = tf.summary.create_file_writer(hparams.output_dir)
     self.val_writer = tf.summary.create_file_writer(
         os.path.join(hparams.output_dir, 'validation'))
     tf.summary.trace_on(graph=True, profiler=False)
+    self._policy = policy
 
   def _get_writer(self, training):
     return self.train_writer if training else self.val_writer
 
   def _get_step(self):
     return self._hparams.global_step
+
+  def _get_loss_scale(self):
+    return self._policy.loss_scale
 
   def _plot_to_image(self):
     """
@@ -168,3 +172,5 @@ class Summary(object):
       self.scalar('elapse', elapse, training=training)
     if gan is not None and self._hparams.plot_weights:
       self.plot_weights(gan, training=training)
+    if not training and self._policy is not None:
+      self.scalar('loss_scale', self._get_loss_scale(), training=training)
