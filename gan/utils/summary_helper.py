@@ -31,7 +31,7 @@ class Summary(object):
     return self._hparams.global_step
 
   def _get_loss_scale(self):
-    return self._policy.loss_scale
+    return None if self._policy is None else self._policy.loss_scale
 
   def _plot_to_image(self):
     """
