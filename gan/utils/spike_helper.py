@@ -2,15 +2,10 @@ import numpy as np
 import tensorflow as tf
 from multiprocessing import Pool
 
+from . import utils
 from oasis.oasis_methods import oasisAR1
-
-
-def split(sequence, n):
-  """ divide sequence into n sub-sequence evenly"""
-  k, m = divmod(len(sequence), n)
-  return [
-      sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
-  ]
+from neo.core import SpikeTrain
+import quantities as pq
 
 
 def _deconvolve_signals(signals):
@@ -21,18 +16,19 @@ def _deconvolve_signals(signals):
   return spikes
 
 
-def deconvolve_signals(signals, to_tensor=False, num_processors=1):
+def deconvolve_signals(signals, num_processors=1):
   if tf.is_tensor(signals):
     signals = signals.numpy()
 
   shape = signals.shape
   if len(shape) > 2:
     signals = np.reshape(signals, newshape=(shape[0] * shape[1], shape[2]))
+
   signals = signals.astype('double')
 
   if num_processors > 2:
     num_jobs = min(len(signals), num_processors)
-    subsets = split(signals, n=num_jobs)
+    subsets = utils.split(signals, n=num_jobs)
     pool = Pool(processes=num_jobs)
     spikes = pool.map(_deconvolve_signals, subsets)
     pool.close()
@@ -40,8 +36,25 @@ def deconvolve_signals(signals, to_tensor=False, num_processors=1):
   else:
     spikes = np.array(_deconvolve_signals(signals))
 
-  assert spikes.shape == signals.shape
-
   spikes = np.reshape(spikes, newshape=shape)
 
-  return tf.convert_to_tensor(spikes, dtype=tf.float32) if to_tensor else spikes
+  return spikes
+
+
+def numpy_to_neo(spikes):
+  shape = spikes.shape
+
+  if len(shape) > 2:
+    spikes = np.reshape(spikes, newshape=(shape[0] * shape[1], shape[2]))
+
+  spike_times = np.nonzero(spikes)
+
+  neo_trains = np.array([
+      SpikeTrain(spike_times[i], units=pq.ms, t_stop=shape[-1])
+      for i in range(len(spike_times))
+  ])
+
+  if len(shape) > 2:
+    neo_trains = np.reshape(neo_trains, newshape=(shape[0], shape[1]))
+
+  return neo_trains

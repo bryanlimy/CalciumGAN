@@ -4,3 +4,5 @@ sklearn
 scipy
 cython
 cvxpy
+quantities
+neo==0.8.0

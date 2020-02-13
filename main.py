@@ -39,8 +39,8 @@ def train(hparams, train_ds, gan, summary, epoch):
 
   for signal, spike in tqdm(
       train_ds,
-      desc='Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs),
-      total=hparams.steps_per_epoch,
+      desc='Train',
+      total=hparams.train_steps,
       disable=not bool(hparams.verbose)):
 
     gen_loss, dis_loss, gradient_penalty, metrics = gan.train(signal)
@@ -71,7 +71,11 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
   start = time()
 
-  for signal, spike in validation_ds:
+  for signal, spike in tqdm(
+      validation_ds,
+      desc='Validate',
+      total=hparams.validation_steps,
+      disable=not bool(hparams.verbose)):
     fake, gen_loss, dis_loss, gradient_penalty, metrics = gan.validate(signal)
 
     gen_losses.append(gen_loss)
@@ -83,7 +87,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    if hparams.spike_metrics:
+    if utils.preform_spike_metrics(hparams, epoch):
       utils.save_signals(
           hparams,
           epoch,
@@ -105,12 +109,11 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       elapse=end - start,
       training=False)
 
-  if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
-                                epoch == hparams.epochs - 1):
-    utils.measure_spike_metrics(hparams, epoch, summary)
+  if utils.preform_spike_metrics(hparams, epoch):
+    utils.compute_spike_metrics(hparams, epoch, summary)
 
   if not hparams.keep_generated:
-    utils.delete_generated_file(hparams, epoch)
+    utils.delete_saved_signals(hparams, epoch)
 
   return gen_loss, dis_loss
 
@@ -122,8 +125,11 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
   for epoch in range(hparams.epochs):
     start = time()
 
-    train_gen_loss, train_dis_loss = train(
-        hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
+    if hparams.verbose:
+      print('Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs))
+
+    # train_gen_loss, train_dis_loss = train(
+    #     hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
 
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)

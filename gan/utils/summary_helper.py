@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-from .oasis_helper import deconvolve_signals
+from . import spike_helper
 
 
 class Summary(object):
@@ -101,7 +101,7 @@ class Summary(object):
 
     # deconvolve signals if spikes aren't provided
     if spikes is None:
-      spikes = deconvolve_signals(signals)
+      spikes = spike_helper.deconvolve_signals(signals)
 
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()

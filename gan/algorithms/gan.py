@@ -2,10 +2,9 @@ from .registry import register
 
 import tensorflow as tf
 
+from .optimizer import Optimizer
 from ..utils import signals_metrics
 from ..utils.utils import denormalize
-
-from .optimizer import Optimizer
 
 
 @register('gan')

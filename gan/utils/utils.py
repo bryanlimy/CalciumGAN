@@ -8,9 +8,9 @@ import tensorflow as tf
 from shutil import rmtree
 from multiprocessing import Pool
 
-from .oasis_helper import deconvolve_signals
-from .h5_helpers import open_h5, create_or_append_h5
-from .spike_metrics import mean_spike_count_error, van_rossum_distance
+from . import h5_helpers
+from . import spike_helper
+from . import spike_metrics
 
 
 def split(sequence, n):
@@ -51,10 +51,16 @@ def save_signals(hparams, epoch, real_signals, real_spikes, fake_signals):
     fake_signals = denormalize(
         fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-  with open_h5(filename, mode='a') as file:
-    create_or_append_h5(file, 'real_spikes', real_spikes)
-    create_or_append_h5(file, 'real_signals', real_signals)
-    create_or_append_h5(file, 'fake_signals', fake_signals)
+  with h5_helpers.open_h5(filename, mode='a') as file:
+    h5_helpers.create_or_append_h5(file, 'real_spikes', real_spikes)
+    h5_helpers.create_or_append_h5(file, 'real_signals', real_signals)
+    h5_helpers.create_or_append_h5(file, 'fake_signals', fake_signals)
+
+
+def delete_saved_signals(hparams, epoch):
+  filename = get_signal_filename(hparams, epoch)
+  if os.path.exists(filename):
+    os.remove(filename)
 
 
 def save_models(hparams, gan, epoch):
@@ -88,77 +94,52 @@ def load_models(hparams, generator, discriminator):
       print('restore checkpoint {}'.format(filename))
 
 
+def preform_spike_metrics(hparams, epoch):
+  ''' Return True if need to preform spike metrics '''
+  return hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
+                                    epoch == hparams.epochs - 1)
+
+
 def deconvolve_saved_signals(hparams, filename):
   start = time()
-  with open_h5(filename, mode='a') as file:
-    fake_signals = file['fake_signals'][:]
-    fake_spikes = deconvolve_signals(
+  with h5_helpers.open_h5(filename, mode='a') as file:
+    fake_signals = file['fake_signals'][:50]
+    fake_spikes = spike_helper.deconvolve_signals(
         fake_signals, num_processors=hparams.num_processors)
+
     file.create_dataset(
         'fake_spikes',
-        dtype=np.float32,
+        dtype=fake_spikes.dtype,
         data=fake_spikes,
         chunks=True,
-        maxshape=(None, fake_spikes.shape[1], fake_spikes.shape[2]))
+        maxshape=(None, fake_spikes.shape[1]))
   elapse = time() - start
 
   if hparams.verbose:
-    print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
+    print('Deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
 
 
-def van_rossum_distance_loop(args):
-  real_spikes, fake_spikes = args
-  assert real_spikes.shape == fake_spikes.shape
-  shape = real_spikes.shape
-  distances = np.zeros((shape[0], shape[1]), dtype=np.float32)
-  for i in range(shape[0]):
-    for neuron in range(shape[1]):
-      distances[i][neuron] = van_rossum_distance(real_spikes[i][neuron],
-                                                 fake_spikes[i][neuron])
-  return distances
-
-
-def get_mean_van_rossum_distance(hparams, real_spikes, fake_spikes):
-  start = time()
-  if hparams.num_processors > 2:
-    num_jobs = min(len(real_spikes), hparams.num_processors)
-    real_spikes_split = split(real_spikes, n=num_jobs)
-    fake_spikes_split = split(fake_spikes, n=num_jobs)
-    pool = Pool(processes=num_jobs)
-    distances = pool.map(van_rossum_distance_loop,
-                         list(zip(real_spikes_split, fake_spikes_split)))
-    pool.close()
-    distances = np.concatenate(distances, axis=0)
-  else:
-    distances = van_rossum_distance_loop((real_spikes, fake_spikes))
-  mean_distance = np.mean(distances)
-  elapse = time() - start
-
-  if hparams.verbose:
-    print('mean van Rossum distance in {:.2f}s'.format(elapse))
-
-  return mean_distance
-
-
-def measure_spike_metrics(hparams, epoch, summary):
+def compute_spike_metrics(hparams, epoch, summary):
   filename = get_signal_filename(hparams, epoch)
   deconvolve_saved_signals(hparams, filename)
 
-  with open_h5(filename, mode='r') as file:
+  with h5_helpers.open_h5(filename, mode='r') as file:
     real_spikes = file['real_spikes'][:]
     fake_spikes = file['fake_spikes'][:]
 
-  mean_spike_error = mean_spike_count_error(real_spikes, fake_spikes)
-  van_rossum_distance = get_mean_van_rossum_distance(hparams, real_spikes,
-                                                     fake_spikes)
+  # assert real_spikes.shape == fake_spikes.shape
 
-  summary.scalar(
-      'spike_metrics/spike_count_mse', mean_spike_error, training=False)
-  summary.scalar(
-      'spike_metrics/van_rossum_distance', van_rossum_distance, training=False)
+  real_spikes = spike_helper.numpy_to_neo(real_spikes)
+  fake_spikes = spike_helper.numpy_to_neo(fake_spikes)
 
+  # spike_count_error = spike_metrics.mean_spike_count_error(
+  #     real_spikes, fake_spikes)
+  # firing_rate_error = spike_metrics.mean_firing_rate_error(
+  #     real_spikes, fake_spikes)
+  van_rossum_distance = spike_metrics.van_rossum_error(
+      real_spikes, fake_spikes, num_processors=hparams.num_processors)
 
-def delete_generated_file(hparams, epoch):
-  filename = get_signal_filename(hparams, epoch)
-  if os.path.exists(filename):
-    os.remove(filename)
+  # summary.scalar(
+  #     'spike_metrics/spike_count_error', spike_count_error, training=False)
+  # summary.scalar(
+  #     'spike_metrics/van_rossum_distance', van_rossum_distance, training=False)

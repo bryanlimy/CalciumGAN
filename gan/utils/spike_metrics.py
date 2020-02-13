@@ -1,5 +1,8 @@
 import numpy as np
 import tensorflow as tf
+from multiprocessing import Pool
+
+from . import utils
 
 
 def mean_spike_count(spikes):
@@ -9,9 +12,21 @@ def mean_spike_count(spikes):
 
 
 def mean_spike_count_error(spike1, spike2):
-  mean_spike1 = mean_spike_count(spike1)
-  mean_spike2 = mean_spike_count(spike2)
-  return np.mean(np.square(mean_spike1 - mean_spike2))
+  count1 = mean_spike_count(spike1)
+  count2 = mean_spike_count(spike2)
+  return np.mean(np.square(count1 - count2))
+
+
+def mean_firing_rate(spikes):
+  firing_rate = np.sum(spikes, axis=-1) / spikes.shape[-1]
+  mean_firing_rate = np.mean(firing_rate, axis=0)
+  return mean_firing_rate
+
+
+def mean_firing_rate_error(spike1, spike2):
+  rate1 = mean_firing_rate(spike1)
+  rate2 = mean_firing_rate(spike2)
+  return np.mean(np.square(rate1 - rate2))
 
 
 def derivative_mse(set1, set2):
@@ -19,6 +34,38 @@ def derivative_mse(set1, set2):
   diff2 = np.diff(set2, n=1, axis=-1)
   mse = np.mean(np.square(diff1 - diff2))
   return mse
+
+
+def batch_van_rossum_distance(params):
+  real_spikes, fake_spikes = params
+  shape = real_spikes.shape
+  distances = np.zeros((shape[0], shape[1]), dtype=np.float32)
+  for batch in range(shape[0]):
+    for neuron in range(shape[1]):
+      distances[batch][neuron] = van_rossum_distance(real_spikes[batch][neuron],
+                                                     fake_spikes[batch][neuron])
+  return distances
+
+
+def van_rossum_error(real_spikes, fake_spikes, num_processors=1):
+
+  assert real_spikes.shape == fake_spikes.shape
+
+  if num_processors >= 2:
+    num_jobs = min(len(real_spikes), num_processors)
+    real_split = utils.split(real_spikes, n=num_jobs)
+    fake_split = utils.split(fake_spikes, n=num_jobs)
+
+    pool = Pool(processes=num_jobs)
+    distances = pool.map(
+        batch_van_rossum_distance,
+        [(real_split[i], fake_split[i]) for i in range(num_jobs)])
+    pool.close()
+    distances = np.concatenate(distances, axis=0)
+  else:
+    distances = batch_van_rossum_distance((real_spikes, fake_spikes))
+
+  return np.mean(distances)
 
 
 class ExponentialDecay():

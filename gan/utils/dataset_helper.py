@@ -2,10 +2,9 @@ import os
 import pickle
 import numpy as np
 from math import ceil
-from glob import glob
 import tensorflow as tf
 
-from .utils import denormalize
+from . import utils
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
@@ -102,11 +101,12 @@ def get_dataset(hparams, summary):
 
     # plot signals and spikes from validation set
     sample_signals, sample_spikes = next(iter(validation_ds))
-    sample_signals = denormalize(
+    sample_signals = utils.denormalize(
         sample_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
     summary.plot_traces(
         'real', signals=sample_signals, spikes=sample_spikes, training=False)
 
-  hparams.steps_per_epoch = ceil(hparams.train_size / hparams.batch_size)
+  hparams.train_steps = ceil(hparams.train_size / hparams.batch_size)
+  hparams.validation_steps = ceil(hparams.validation_size / hparams.batch_size)
 
   return train_ds, validation_ds
