@@ -8,6 +8,12 @@ def mean_spike_count(spikes):
   return mean_spike_count
 
 
+def mean_spike_count_error(spike1, spike2):
+  mean_spike1 = mean_spike_count(spike1)
+  mean_spike2 = mean_spike_count(spike2)
+  return np.mean(np.square(mean_spike1 - mean_spike2))
+
+
 def derivative_mse(set1, set2):
   diff1 = np.diff(set1, n=1, axis=-1)
   diff2 = np.diff(set2, n=1, axis=-1)

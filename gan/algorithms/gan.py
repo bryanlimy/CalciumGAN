@@ -5,6 +5,8 @@ import tensorflow as tf
 from ..utils import signals_metrics
 from ..utils.utils import denormalize
 
+from .optimizer import Optimizer
+
 
 @register('gan')
 class GAN(object):
@@ -20,8 +22,8 @@ class GAN(object):
     self._signals_max = hparams.signals_max
     self._normalize = hparams.normalize
 
-    self.gen_optimizer = tf.keras.optimizers.Adam(hparams.learning_rate)
-    self.dis_optimizer = tf.keras.optimizers.Adam(hparams.learning_rate)
+    self.gen_optimizer = Optimizer(hparams)
+    self.dis_optimizer = Optimizer(hparams)
 
     self._cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
@@ -75,16 +77,11 @@ class GAN(object):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
       _, gen_loss, dis_loss, gradient_penalty, metrics = self._step(
           inputs, noise)
+      gen_scaled_loss = self.gen_optimizer.get_scaled_loss(gen_loss)
+      dis_scaled_loss = self.dis_optimizer.get_scaled_loss(dis_loss)
 
-    gen_gradients = gen_tape.gradient(gen_loss,
-                                      self.generator.trainable_variables)
-    dis_gradients = dis_tape.gradient(dis_loss,
-                                      self.discriminator.trainable_variables)
-
-    self.gen_optimizer.apply_gradients(
-        zip(gen_gradients, self.generator.trainable_variables))
-    self.dis_optimizer.apply_gradients(
-        zip(dis_gradients, self.discriminator.trainable_variables))
+    self.gen_optimizer.update(self.generator, gen_scaled_loss, gen_tape)
+    self.dis_optimizer.update(self.discriminator, dis_scaled_loss, dis_tape)
 
     return gen_loss, dis_loss, gradient_penalty, metrics
 

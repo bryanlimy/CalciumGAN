@@ -8,10 +8,6 @@ def count_trainable_params(model):
       [tf.keras.backend.count_params(p) for p in model.trainable_weights])
 
 
-def get_activation_fn(activation):
-  return tf.keras.activations.get(activation)
-
-
 def calculate_convolution_steps(layer, output, kernel_size, strides, padding):
   ''' Calculate the amount of steps in the input is needed for Conv1DTranpose 
   to return a tensor with output number of steps
@@ -59,7 +55,8 @@ class Conv1DTranspose(tf.keras.layers.Layer):
       activation=0,
   ):
     super().__init__()
-    self.activation = get_activation_fn(activation) if activation else None
+    self.activation = tf.keras.layers.Activation(
+        activation) if activation else None
 
     self._conv2dtranspose = tf.keras.layers.Conv2DTranspose(
         filters=filters,

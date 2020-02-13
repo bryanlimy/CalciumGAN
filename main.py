@@ -6,6 +6,8 @@ from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
 
+from tensorflow.keras.mixed_precision import experimental as mixed_precision
+
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
@@ -17,6 +19,17 @@ from gan.models.registry import get_models
 from gan.utils.summary_helper import Summary
 from gan.utils.dataset_helper import get_dataset
 from gan.algorithms.registry import get_algorithm
+
+
+def set_precision_policy(hparams):
+  policy = None
+  if hparams.mixed_precision:
+    policy = mixed_precision.Policy('mixed_float16')
+    mixed_precision.set_policy(policy)
+    if hparams.verbose:
+      print('\nCompute dtype: {}\nVariable dtype: {}\n'.format(
+          policy.compute_dtype, policy.variable_dtype))
+  return policy
 
 
 def train(hparams, train_ds, gan, summary, epoch):
@@ -48,7 +61,7 @@ def train(hparams, train_ds, gan, summary, epoch):
 
   end = time()
 
-  summary.scalar('elapse (s)', end - start, training=True)
+  summary.scalar('elapse', end - start, training=True)
 
   return np.mean(gen_losses), np.mean(dis_losses)
 
@@ -70,7 +83,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    if not hparams.skip_spike_metrics:
+    if hparams.spike_metrics:
       utils.save_signals(
           hparams,
           epoch,
@@ -92,12 +105,10 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       elapse=end - start,
       training=False)
 
-  # evaluate spike metrics every 5 epochs
-  if not hparams.skip_spike_metrics and (epoch % 5 == 0 or
-                                         epoch == hparams.epochs - 1):
+  if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
+                                epoch == hparams.epochs - 1):
     utils.measure_spike_metrics(hparams, epoch, summary)
 
-  # delete generated signals and spike train
   if not hparams.keep_generated:
     utils.delete_generated_file(hparams, epoch)
 
@@ -109,6 +120,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
   test_noise = gan.get_noise(batch_size=1)
 
   for epoch in range(hparams.epochs):
+    start = time()
 
     train_gen_loss, train_dis_loss = train(
         hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
@@ -116,17 +128,21 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
 
+    end = time()
+
     # test generated data and plot in TensorBoard
     summary.plot_traces(
         'fake', signals=gan.generate(test_noise, denorm=True), training=False)
 
     if hparams.verbose:
-      print('Train: generator loss {:.4f} discriminator loss {:.4f}\n'
-            'Eval: generator loss {:.4f} discriminator loss {:.4f}\n'.format(
-                train_gen_loss, train_dis_loss, val_gen_loss, val_dis_loss))
+      print('Train: generator loss {:.04f} discriminator loss {:.04f}\n'
+            'Eval: generator loss {:.04f} discriminator loss {:.04f}\n'
+            'Elapse: {:.02f} mins\n'.format(train_gen_loss, train_dis_loss,
+                                            val_gen_loss, val_dis_loss,
+                                            (end - start) / 60))
 
-    if not hparams.skip_checkpoint and (epoch % 5 == 0 or
-                                        epoch == hparams.epochs - 1):
+    if hparams.save_checkpoints and (epoch % 10 == 0 or
+                                     epoch == hparams.epochs - 1):
       utils.save_models(hparams, gan, epoch)
 
 
@@ -152,7 +168,9 @@ def main(hparams, return_metrics=False):
 
   tf.keras.backend.clear_session()
 
-  summary = Summary(hparams)
+  policy = set_precision_policy(hparams)
+
+  summary = Summary(hparams, policy=policy)
 
   train_ds, validation_ds = get_dataset(hparams, summary)
 
@@ -160,6 +178,7 @@ def main(hparams, return_metrics=False):
 
   if hparams.verbose:
     generator.summary()
+    print('')
     discriminator.summary()
 
   utils.store_hparams(hparams)
@@ -168,12 +187,17 @@ def main(hparams, return_metrics=False):
 
   gan = get_algorithm(hparams, generator, discriminator, summary)
 
+  start = time()
+
   train_and_validate(
       hparams,
       train_ds=train_ds,
       validation_ds=validation_ds,
       gan=gan,
       summary=summary)
+
+  end = time()
+  summary.scalar('elapse/total', end - start)
 
   if return_metrics:
     return test(validation_ds, gan)
@@ -193,11 +217,7 @@ if __name__ == '__main__':
   parser.add_argument('--generator', default='conv1d', type=str)
   parser.add_argument('--discriminator', default='conv1d', type=str)
   parser.add_argument('--activation', default='tanh', type=str)
-  parser.add_argument(
-      '--algorithm',
-      default='gan',
-      type=str,
-      help='which algorithm to train models')
+  parser.add_argument('--algorithm', default='gan', type=str)
   parser.add_argument(
       '--n_critic',
       default=5,
@@ -213,21 +233,28 @@ if __name__ == '__main__':
       help='keep generated calcium signals and spike trains')
   parser.add_argument(
       '--num_processors',
-      default=6,
+      default=8,
       type=int,
       help='number of processing cores to use for metrics calculation')
   parser.add_argument(
-      '--skip_spike_metrics',
+      '--spike_metrics',
       action='store_true',
-      help='flag to skip calculating spike metrics')
+      help='flag to calculate spike metrics')
+  parser.add_argument(
+      '--spike_metrics_freq',
+      default=10,
+      type=int,
+      help='number of epochs every spike metrics')
   parser.add_argument(
       '--plot_weights',
       action='store_true',
       help='flag to plot weights and activations in TensorBoard')
   parser.add_argument(
-      '--skip_checkpoint',
+      '--save_checkpoints',
       action='store_true',
-      help='flag to skip storing model checkpoints')
+      help='flag to save model checkpoints')
+  parser.add_argument(
+      '--mixed_precision', action='store_true', help='use mixed precision')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 

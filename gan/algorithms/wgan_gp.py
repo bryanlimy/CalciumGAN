@@ -18,6 +18,22 @@ class WGAN_GP(GAN):
   def generator_loss(self, fake_output):
     return -tf.reduce_mean(fake_output)
 
+  def _train_generator(self, inputs):
+    noise = self.get_noise(batch_size=inputs.shape[0])
+
+    with tf.GradientTape() as tape:
+      fake = self.generator(noise, training=True)
+      fake_output = self.discriminator(fake, training=True)
+
+      gen_loss = self.generator_loss(fake_output)
+      scaled_loss = self.gen_optimizer.get_scaled_loss(gen_loss)
+
+    self.gen_optimizer.update(self.generator, scaled_loss, tape)
+
+    metrics = self.metrics(real=inputs, fake=fake)
+
+    return gen_loss, metrics
+
   def interpolation(self, real, fake):
     alpha = tf.random.uniform((real.shape[0], 1, 1), minval=0.0, maxval=1.0)
     return (alpha * real) + ((1 - alpha) * fake)
@@ -42,23 +58,6 @@ class WGAN_GP(GAN):
     loss = real_loss + fake_loss + self._lambda * gradient_penalty
     return loss, gradient_penalty
 
-  def _train_generator(self, inputs):
-    noise = self.get_noise(batch_size=inputs.shape[0])
-
-    with tf.GradientTape() as tape:
-      fake = self.generator(noise, training=True)
-      fake_output = self.discriminator(fake, training=True)
-
-      gen_loss = self.generator_loss(fake_output)
-
-    gen_gradients = tape.gradient(gen_loss, self.generator.trainable_variables)
-    self.gen_optimizer.apply_gradients(
-        zip(gen_gradients, self.generator.trainable_variables))
-
-    metrics = self.metrics(real=inputs, fake=fake)
-
-    return gen_loss, metrics
-
   def _train_discriminator(self, inputs):
     noise = self.get_noise(batch_size=inputs.shape[0])
 
@@ -71,10 +70,9 @@ class WGAN_GP(GAN):
       dis_loss, gradient_penalty = self.discriminator_loss(
           real_output, fake_output, real=inputs, fake=fake, training=True)
 
-    variables = self.discriminator.trainable_variables
+      scaled_loss = self.dis_optimizer.get_scaled_loss(dis_loss)
 
-    dis_gradients = tape.gradient(dis_loss, variables)
-    self.dis_optimizer.apply_gradients(zip(dis_gradients, variables))
+    self.dis_optimizer.update(self.discriminator, scaled_loss, tape)
 
     return dis_loss, gradient_penalty
 
