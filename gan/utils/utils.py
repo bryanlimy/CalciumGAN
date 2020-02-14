@@ -100,46 +100,61 @@ def preform_spike_metrics(hparams, epoch):
                                     epoch == hparams.epochs - 1)
 
 
-def deconvolve_saved_signals(hparams, filename):
-  start = time()
-  with h5_helpers.open_h5(filename, mode='a') as file:
-    fake_signals = file['fake_signals'][:50]
-    fake_spikes = spike_helper.deconvolve_signals(
-        fake_signals, num_processors=hparams.num_processors)
-
-    file.create_dataset(
-        'fake_spikes',
-        dtype=fake_spikes.dtype,
-        data=fake_spikes,
-        chunks=True,
-        maxshape=(None, fake_spikes.shape[1]))
-  elapse = time() - start
-
-  if hparams.verbose:
-    print('Deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
+import pickle
 
 
 def compute_spike_metrics(hparams, epoch, summary):
   filename = get_signal_filename(hparams, epoch)
-  deconvolve_saved_signals(hparams, filename)
+  spike_helper.deconvolve_saved_signals(hparams, filename)
 
   with h5_helpers.open_h5(filename, mode='r') as file:
-    real_spikes = file['real_spikes'][:]
-    fake_spikes = file['fake_spikes'][:]
+    real_spikes = file['real_spikes'][:100]
+    fake_spikes = file['fake_spikes'][:100]
 
-  # assert real_spikes.shape == fake_spikes.shape
+  assert real_spikes.shape == fake_spikes.shape
 
-  real_spikes = spike_helper.numpy_to_neo(real_spikes)
-  fake_spikes = spike_helper.numpy_to_neo(fake_spikes)
+  cache = os.path.join(hparams.output_dir, 'cache.pkl')
+
+  if os.path.exists(cache):
+    with open(cache, 'rb') as file:
+      data = pickle.load(file)
+    real_spikes = data['real_spikes']
+    fake_spikes = data['fake_spikes']
+  else:
+    real_spikes = spike_helper.numpy_to_neo_trains(real_spikes)
+    fake_spikes = spike_helper.numpy_to_neo_trains(fake_spikes)
+    with open(cache, 'wb') as file:
+      pickle.dump({
+          'real_spikes': real_spikes,
+          'fake_spikes': fake_spikes
+      }, file)
 
   # spike_count_error = spike_metrics.mean_spike_count_error(
   #     real_spikes, fake_spikes)
   # firing_rate_error = spike_metrics.mean_firing_rate_error(
   #     real_spikes, fake_spikes)
-  van_rossum_distance = spike_metrics.van_rossum_error(
-      real_spikes, fake_spikes, num_processors=hparams.num_processors)
-
+  # van_rossum_distance = spike_metrics.van_rossum_error(
+  #     real_spikes, fake_spikes, num_processors=hparams.num_processors)
+  #
   # summary.scalar(
   #     'spike_metrics/spike_count_error', spike_count_error, training=False)
   # summary.scalar(
   #     'spike_metrics/van_rossum_distance', van_rossum_distance, training=False)
+
+  van_rossum_error = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
+  summary.scalar(
+      'spike_metrics/van_rossum_distance', van_rossum_error, training=False)
+
+  return None
+
+
+import elephant
+
+
+def van_rossum_distance(real_spikes, fake_spikes):
+  assert type(real_spikes) == list and type(fake_spikes) == list and len(
+      real_spikes) == len(fake_spikes)
+  distance_matrix = elephant.spike_train_dissimilarity.van_rossum_dist(
+      real_spikes + fake_spikes)
+  distance = np.diag(distance_matrix[len(real_spikes):])
+  return np.mean(distance)

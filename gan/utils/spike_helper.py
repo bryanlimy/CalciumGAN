@@ -6,6 +6,10 @@ from . import utils
 from oasis.oasis_methods import oasisAR1
 from neo.core import SpikeTrain
 import quantities as pq
+from . import h5_helpers
+from . import spike_helper
+from time import time
+import pickle
 
 
 def _deconvolve_signals(signals):
@@ -41,20 +45,46 @@ def deconvolve_signals(signals, num_processors=1):
   return spikes
 
 
-def numpy_to_neo(spikes):
+def deconvolve_saved_signals(hparams, filename):
+  start = time()
+  with h5_helpers.open_h5(filename, mode='a') as file:
+    fake_signals = file['fake_signals'][:]
+    fake_spikes = deconvolve_signals(
+        fake_signals, num_processors=hparams.num_processors)
+
+    file.create_dataset(
+        'fake_spikes',
+        dtype=fake_spikes.dtype,
+        data=fake_spikes,
+        chunks=True,
+        maxshape=(None, fake_spikes.shape[1], fake_spikes.shape[2]))
+  elapse = time() - start
+
+  if hparams.verbose:
+    print('Deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
+
+
+def numpy_to_neo_trains(spikes):
   shape = spikes.shape
 
   if len(shape) > 2:
     spikes = np.reshape(spikes, newshape=(shape[0] * shape[1], shape[2]))
 
-  spike_times = np.nonzero(spikes)
-
-  neo_trains = np.array([
-      SpikeTrain(spike_times[i], units=pq.ms, t_stop=shape[-1])
-      for i in range(len(spike_times))
-  ])
-
-  if len(shape) > 2:
-    neo_trains = np.reshape(neo_trains, newshape=(shape[0], shape[1]))
+  neo_trains = [
+      SpikeTrain(np.nonzero(spikes[i])[0], units=pq.ms, t_stop=shape[-1])
+      for i in range(len(spikes))
+  ]
 
   return neo_trains
+
+
+def compute_spike_metrics(real_signals, real_spikes, fake_signals, fake_spikes):
+  assert type(real_spikes) is None or type(real_spikes) == list
+  assert type(fake_spikes) is None or type(fake_spikes) == list
+
+  if real_spikes is None:
+    real_spikes = deconvolve_signals(real_signals, numpy_to_neo_trains=8)
+    real_spikes = numpy_to_neo_trains(real_spikes)
+
+  if fake_spikes is None:
+    fake_spikes = deconvolve_signals(fake_signals)

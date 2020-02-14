@@ -128,8 +128,8 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
     if hparams.verbose:
       print('Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs))
 
-    # train_gen_loss, train_dis_loss = train(
-    #     hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
+    train_gen_loss, train_dis_loss = train(
+        hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
 
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
@@ -195,12 +195,14 @@ def main(hparams, return_metrics=False):
 
   start = time()
 
-  train_and_validate(
-      hparams,
-      train_ds=train_ds,
-      validation_ds=validation_ds,
-      gan=gan,
-      summary=summary)
+  # train_and_validate(
+  #     hparams,
+  #     train_ds=train_ds,
+  #     validation_ds=validation_ds,
+  #     gan=gan,
+  #     summary=summary)
+
+  utils.compute_spike_metrics(hparams, 0, summary)
 
   end = time()
   summary.scalar('elapse/total', end - start)
