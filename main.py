@@ -110,7 +110,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
   if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
                                 epoch == hparams.epochs - 1):
-    utils.record_spike_metrics(hparams, epoch, summary)
+    spike_helper.record_spike_metrics(hparams, epoch, summary)
 
   if not hparams.keep_generated:
     utils.delete_saved_signals(hparams, epoch)
