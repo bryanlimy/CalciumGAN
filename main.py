@@ -1,4 +1,5 @@
 import os
+import warnings
 import argparse
 import numpy as np
 from time import time
@@ -11,10 +12,7 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
-from gan.utils import utils
+from gan.utils import utils, spike_helper
 from gan.models.registry import get_models
 from gan.utils.summary_helper import Summary
 from gan.utils.dataset_helper import get_dataset
@@ -87,7 +85,8 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    if utils.preform_spike_metrics(hparams, epoch):
+    if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
+                                  epoch == hparams.epochs - 1):
       utils.save_signals(
           hparams,
           epoch,
@@ -109,8 +108,9 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       elapse=end - start,
       training=False)
 
-  if utils.preform_spike_metrics(hparams, epoch):
-    utils.compute_spike_metrics(hparams, epoch, summary)
+  if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
+                                epoch == hparams.epochs - 1):
+    utils.record_spike_metrics(hparams, epoch, summary)
 
   if not hparams.keep_generated:
     utils.delete_saved_signals(hparams, epoch)
@@ -194,17 +194,14 @@ def main(hparams, return_metrics=False):
   gan = get_algorithm(hparams, generator, discriminator, summary)
 
   start = time()
-
-  # train_and_validate(
-  #     hparams,
-  #     train_ds=train_ds,
-  #     validation_ds=validation_ds,
-  #     gan=gan,
-  #     summary=summary)
-
-  utils.compute_spike_metrics(hparams, 0, summary)
-
+  train_and_validate(
+      hparams,
+      train_ds=train_ds,
+      validation_ds=validation_ds,
+      gan=gan,
+      summary=summary)
   end = time()
+
   summary.scalar('elapse/total', end - start)
 
   if return_metrics:
@@ -267,5 +264,10 @@ if __name__ == '__main__':
   hparams = parser.parse_args()
 
   hparams.global_step = 0
+
+  # disabble warnings except verbose == 2
+  if hparams.verbose != 2:
+    warnings.simplefilter(action='ignore', category=FutureWarning)
+    warnings.simplefilter(action='ignore', category=UserWarning)
 
   main(hparams)

@@ -1,53 +1,46 @@
-import numpy as np
-import tensorflow as tf
-from multiprocessing import Pool
 import elephant
-
-from . import utils
-
-
-def mean_spike_count(spikes):
-  spike_count = np.sum(spikes, axis=-1)
-  mean_spike_count = np.mean(spike_count, axis=0)
-  return mean_spike_count
-
-
-def mean_spike_count_error(spike1, spike2):
-  count1 = mean_spike_count(spike1)
-  count2 = mean_spike_count(spike2)
-  return np.mean(np.square(count1 - count2))
+import numpy as np
+import quantities as pq
 
 
 def mean_firing_rate(spikes):
-  firing_rate = np.sum(spikes, axis=-1) / spikes.shape[-1]
-  mean_firing_rate = np.mean(firing_rate, axis=0)
-  return mean_firing_rate
+  return np.array([
+      elephant.statistics.mean_firing_rate(spikes[i])
+      for i in range(len(spikes))
+  ])
 
 
-def mean_firing_rate_error(spike1, spike2):
-  rate1 = mean_firing_rate(spike1)
-  rate2 = mean_firing_rate(spike2)
-  return np.mean(np.square(rate1 - rate2))
+def mean_firing_rate_error(spikes1, spikes2):
+  spikes1_firing_rate = mean_firing_rate(spikes1)
+  spikes2_firing_rate = mean_firing_rate(spikes2)
+  return np.abs(np.mean(spikes1_firing_rate) - np.mean(spikes2_firing_rate))
 
 
-def derivative_mse(set1, set2):
-  diff1 = np.diff(set1, n=1, axis=-1)
-  diff2 = np.diff(set2, n=1, axis=-1)
-  mse = np.mean(np.square(diff1 - diff2))
-  return mse
+def van_rossum_distance(spikes1, spikes2):
+  assert len(spikes1) == len(spikes2)
+  distance_matrix = elephant.spike_train_dissimilarity.van_rossum_dist(spikes1 +
+                                                                       spikes2)
+  return np.diag(distance_matrix[len(spikes1):])
 
 
-def van_rossum_distance(real_spikes, fake_spikes):
-  assert len(real_spikes) == len(fake_spikes)
-  distance_matrix = elephant.spike_train_dissimilarity.van_rossum_dist(
-      real_spikes + fake_spikes)
-  distance = np.diag(distance_matrix[len(real_spikes):])
-  return np.mean(distance)
-
-
-def victor_purpura_distance(real_spikes, fake_spikes):
-  assert len(real_spikes) == len(fake_spikes)
+def victor_purpura_distance(spikes1, spikes2):
+  assert len(spikes1) == len(spikes2)
   distance_matrix = elephant.spike_train_dissimilarity.victor_purpura_dist(
-      real_spikes + fake_spikes)
-  distance = np.diag(distance_matrix[len(real_spikes):])
-  return np.mean(distance)
+      spikes1 + spikes2)
+  return np.diag(distance_matrix[len(spikes1):])
+
+
+def corrcoef(spikes1, spikes2, binsize=5 * pq.ms):
+  assert len(spikes1) == len(spikes2)
+  binned = elephant.conversion.BinnedSpikeTrain(
+      spikes1 + spikes2, binsize=binsize)
+  corrcoef_matrix = elephant.spike_train_correlation.corrcoef(binned)
+  return np.diag(corrcoef_matrix[len(spikes1):])
+
+
+def covariance(spikes1, spikes2, binsize=5 * pq.ms):
+  assert len(spikes1) == len(spikes2)
+  binned = elephant.conversion.BinnedSpikeTrain(
+      spikes1 + spikes2, binsize=binsize)
+  covariance_matrix = elephant.spike_train_correlation.covariance(binned)
+  return np.diag(covariance_matrix[len(spikes1):])
