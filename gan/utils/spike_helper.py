@@ -106,6 +106,8 @@ def record_spike_metrics(hparams, epoch, summary):
   if hparams.verbose:
     print('measuring spike metrics...')
 
+  start = time()
+
   filename = utils.get_signal_filename(hparams, epoch)
 
   with h5_helpers.open_h5(filename, mode='r') as file:
@@ -144,5 +146,8 @@ def record_spike_metrics(hparams, epoch, summary):
         real_spikes=real_spikes,
         fake_spikes=None)
 
+  end = time()
+
   for tag, value in metrics.items():
     summary.scalar(tag, np.mean(value), training=False)
+  summary.scalar('elapse/spike_metrics', end - start, training=False)

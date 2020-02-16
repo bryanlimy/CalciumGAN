@@ -34,7 +34,8 @@ def corrcoef(spikes1, spikes2, binsize=5 * pq.ms):
   assert len(spikes1) == len(spikes2)
   binned = elephant.conversion.BinnedSpikeTrain(
       spikes1 + spikes2, binsize=binsize)
-  corrcoef_matrix = elephant.spike_train_correlation.corrcoef(binned)
+  corrcoef_matrix = elephant.spike_train_correlation.corrcoef(
+      binned, fast=False)
   return np.diag(corrcoef_matrix[len(spikes1):])
 
 
@@ -42,5 +43,6 @@ def covariance(spikes1, spikes2, binsize=5 * pq.ms):
   assert len(spikes1) == len(spikes2)
   binned = elephant.conversion.BinnedSpikeTrain(
       spikes1 + spikes2, binsize=binsize)
-  covariance_matrix = elephant.spike_train_correlation.covariance(binned)
+  covariance_matrix = elephant.spike_train_correlation.covariance(
+      binned, fast=False)
   return np.diag(covariance_matrix[len(spikes1):])
