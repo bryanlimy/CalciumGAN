@@ -1,15 +1,14 @@
 import numpy as np
+from time import time
 import tensorflow as tf
+import quantities as pq
+from neo.core import SpikeTrain
+from oasis.oasis_methods import oasisAR1
 from multiprocessing import Process, Manager, Pool
 
 from . import utils
-from oasis.oasis_methods import oasisAR1
-from neo.core import SpikeTrain
-import quantities as pq
-from . import h5_helpers
+from . import h5_helper
 from . import spike_metrics
-from time import time
-from . import utils
 
 
 def _deconvolve_signals(signals):
@@ -47,7 +46,7 @@ def deconvolve_signals(signals, num_processors=1):
 
 def deconvolve_saved_signals(hparams, filename):
   start = time()
-  with h5_helpers.open_h5(filename, mode='a') as file:
+  with h5_helper.open_h5(filename, mode='a') as file:
     fake_signals = file['fake_signals'][:]
     fake_spikes = deconvolve_signals(
         fake_signals, num_processors=hparams.num_processors)
@@ -102,6 +101,22 @@ def measure_spike_metrics(metrics,
   # utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
 
 
+def measure_spike_metrics_from_file(metrics, filename, index=(0, None), pid=0):
+  """ measure spike metrics of content within (start:end) range in filename 
+  and write results to metrics """
+  with h5_helper.open_h5(filename, mode='r') as file:
+    real_signals = file['real_signals'][index[0]:index[1]]
+    fake_signals = file['fake_signals'][index[0]:index[1]]
+    real_spikes = file['real_spikes'][index[0]:index[1]]
+
+  measure_spike_metrics(
+      metrics,
+      real_signals=real_signals,
+      fake_signals=fake_signals,
+      real_spikes=real_spikes,
+      fake_spikes=None)
+
+
 def record_spike_metrics(hparams, epoch, summary):
   if hparams.verbose:
     print('measuring spike metrics...')
@@ -110,18 +125,11 @@ def record_spike_metrics(hparams, epoch, summary):
 
   filename = utils.get_signal_filename(hparams, epoch)
 
-  with h5_helpers.open_h5(filename, mode='r') as file:
-    real_signals = file['real_signals'][:]
-    fake_signals = file['fake_signals'][:]
-    real_spikes = file['real_spikes'][:]
-
-  assert len(real_signals) == len(real_spikes) == len(fake_signals)
-
   if hparams.num_processors > 1:
-    num_jobs = min(len(real_signals), hparams.num_processors)
-    real_signals = utils.split(real_signals, n=num_jobs)
-    fake_signals = utils.split(fake_signals, n=num_jobs)
-    real_spikes = utils.split(real_spikes, n=num_jobs)
+    length = h5_helper.dataset_length(filename, 'real_signals')
+
+    num_jobs = min(length, hparams.num_processors)
+    indexes = utils.split_index(length, n=num_jobs)
 
     manager = Manager()
     metrics = manager.dict()
@@ -129,22 +137,15 @@ def record_spike_metrics(hparams, epoch, summary):
     jobs = []
     for i in range(num_jobs):
       job = Process(
-          target=measure_spike_metrics,
-          args=(metrics, real_signals[i], fake_signals[i], real_spikes[i],
-                None))
+          target=measure_spike_metrics_from_file,
+          args=(metrics, filename, indexes[i], i))
       jobs.append(job)
       job.start()
-
     for job in jobs:
       job.join()
   else:
     metrics = {}
-    measure_spike_metrics(
-        metrics=metrics,
-        real_signals=real_signals,
-        fake_signals=fake_signals,
-        real_spikes=real_spikes,
-        fake_spikes=None)
+    measure_spike_metrics_from_file(metrics, filename)
 
   end = time()
 

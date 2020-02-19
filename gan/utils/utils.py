@@ -4,15 +4,19 @@ import pickle
 from glob import glob
 import tensorflow as tf
 
-from . import h5_helpers
+from . import h5_helper
+
+
+def split_index(length, n):
+  """ return a list of (start, end) that divide length into n chunks """
+  k, m = divmod(length, n)
+  return [(i * k + min(i, m), (i + 1) * k + min(i + 1, m)) for i in range(n)]
 
 
 def split(sequence, n):
-  """ divide sequence into n sub-sequence evenly"""
-  k, m = divmod(len(sequence), n)
-  return [
-      sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
-  ]
+  """ divide sequence into n sub-sequences evenly"""
+  indexes = split_index(len(sequence), n)
+  return [sequence[indexes[i][0]:indexes[i][1]] for i in range(len(indexes))]
 
 
 def normalize(x, x_min, x_max):
@@ -45,10 +49,10 @@ def save_signals(hparams, epoch, real_signals, real_spikes, fake_signals):
     fake_signals = denormalize(
         fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-  with h5_helpers.open_h5(filename, mode='a') as file:
-    h5_helpers.create_or_append_h5(file, 'real_spikes', real_spikes)
-    h5_helpers.create_or_append_h5(file, 'real_signals', real_signals)
-    h5_helpers.create_or_append_h5(file, 'fake_signals', fake_signals)
+  with h5_helper.open_h5(filename, mode='a') as file:
+    h5_helper.create_or_append_h5(file, 'real_spikes', real_spikes)
+    h5_helper.create_or_append_h5(file, 'real_signals', real_signals)
+    h5_helper.create_or_append_h5(file, 'fake_signals', fake_signals)
 
 
 def delete_saved_signals(hparams, epoch):

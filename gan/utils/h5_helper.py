@@ -32,3 +32,10 @@ def create_or_append_h5(file, name, value):
         data=value,
         chunks=True,
         maxshape=(None, value.shape[1], value.shape[2]))
+
+
+def dataset_length(filename, name):
+  with open_h5(filename, 'r') as file:
+    dataset = file[name]
+    length = dataset.len()
+  return length
