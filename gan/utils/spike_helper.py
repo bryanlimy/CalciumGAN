@@ -97,11 +97,11 @@ def measure_spike_metrics(metrics,
   corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
   utils.add_to_dict(metrics, 'spike_metrics/cross_coefficient', corrcoef)
 
-  # covariance = spike_metrics.covariance(real_spikes, fake_spikes)
-  # utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
+  covariance = spike_metrics.covariance(real_spikes, fake_spikes)
+  utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
 
 
-def measure_spike_metrics_from_file(metrics, filename, index=(0, None), pid=0):
+def measure_spike_metrics_from_file(metrics, filename, index=(0, None)):
   """ measure spike metrics of content within (start:end) range in filename 
   and write results to metrics """
   with h5_helper.open_h5(filename, mode='r') as file:
@@ -138,7 +138,7 @@ def record_spike_metrics(hparams, epoch, summary):
     for i in range(num_jobs):
       job = Process(
           target=measure_spike_metrics_from_file,
-          args=(metrics, filename, indexes[i], i))
+          args=(metrics, filename, indexes[i]))
       jobs.append(job)
       job.start()
     for job in jobs:
@@ -149,6 +149,7 @@ def record_spike_metrics(hparams, epoch, summary):
 
   end = time()
 
+  summary.scalar('elapse/spike_metrics', end - start, training=False)
+
   for tag, value in metrics.items():
     summary.scalar(tag, np.mean(value), training=False)
-  summary.scalar('elapse/spike_metrics', end - start, training=False)

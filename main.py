@@ -194,12 +194,14 @@ def main(hparams, return_metrics=False):
   gan = get_algorithm(hparams, generator, discriminator, summary)
 
   start = time()
+
   train_and_validate(
       hparams,
       train_ds=train_ds,
       validation_ds=validation_ds,
       gan=gan,
       summary=summary)
+
   end = time()
 
   summary.scalar('elapse/total', end - start)
@@ -269,5 +271,6 @@ if __name__ == '__main__':
   if hparams.verbose != 2:
     warnings.simplefilter(action='ignore', category=FutureWarning)
     warnings.simplefilter(action='ignore', category=UserWarning)
+    warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
   main(hparams)

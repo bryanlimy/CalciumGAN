@@ -2,6 +2,7 @@ import os
 import json
 import pickle
 from glob import glob
+import numpy as np
 import tensorflow as tf
 
 from . import h5_helper
@@ -96,4 +97,8 @@ def add_to_dict(dictionary, tag, value):
   """ Add tag with value to dictionary """
   if tag not in dictionary:
     dictionary[tag] = []
-  dictionary[tag] += value if type(value) == list else [value]
+  if type(value) == np.ndarray:
+    value = value.tolist()
+  elif type(value) != list:
+    value = [value]
+  dictionary[tag] += value
