@@ -95,11 +95,11 @@ def measure_spike_metrics(metrics,
   utils.add_to_dict(metrics, 'spike_metrics/firing_rate_error',
                     firing_rate_error)
 
-  corrcoef = spike_metrics.corrcoef(real_spikes, fake_spikes)
+  corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
   utils.add_to_dict(metrics, 'spike_metrics/cross_coefficient', corrcoef)
 
-  covariance = spike_metrics.covariance(real_spikes, fake_spikes)
-  utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
+  # covariance = spike_metrics.covariance(real_spikes, fake_spikes)
+  # utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
 
 
 def record_spike_metrics(hparams, epoch, summary):

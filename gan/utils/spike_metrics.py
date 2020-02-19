@@ -30,19 +30,17 @@ def victor_purpura_distance(spikes1, spikes2):
   return np.diag(distance_matrix[len(spikes1):])
 
 
-def corrcoef(spikes1, spikes2, binsize=5 * pq.ms):
+def correlation_coefficients(spikes1, spikes2, binsize=5 * pq.ms):
   assert len(spikes1) == len(spikes2)
-  binned = elephant.conversion.BinnedSpikeTrain(
-      spikes1 + spikes2, binsize=binsize)
   corrcoef_matrix = elephant.spike_train_correlation.corrcoef(
-      binned, fast=False)
+      elephant.conversion.BinnedSpikeTrain(spikes1 + spikes2, binsize=binsize),
+      fast=False)
   return np.diag(corrcoef_matrix[len(spikes1):])
 
 
 def covariance(spikes1, spikes2, binsize=5 * pq.ms):
   assert len(spikes1) == len(spikes2)
-  binned = elephant.conversion.BinnedSpikeTrain(
-      spikes1 + spikes2, binsize=binsize)
   covariance_matrix = elephant.spike_train_correlation.covariance(
-      binned, fast=False)
+      elephant.conversion.BinnedSpikeTrain(spikes1 + spikes2, binsize=binsize),
+      fast=False)
   return np.diag(covariance_matrix[len(spikes1):])

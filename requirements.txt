@@ -4,6 +4,3 @@ sklearn
 scipy==1.4.1
 cython==0.29.14
 cvxpy==1.0.25
-quantities==0.12.4
-neo==0.8.0
-elephant==0.6.4
