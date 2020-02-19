@@ -119,7 +119,7 @@ def measure_spike_metrics_from_file(metrics, filename, index=(0, None)):
 
 def record_spike_metrics(hparams, epoch, summary):
   if hparams.verbose:
-    print('measuring spike metrics...')
+    print('Measuring spike metrics...')
 
   start = time()
 
@@ -145,11 +145,13 @@ def record_spike_metrics(hparams, epoch, summary):
       job.join()
   else:
     metrics = {}
-    measure_spike_metrics_from_file(metrics, filename)
+    measure_spike_metrics_from_file(metrics, filename, index=(0, 2))
 
   end = time()
 
   summary.scalar('elapse/spike_metrics', end - start, training=False)
 
   for tag, value in metrics.items():
+    if hparams.verbose:
+      print('\t{}: {}'.format(tag, np.mean(value)))
     summary.scalar(tag, np.mean(value), training=False)
