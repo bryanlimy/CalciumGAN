@@ -68,7 +68,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
   gen_losses, dis_losses, gradient_penalties, results = [], [], [], {}
 
   start = time()
-
+  i = 0
   for signal, spike in tqdm(
       validation_ds,
       desc='Validate',
@@ -93,6 +93,10 @@ def validate(hparams, validation_ds, gan, summary, epoch):
           real_signals=signal.numpy(),
           real_spikes=spike.numpy(),
           fake_signals=fake.numpy())
+
+    i += 1
+    if i > 10:
+      break
 
   end = time()
 
