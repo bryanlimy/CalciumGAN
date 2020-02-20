@@ -102,8 +102,5 @@ def add_to_dict(dictionary, tag, value):
   else:
     value = np.array([value], dtype=np.float32)
 
-  if tag not in dictionary:
-    print('first tag {}'.format(tag))
-    dictionary[tag] = value
-  else:
-    dictionary[tag] = np.concatenate((dictionary[tag], value), axis=0)
+  dictionary[tag] = np.concatenate(
+      (dictionary[tag], value), axis=0) if tag in dictionary else value
