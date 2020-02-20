@@ -95,10 +95,15 @@ def load_models(hparams, generator, discriminator):
 
 def add_to_dict(dictionary, tag, value):
   """ Add tag with value to dictionary """
+  if type(value) is np.ndarray:
+    value = value.astype(np.float32)
+  elif type(value) is list:
+    value = np.array(value, dtype=np.float32)
+  else:
+    value = np.array([value], dtype=np.float32)
+
   if tag not in dictionary:
-    dictionary[tag] = []
-  if type(value) == np.ndarray:
-    value = value.tolist()
-  elif type(value) != list:
-    value = [value]
-  dictionary[tag] += value
+    print('first tag {}'.format(tag))
+    dictionary[tag] = value
+  else:
+    dictionary[tag] = np.concatenate((dictionary[tag], value), axis=0)

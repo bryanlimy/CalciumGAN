@@ -102,7 +102,7 @@ def measure_spike_metrics(metrics,
 
 
 def measure_spike_metrics_from_file(metrics, filename, index=(0, None)):
-  """ measure spike metrics of content within (start:end) range in filename 
+  """ measure spike metrics of content within (start, end) range in filename 
   and write results to metrics """
   with h5_helper.open_h5(filename, mode='r') as file:
     real_signals = file['real_signals'][index[0]:index[1]]
@@ -151,9 +151,7 @@ def record_spike_metrics(hparams, epoch, summary):
 
   summary.scalar('elapse/spike_metrics', end - start, training=False)
 
-  print(metrics.keys())
-
   for tag, value in metrics.items():
     if hparams.verbose:
-      print('\t{}: {}'.format(tag, np.mean(value)))
+      print('\t{}: {:.04f}'.format(tag, np.mean(value)))
     summary.scalar(tag, np.mean(value), training=False)
