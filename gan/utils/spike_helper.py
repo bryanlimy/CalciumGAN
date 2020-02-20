@@ -114,8 +114,10 @@ def measure_spike_metrics(metrics,
   # covariance = spike_metrics.covariance(real_spikes, fake_spikes)
   # utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
 
-  vr_distance = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
-  utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance', vr_distance)
+  van_rossum_distance = spike_metrics.van_rossum_distance(
+      real_spikes, fake_spikes)
+  utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance',
+                    van_rossum_distance)
 
 
 def measure_spike_metrics_from_file(metrics, filename, neuron):
