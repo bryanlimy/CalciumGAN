@@ -151,7 +151,7 @@ def record_spike_metrics(hparams, epoch, summary):
 
   summary.scalar('elapse/spike_metrics', end - start, training=False)
 
-  print(metrics)
+  print(metrics.keys())
 
   for tag, value in metrics.items():
     if hparams.verbose:
