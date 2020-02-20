@@ -122,6 +122,9 @@ def measure_spike_metrics_from_file(metrics,
       fake_spikes=None)
 
 
+from math import ceil
+
+
 def record_spike_metrics(hparams, epoch, summary):
   if hparams.verbose:
     print('Measuring spike metrics...')
@@ -154,9 +157,14 @@ def record_spike_metrics(hparams, epoch, summary):
     metrics = manager.dict()
 
     num_processors = min(length, hparams.num_processors)
-    num_segment = min(10, num_processors)
-    indexes = utils.split_index(length, n=num_segment)
-    args = [(metrics, filename, indexes[i], i) for i in range(num_segment)]
+    size_per_process = min(length // num_processors, 10)
+    num_jobs = ceil(length / size_per_process)
+    if hparams.verbose:
+      print('Creating {} jobs with {} segments per job'.format(
+          num_jobs, size_per_process))
+
+    indexes = utils.split_index(length, n=num_jobs)
+    args = [(metrics, filename, indexes[i], i) for i in range(num_jobs)]
 
     pool = Pool(processes=num_processors)
     pool.starmap(measure_spike_metrics_from_file, args)
