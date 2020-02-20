@@ -72,8 +72,10 @@ def numpy_to_neo_trains(array):
 
   return [
       SpikeTrain(
-          np.nonzero(array[i])[0] * pq.ms, units=pq.s, t_stop=shape[-1] * pq.ms)
-      for i in range(len(array))
+          np.nonzero(array[i])[0] * pq.ms,
+          units=pq.s,
+          t_stop=shape[-1] * pq.ms,
+          dtype=np.float32) for i in range(len(array))
   ]
 
 
@@ -108,12 +110,12 @@ def measure_spike_metrics(metrics,
 
   # corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
   # utils.add_to_dict(metrics, 'spike_metrics/cross_coefficient', corrcoef)
-  #
+
   # covariance = spike_metrics.covariance(real_spikes, fake_spikes)
   # utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
-  #
-  # vr_distance = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
-  # utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance', vr_distance)
+
+  vr_distance = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
+  utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance', vr_distance)
 
 
 def measure_spike_metrics_from_file(metrics, filename, neuron):

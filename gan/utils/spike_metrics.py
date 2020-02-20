@@ -16,7 +16,7 @@ def van_rossum_distance(spikes1, spikes2):
   assert len(spikes1) == len(spikes2)
   distance_matrix = elephant.spike_train_dissimilarity.van_rossum_dist(spikes1 +
                                                                        spikes2)
-  return np.diag(distance_matrix[len(spikes1):])
+  return np.mean(distance_matrix[len(spikes1):])
 
 
 def victor_purpura_distance(spikes1, spikes2):
