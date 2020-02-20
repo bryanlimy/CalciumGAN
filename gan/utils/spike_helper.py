@@ -82,19 +82,9 @@ def count_occurrence(array):
   return dict(zip(unique, count))
 
 
-import matplotlib.pyplot as plt
-
-
 def firing_rate_histogram(real_firing_rate, fake_firing_rate):
   occurrence1 = count_occurrence(real_firing_rate)
   occurrence2 = count_occurrence(fake_firing_rate)
-
-  plt.bar(
-      list(occurrence1.keys()), occurrence1.values(), label='real', alpha=0.5)
-  plt.bar(
-      list(occurrence2.keys()), occurrence2.values(), label='fake', alpha=0.5)
-  plt.legend(loc='upper right')
-  plt.show()
 
 
 def measure_spike_metrics(metrics,
