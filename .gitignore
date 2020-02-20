@@ -109,8 +109,9 @@ venv.bak/
 *.h5
 *.record
 .idea/
-runs/
+runs
+tfrecords
 oasis/
 elephant/
-tfrecords/
+
 
