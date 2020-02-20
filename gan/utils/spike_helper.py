@@ -1,10 +1,11 @@
 import numpy as np
+from math import ceil
 from time import time
 import tensorflow as tf
 import quantities as pq
 from neo.core import SpikeTrain
 from oasis.oasis_methods import oasisAR1
-from multiprocessing import Process, Manager, Pool
+from multiprocessing import Manager, Pool
 
 from . import utils
 from . import h5_helper
@@ -100,6 +101,9 @@ def measure_spike_metrics(metrics,
   covariance = spike_metrics.covariance(real_spikes, fake_spikes)
   utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
 
+  vr_distance = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
+  utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance', vr_distance)
+
 
 def measure_spike_metrics_from_file(metrics, filename, index=(0, None)):
   """ measure spike metrics of content within (start, end) range in filename 
@@ -115,9 +119,6 @@ def measure_spike_metrics_from_file(metrics, filename, index=(0, None)):
       fake_signals=fake_signals,
       real_spikes=real_spikes,
       fake_spikes=None)
-
-
-from math import ceil
 
 
 def record_spike_metrics(hparams, epoch, summary):
