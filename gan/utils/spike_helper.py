@@ -101,14 +101,9 @@ def measure_spike_metrics(metrics,
   utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
 
 
-def measure_spike_metrics_from_file(metrics,
-                                    filename,
-                                    index=(0, None),
-                                    job_id=0):
+def measure_spike_metrics_from_file(metrics, filename, index=(0, None)):
   """ measure spike metrics of content within (start, end) range in filename 
   and write results to metrics """
-  print('Job {}: measure spike metrics for {}'.format(job_id, index))
-
   with h5_helper.open_h5(filename, mode='r') as file:
     real_signals = file['real_signals'][index[0]:index[1]]
     fake_signals = file['fake_signals'][index[0]:index[1]]
@@ -157,14 +152,16 @@ def record_spike_metrics(hparams, epoch, summary):
     metrics = manager.dict()
 
     num_processors = min(length, hparams.num_processors)
-    size_per_process = min(length // num_processors, 10)
-    num_jobs = ceil(length / size_per_process)
+    # the number of segments each job processes
+    size_per_job = min(length // num_processors, 100)
+    num_jobs = ceil(length / size_per_job)
+
     if hparams.verbose:
-      print('Creating {} jobs with {} segments per job'.format(
-          num_jobs, size_per_process))
+      print('\tCreating {} jobs with {} segments per job'.format(
+          num_jobs, size_per_job))
 
     indexes = utils.split_index(length, n=num_jobs)
-    args = [(metrics, filename, indexes[i], i) for i in range(num_jobs)]
+    args = [(metrics, filename, indexes[i]) for i in range(num_jobs)]
 
     pool = Pool(processes=num_processors)
     pool.starmap(measure_spike_metrics_from_file, args)
