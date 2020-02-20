@@ -129,31 +129,13 @@ def record_spike_metrics(hparams, epoch, summary):
   filename = utils.get_signal_filename(hparams, epoch)
 
   if hparams.num_processors > 1:
-    # length = h5_helper.dataset_length(filename, 'real_signals')
-    #
-    # num_jobs = min(length, hparams.num_processors)
-    # indexes = utils.split_index(length, n=num_jobs)
-    #
-    # manager = Manager()
-    # metrics = manager.dict()
-    #
-    # jobs = []
-    # for i in range(num_jobs):
-    #   job = Process(
-    #       target=measure_spike_metrics_from_file,
-    #       args=(metrics, filename, indexes[i]))
-    #   jobs.append(job)
-    #   job.start()
-    # for job in jobs:
-    #   job.join()
     length = h5_helper.dataset_length(filename, 'real_signals')
 
     manager = Manager()
     metrics = manager.dict()
 
     num_processors = min(length, hparams.num_processors)
-    # the number of segments each job processes
-    size_per_job = min(length // num_processors, 100)
+    size_per_job = min(length // num_processors, 50)
     num_jobs = ceil(length / size_per_job)
 
     if hparams.verbose:
