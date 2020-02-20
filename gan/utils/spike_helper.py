@@ -101,9 +101,14 @@ def measure_spike_metrics(metrics,
   utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
 
 
-def measure_spike_metrics_from_file(metrics, filename, index=(0, None)):
+def measure_spike_metrics_from_file(metrics,
+                                    filename,
+                                    index=(0, None),
+                                    job_id=0):
   """ measure spike metrics of content within (start, end) range in filename 
   and write results to metrics """
+  print('Job {}: measure spike metrics for {}'.format(job_id, index))
+
   with h5_helper.open_h5(filename, mode='r') as file:
     real_signals = file['real_signals'][index[0]:index[1]]
     fake_signals = file['fake_signals'][index[0]:index[1]]
@@ -126,23 +131,36 @@ def record_spike_metrics(hparams, epoch, summary):
   filename = utils.get_signal_filename(hparams, epoch)
 
   if hparams.num_processors > 1:
+    # length = h5_helper.dataset_length(filename, 'real_signals')
+    #
+    # num_jobs = min(length, hparams.num_processors)
+    # indexes = utils.split_index(length, n=num_jobs)
+    #
+    # manager = Manager()
+    # metrics = manager.dict()
+    #
+    # jobs = []
+    # for i in range(num_jobs):
+    #   job = Process(
+    #       target=measure_spike_metrics_from_file,
+    #       args=(metrics, filename, indexes[i]))
+    #   jobs.append(job)
+    #   job.start()
+    # for job in jobs:
+    #   job.join()
     length = h5_helper.dataset_length(filename, 'real_signals')
-
-    num_jobs = min(length, hparams.num_processors)
-    indexes = utils.split_index(length, n=num_jobs)
 
     manager = Manager()
     metrics = manager.dict()
 
-    jobs = []
-    for i in range(num_jobs):
-      job = Process(
-          target=measure_spike_metrics_from_file,
-          args=(metrics, filename, indexes[i]))
-      jobs.append(job)
-      job.start()
-    for job in jobs:
-      job.join()
+    num_processors = min(length, hparams.num_processors)
+    num_segment = min(10, num_processors)
+    indexes = utils.split_index(length, n=num_segment)
+    args = [(metrics, filename, indexes[i], i) for i in range(num_segment)]
+
+    pool = Pool(processes=num_processors)
+    pool.starmap(measure_spike_metrics_from_file, args)
+    pool.close()
   else:
     metrics = {}
     measure_spike_metrics_from_file(metrics, filename)
