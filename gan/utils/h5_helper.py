@@ -39,3 +39,12 @@ def dataset_length(filename, name):
     dataset = file[name]
     length = dataset.len()
   return length
+
+
+def overwrite_dataset(file, name, value):
+  ''' overwrite dataset with value '''
+  if name not in file.keys():
+    raise KeyError('{} cannot be found'.format(name))
+  del file[name]
+  file.create_dataset(
+      name, shape=value.shape, dtype=value.dtype, data=value, chunks=True)

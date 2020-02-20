@@ -1,6 +1,6 @@
 import numpy as np
-from math import ceil
 from time import time
+from tqdm import tqdm
 import tensorflow as tf
 import quantities as pq
 from neo.core import SpikeTrain
@@ -40,9 +40,7 @@ def deconvolve_signals(signals, num_processors=1):
   else:
     spikes = np.array(_deconvolve_signals(signals))
 
-  spikes = np.reshape(spikes, newshape=shape)
-
-  return spikes
+  return np.reshape(spikes, newshape=shape)
 
 
 def deconvolve_saved_signals(hparams, filename):
@@ -114,8 +112,7 @@ def measure_spike_metrics(metrics,
 
   real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
   fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
-  firing_rate_error = np.abs(
-      np.mean(real_firing_rate) - np.mean(fake_firing_rate))
+  firing_rate_error = np.mean(np.square(real_firing_rate - fake_firing_rate))
   utils.add_to_dict(metrics, 'spike_metrics/firing_rate_error',
                     firing_rate_error)
 
@@ -129,13 +126,12 @@ def measure_spike_metrics(metrics,
   # utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance', vr_distance)
 
 
-def measure_spike_metrics_from_file(metrics, filename, index=(0, None)):
-  """ measure spike metrics of content within (start, end) range in filename 
-  and write results to metrics """
+def measure_spike_metrics_from_file(metrics, filename, neuron):
+  """ measure spike metrics for neuron in file and write results to metrics """
   with h5_helper.open_h5(filename, mode='r') as file:
-    real_signals = file['real_signals'][index[0]:index[1]]
-    fake_signals = file['fake_signals'][index[0]:index[1]]
-    real_spikes = file['real_spikes'][index[0]:index[1]]
+    real_signals = file['real_signals'][neuron]
+    fake_signals = file['fake_signals'][neuron]
+    real_spikes = file['real_spikes'][neuron]
 
   measure_spike_metrics(
       metrics,
@@ -143,6 +139,20 @@ def measure_spike_metrics_from_file(metrics, filename, index=(0, None)):
       fake_signals=fake_signals,
       real_spikes=real_spikes,
       fake_spikes=None)
+
+
+def rearrange_saved_signals(hparams, filename):
+  ''' rearrange signals to (neurons, samples, segments) '''
+  if hparams.verbose:
+    print('\tRearrange saved signals')
+  shape = (hparams.validation_size, hparams.num_neurons)
+  with h5_helper.open_h5(filename, mode='r+') as file:
+    for key in file.keys():
+      value = file[key][:]
+      # check if value has shape (samples, neurons)
+      if value.shape[:2] == shape:
+        value = np.swapaxes(value, axis1=0, axis2=1)
+        h5_helper.overwrite_dataset(file, key, value)
 
 
 def record_spike_metrics(hparams, epoch, summary):
@@ -153,29 +163,24 @@ def record_spike_metrics(hparams, epoch, summary):
 
   filename = utils.get_signal_filename(hparams, epoch)
 
-  if hparams.num_processors > 1:
-    length = h5_helper.dataset_length(filename, 'real_signals')
+  rearrange_saved_signals(hparams, filename)
 
+  if hparams.num_processors > 1:
     manager = Manager()
     metrics = manager.dict()
 
-    num_processors = min(length, hparams.num_processors)
-    size_per_job = min(length // num_processors, 50)
-    num_jobs = ceil(length / size_per_job)
-
-    if hparams.verbose:
-      print('\tCreating {} jobs with {} segments per job'.format(
-          num_jobs, size_per_job))
-
-    indexes = utils.split_index(length, n=num_jobs)
-    args = [(metrics, filename, indexes[i]) for i in range(num_jobs)]
-
-    pool = Pool(processes=num_processors)
-    pool.starmap(measure_spike_metrics_from_file, args)
+    pool = Pool(processes=hparams.num_processors)
+    pool.starmap(
+        measure_spike_metrics_from_file,
+        [(metrics, filename, neuron) for neuron in range(hparams.num_neurons)])
     pool.close()
   else:
     metrics = {}
-    measure_spike_metrics_from_file(metrics, filename, (0, 5))
+    for neuron in tqdm(
+        range(hparams.num_neurons),
+        desc='\tNeuron',
+        disable=not bool(hparams.verbose)):
+      measure_spike_metrics_from_file(metrics, filename, neuron)
 
   end = time()
 
