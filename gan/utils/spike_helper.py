@@ -65,6 +65,7 @@ def deconvolve_saved_signals(hparams, filename):
 
 
 def numpy_to_neo_trains(array):
+  ''' convert numpy array to Neo SpikeTrain in sec scale '''
   if type(array) == list and type(array[0]) == SpikeTrain:
     return array
   shape = array.shape
@@ -72,9 +73,30 @@ def numpy_to_neo_trains(array):
     array = np.reshape(array, newshape=(shape[0] * shape[1], shape[2]))
 
   return [
-      SpikeTrain(np.nonzero(array[i])[0], units=pq.ms, t_stop=shape[-1])
+      SpikeTrain(
+          np.nonzero(array[i])[0] * pq.ms, units=pq.s, t_stop=shape[-1] * pq.ms)
       for i in range(len(array))
   ]
+
+
+def count_occurrence(array):
+  unique, count = np.unique(array, return_counts=True)
+  return dict(zip(unique, count))
+
+
+import matplotlib.pyplot as plt
+
+
+def firing_rate_histogram(real_firing_rate, fake_firing_rate):
+  occurrence1 = count_occurrence(real_firing_rate)
+  occurrence2 = count_occurrence(fake_firing_rate)
+
+  plt.bar(
+      list(occurrence1.keys()), occurrence1.values(), label='real', alpha=0.5)
+  plt.bar(
+      list(occurrence2.keys()), occurrence2.values(), label='fake', alpha=0.5)
+  plt.legend(loc='upper right')
+  plt.show()
 
 
 def measure_spike_metrics(metrics,
@@ -90,19 +112,21 @@ def measure_spike_metrics(metrics,
     fake_spikes = deconvolve_signals(fake_signals)
   fake_spikes = numpy_to_neo_trains(fake_spikes)
 
-  firing_rate_error = spike_metrics.mean_firing_rate_error(
-      real_spikes, fake_spikes)
+  real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
+  fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
+  firing_rate_error = np.abs(
+      np.mean(real_firing_rate) - np.mean(fake_firing_rate))
   utils.add_to_dict(metrics, 'spike_metrics/firing_rate_error',
                     firing_rate_error)
 
-  corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
-  utils.add_to_dict(metrics, 'spike_metrics/cross_coefficient', corrcoef)
-
-  covariance = spike_metrics.covariance(real_spikes, fake_spikes)
-  utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
-
-  vr_distance = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
-  utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance', vr_distance)
+  # corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
+  # utils.add_to_dict(metrics, 'spike_metrics/cross_coefficient', corrcoef)
+  #
+  # covariance = spike_metrics.covariance(real_spikes, fake_spikes)
+  # utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
+  #
+  # vr_distance = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
+  # utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance', vr_distance)
 
 
 def measure_spike_metrics_from_file(metrics, filename, index=(0, None)):
@@ -151,13 +175,14 @@ def record_spike_metrics(hparams, epoch, summary):
     pool.close()
   else:
     metrics = {}
-    measure_spike_metrics_from_file(metrics, filename)
+    measure_spike_metrics_from_file(metrics, filename, (0, 5))
 
   end = time()
 
   summary.scalar('elapse/spike_metrics', end - start, training=False)
 
   for tag, value in metrics.items():
-    if hparams.verbose:
-      print('\t{}: {:.04f}'.format(tag, np.mean(value)))
-    summary.scalar(tag, np.mean(value), training=False)
+    if tag.startswith('spike_metrics'):
+      if hparams.verbose:
+        print('\t{}: {:.04f}'.format(tag, np.mean(value)))
+      summary.scalar(tag, np.mean(value), training=False)

@@ -4,3 +4,5 @@ sklearn
 scipy==1.4.1
 cython==0.29.14
 cvxpy==1.0.25
+jupyterlab
+jupyter_http_over_ws
