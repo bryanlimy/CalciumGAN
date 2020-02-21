@@ -108,24 +108,19 @@ def compute_spike_metrics(metrics,
   #                   van_rossum_distance)
 
 
-def neuron_spike_metrics(metrics, filename, neuron, verbose=1):
+def neuron_spike_metrics(metrics, filename, neuron):
   """ measure spike metrics for neuron in file and write results to metrics """
   with h5_helper.open_h5(filename, mode='r') as file:
     real_signals = file['real_signals'][neuron]
     fake_signals = file['fake_signals'][neuron]
     real_spikes = file['real_spikes'][neuron]
 
-  start = time()
   compute_spike_metrics(
       metrics,
       real_signals=real_signals,
       fake_signals=fake_signals,
       real_spikes=real_spikes,
       fake_spikes=None)
-  end = time()
-  if verbose:
-    print('\tMeasured neuron {} spike metrics in {:.02f}s'.format(
-        neuron, end - start))
 
 
 def record_spike_metrics(hparams, epoch, summary):
@@ -141,14 +136,14 @@ def record_spike_metrics(hparams, epoch, summary):
     manager = Manager()
     metrics = manager.dict()
     pool = Pool(processes=hparams.num_processors)
-    pool.starmap(neuron_spike_metrics,
-                 [(metrics, filename, neuron, hparams.verbose)
-                  for neuron in range(hparams.num_neurons)])
+    pool.starmap(
+        neuron_spike_metrics,
+        [(metrics, filename, neuron) for neuron in range(hparams.num_neurons)])
     pool.close()
   else:
     metrics = {}
     for neuron in range(hparams.num_neurons):
-      neuron_spike_metrics(metrics, filename, neuron, hparams.verbose)
+      neuron_spike_metrics(metrics, filename, neuron)
 
   end = time()
 

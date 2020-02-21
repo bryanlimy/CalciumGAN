@@ -37,21 +37,21 @@ def store_hparams(hparams):
 
 def get_signal_filename(hparams, epoch):
   """ return the filename of the signal h5 file given epoch """
-  return os.path.join(hparams.output_dir, 'generated'
+  return os.path.join(hparams.output_dir, 'generated',
                       'epoch{:03d}_signals.h5'.format(epoch))
 
 
 def save_signals(hparams, epoch, real_signals, real_spikes, fake_signals):
-  filename = get_signal_filename(hparams, epoch)
-
-  if not os.path.exists(os.path.dirname(filename)):
-    os.makedirs(os.path.dirname(filename))
-
   if hparams.normalize:
     real_signals = denormalize(
         real_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
     fake_signals = denormalize(
         fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
+
+  filename = get_signal_filename(hparams, epoch)
+
+  if not os.path.exists(os.path.dirname(filename)):
+    os.makedirs(os.path.dirname(filename))
 
   with h5_helper.open_h5(filename, mode='a') as file:
     h5_helper.create_or_append_h5(file, 'real_spikes', real_spikes)
