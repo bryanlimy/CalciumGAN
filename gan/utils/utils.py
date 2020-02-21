@@ -1,8 +1,8 @@
 import os
 import json
 import pickle
-from glob import glob
 import numpy as np
+from glob import glob
 import tensorflow as tf
 
 from . import h5_helper
@@ -37,12 +37,15 @@ def store_hparams(hparams):
 
 def get_signal_filename(hparams, epoch):
   """ return the filename of the signal h5 file given epoch """
-  return os.path.join(hparams.output_dir,
+  return os.path.join(hparams.output_dir, 'generated'
                       'epoch{:03d}_signals.h5'.format(epoch))
 
 
 def save_signals(hparams, epoch, real_signals, real_spikes, fake_signals):
   filename = get_signal_filename(hparams, epoch)
+
+  if not os.path.exists(os.path.dirname(filename)):
+    os.makedirs(os.path.dirname(filename))
 
   if hparams.normalize:
     real_signals = denormalize(
@@ -76,11 +79,11 @@ def save_models(hparams, gan, epoch):
     }, file)
 
   if hparams.verbose:
-    print('Saved model checkpoint to {}\n'.format(filename))
+    print('Saved checkpoint to {}\n'.format(filename))
 
 
 def load_models(hparams, generator, discriminator):
-  ckpts = glob(os.path.join(hparams.output_dir, 'epoch-*'))
+  ckpts = glob(os.path.join(hparams.output_dir, 'checkpoints', 'epoch-*'))
   if ckpts:
     ckpts.sort()
     filename = ckpts[-1]
@@ -88,9 +91,8 @@ def load_models(hparams, generator, discriminator):
       ckpt = pickle.load(file)
     generator.set_weights(ckpt['generator_weights'])
     discriminator.set_weights(ckpt['discriminator_weights'])
-
     if hparams.verbose:
-      print('restore checkpoint {}'.format(filename))
+      print('Restored checkpoint at {}'.format(filename))
 
 
 def add_to_dict(dictionary, tag, value):

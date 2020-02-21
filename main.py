@@ -112,7 +112,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
                                 epoch == hparams.epochs - 1):
     spike_helper.record_spike_metrics(hparams, epoch, summary)
 
-  if not hparams.keep_generated:
+  if hparams.delete_generated:
     utils.delete_saved_signals(hparams, epoch)
 
   return gen_loss, dis_loss
@@ -147,8 +147,8 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
                                             val_gen_loss, val_dis_loss,
                                             (end - start) / 60))
 
-    if hparams.save_checkpoints and (epoch % 10 == 0 or
-                                     epoch == hparams.epochs - 1):
+    if not hparams.skip_checkpoints and (epoch % 10 == 0 or
+                                         epoch == hparams.epochs - 1):
       utils.save_models(hparams, gan, epoch)
 
 
@@ -235,9 +235,9 @@ if __name__ == '__main__':
       action='store_true',
       help='delete output directory if exists')
   parser.add_argument(
-      '--keep_generated',
+      '--delete_generated',
       action='store_true',
-      help='keep generated calcium signals and spike trains')
+      help='delete generated signals and spike trains')
   parser.add_argument(
       '--num_processors',
       default=8,
@@ -257,9 +257,7 @@ if __name__ == '__main__':
       action='store_true',
       help='flag to plot weights and activations in TensorBoard')
   parser.add_argument(
-      '--save_checkpoints',
-      action='store_true',
-      help='flag to save model checkpoints')
+      '--skip_checkpoints', action='store_true', help='skip saving checkpoints')
   parser.add_argument(
       '--mixed_precision', action='store_true', help='use mixed precision')
   parser.add_argument('--verbose', default=1, type=int)

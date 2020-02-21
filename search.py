@@ -35,12 +35,12 @@ class HParams(object):
     self.algorithm = algorithm
     self.n_critic = n_critic
     self.clear_output_dir = False
-    self.keep_generated = args.keep_generated
+    self.delete_generated = False
     self.num_processors = args.num_processors
     self.spike_metrics = args.skip_spike_metrics
-    self.spike_metrics_freq = 20
+    self.spike_metrics_freq = 10
     self.plot_weights = False
-    self.save_checkpoints = False
+    self.skip_checkpoints = False
     self.mixed_precision = args.mixed_precision
     self.verbose = args.verbose
     self.global_step = 0
@@ -152,16 +152,12 @@ if __name__ == '__main__':
   parser.add_argument('--batch_size', default=64, type=int)
   parser.add_argument('--epochs', default=100, type=int)
   parser.add_argument(
-      '--keep_generated',
-      action='store_true',
-      help='keep generated calcium signals and spike trains')
-  parser.add_argument(
       '--clear_output_dir',
       action='store_true',
       help='delete output directory if exists')
   parser.add_argument(
       '--num_processors',
-      default=6,
+      default=8,
       type=int,
       help='number of processing cores to use for metrics calculation')
   parser.add_argument(
