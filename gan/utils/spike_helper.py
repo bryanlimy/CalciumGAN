@@ -12,12 +12,13 @@ from . import h5_helper
 from . import spike_metrics
 
 
-def _deconvolve_signals(signals):
-  spikes = np.zeros(signals.shape)
+def deconvolve(signals, threshold=0.5):
+  if signals.dtype != np.double:
+    signals = signals.astype(np.double)
+  spikes = np.zeros(signals.shape, dtype=np.float32)
   for i in range(len(signals)):
     _, spikes[i] = oasisAR1(signals[i], g=0.95, s_min=.55)
-  spikes = np.where(spikes > 0.5, 1.0, 0.0)
-  return spikes
+  return np.where(spikes > threshold, 1.0, 0.0)
 
 
 def deconvolve_signals(signals, num_processors=1):
@@ -28,17 +29,14 @@ def deconvolve_signals(signals, num_processors=1):
   if len(shape) > 2:
     signals = np.reshape(signals, newshape=(shape[0] * shape[1], shape[2]))
 
-  signals = signals.astype('double')
-
   if num_processors > 2:
     num_jobs = min(len(signals), num_processors)
-    subsets = utils.split(signals, n=num_jobs)
     pool = Pool(processes=num_jobs)
-    spikes = pool.map(_deconvolve_signals, subsets)
+    spikes = pool.map(deconvolve, utils.split(signals, n=num_jobs))
     pool.close()
     spikes = np.concatenate(spikes, axis=0)
   else:
-    spikes = np.array(_deconvolve_signals(signals))
+    spikes = np.array(deconvolve(signals), dtype=np.float32)
 
   return np.reshape(spikes, newshape=shape)
 
@@ -66,15 +64,13 @@ def numpy_to_neo_trains(array):
   ''' convert numpy array to Neo SpikeTrain in sec scale '''
   if type(array) == list and type(array[0]) == SpikeTrain:
     return array
-  shape = array.shape
-  if len(shape) > 2:
-    array = np.reshape(array, newshape=(shape[0] * shape[1], shape[2]))
-
+  assert array.ndim == 2
+  t_stop = array.shape[-1] * pq.ms
   return [
       SpikeTrain(
           np.nonzero(array[i])[0] * pq.ms,
           units=pq.s,
-          t_stop=shape[-1] * pq.ms,
+          t_stop=t_stop,
           dtype=np.float32) for i in range(len(array))
   ]
 
@@ -108,16 +104,16 @@ def measure_spike_metrics(metrics,
   utils.add_to_dict(metrics, 'spike_metrics/firing_rate_error',
                     firing_rate_error)
 
-  # corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
-  # utils.add_to_dict(metrics, 'spike_metrics/cross_coefficient', corrcoef)
+  corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
+  utils.add_to_dict(metrics, 'spike_metrics/cross_coefficient', corrcoef)
 
-  # covariance = spike_metrics.covariance(real_spikes, fake_spikes)
-  # utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
+  covariance = spike_metrics.covariance(real_spikes, fake_spikes)
+  utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
 
-  van_rossum_distance = spike_metrics.van_rossum_distance(
-      real_spikes, fake_spikes)
-  utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance',
-                    van_rossum_distance)
+  # van_rossum_distance = spike_metrics.van_rossum_distance(
+  #     real_spikes, fake_spikes)
+  # utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance',
+  #                   van_rossum_distance)
 
 
 def measure_spike_metrics_from_file(metrics, filename, neuron):
@@ -156,13 +152,11 @@ def record_spike_metrics(hparams, epoch, summary):
   start = time()
 
   filename = utils.get_signal_filename(hparams, epoch)
-
   rearrange_saved_signals(hparams, filename)
 
   if hparams.num_processors > 1:
     manager = Manager()
     metrics = manager.dict()
-
     pool = Pool(processes=hparams.num_processors)
     pool.starmap(
         measure_spike_metrics_from_file,
