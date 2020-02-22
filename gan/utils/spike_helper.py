@@ -118,7 +118,6 @@ def record_spike_metrics(hparams, epoch, summary):
     metrics = manager.dict()
 
   # populate metrics dictionary
-  hparams.num_neurons = 10
   metrics['spike_metrics/firing_rate_error'] = [None] * hparams.num_neurons
   metrics['histogram/firing_rate'] = [None] * hparams.num_neurons
   # metrics['spike_metrics/cross_coefficient'] = [None] * hparams.num_neurons
@@ -146,7 +145,7 @@ def record_spike_metrics(hparams, epoch, summary):
     if key.startswith('spike_metrics'):
       result = np.mean(value)
       if hparams.verbose:
-        print('\t{}: {:.04f}'.format(key, np.mean(result)))
+        print('\t{}: {:.04f}'.format(key, result))
       summary.scalar(key, result, training=False)
     elif key.startswith('histogram'):
       for i, data in enumerate(value):
