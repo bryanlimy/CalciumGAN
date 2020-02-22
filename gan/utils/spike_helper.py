@@ -72,12 +72,13 @@ def count_occurrence(array):
   return dict(zip(unique, count))
 
 
-def firing_rate_histogram(real_firing_rate, fake_firing_rate):
-  occurrence1 = count_occurrence(real_firing_rate)
-  occurrence2 = count_occurrence(fake_firing_rate)
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 
 def compute_spike_metrics(metrics,
+                          neuron,
                           real_signals,
                           fake_signals,
                           real_spikes=None,
@@ -93,19 +94,20 @@ def compute_spike_metrics(metrics,
   real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
   fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
   firing_rate_error = np.mean(np.square(real_firing_rate - fake_firing_rate))
-  utils.add_to_dict(metrics, 'spike_metrics/firing_rate_error',
-                    firing_rate_error)
+  metrics['spike_metrics/firing_rate_error'][neuron] = firing_rate_error
+
+  metrics['firing_rate'] = (real_firing_rate, fake_firing_rate)
 
   corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
-  utils.add_to_dict(metrics, 'spike_metrics/cross_coefficient', corrcoef)
+  metrics['spike_metrics/cross_coefficient'][neuron] = corrcoef
 
   covariance = spike_metrics.covariance(real_spikes, fake_spikes)
-  utils.add_to_dict(metrics, 'spike_metrics/covariance', covariance)
+  metrics['spike_metrics/covariance'][neuron] = covariance
 
+  # compares to first 1000 samples to save time
   van_rossum_distance = spike_metrics.van_rossum_distance(
       real_spikes[:1000], fake_spikes[:1000])
-  utils.add_to_dict(metrics, 'spike_metrics/van_rossum_distance',
-                    van_rossum_distance)
+  metrics['spike_metrics/van_rossum_distance'][neuron] = van_rossum_distance
 
 
 def neuron_spike_metrics(metrics, filename, neuron):
@@ -132,16 +134,22 @@ def record_spike_metrics(hparams, epoch, summary):
   filename = utils.get_signal_filename(hparams, epoch)
   rearrange_saved_signals(hparams, filename)
 
+  manager = Manager()
+  metrics = manager.dict() if hparams.num_processors > 1 else dict()
+
+  metrics['spike_metrics/firing_rate_error'] = [None] * hparams.num_neurons
+  metrics['spike_metrics/cross_coefficient'] = [None] * hparams.num_neurons
+  metrics['spike_metrics/covariance'] = [None] * hparams.num_neurons
+  metrics['spike_metrics/van_rossum_distance'] = [None] * hparams.num_neurons
+  metrics['firing_rate'] = [None] * hparams.num_neurons
+
   if hparams.num_processors > 1:
-    manager = Manager()
-    metrics = manager.dict()
     pool = Pool(processes=hparams.num_processors)
     pool.starmap(
         neuron_spike_metrics,
         [(metrics, filename, neuron) for neuron in range(hparams.num_neurons)])
     pool.close()
   else:
-    metrics = {}
     for neuron in range(hparams.num_neurons):
       neuron_spike_metrics(metrics, filename, neuron)
 
@@ -155,3 +163,11 @@ def record_spike_metrics(hparams, epoch, summary):
       if hparams.verbose:
         print('\t{}: {:.04f}'.format(key, np.mean(result)))
       summary.scalar(key, result, training=False)
+    elif key == 'firing_rates':
+      for i, firing_rates in enumerate(value):
+        summary.plot_histogram(
+            'firing_rate/neuron_{}'.format(i),
+            firing_rates,
+            xlabel='Hz',
+            ylabel='Count',
+            training=False)

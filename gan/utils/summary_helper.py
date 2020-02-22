@@ -6,6 +6,7 @@ import tensorflow as tf
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+plt.style.use('seaborn-deep')
 
 from . import spike_helper
 
@@ -44,8 +45,7 @@ class Summary(object):
     buf = io.BytesIO()
     plt.savefig(buf, dpi=100, format='png')
     buf.seek(0)
-    image = tf.image.decode_png(buf.getvalue(), channels=4)
-    return image
+    return tf.image.decode_png(buf.getvalue(), channels=4)
 
   def _simple_axis(self, axis):
     """plot only x and y axis, not a frame for subplot ax"""
@@ -113,6 +113,26 @@ class Summary(object):
       image = self._plot_trace(signals[i], spikes[i])
       images.append(image)
     images = tf.stack(images)
+    self.image(tag, values=images, step=step, training=training)
+
+  def plot_histogram(self,
+                     tag,
+                     data,
+                     label,
+                     xlabel=None,
+                     ylabel=None,
+                     step=None,
+                     training=False):
+    if type(data) is list or type(data) is tuple:
+      for x, l in zip(data, label):
+        plt.hist(x, label=l, alpha=0.8)
+    else:
+      plt.hist(data, label=label)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legent(loc='upper right')
+    image = self._plot_to_image()
+    images = np.array([image])
     self.image(tag, values=images, step=step, training=training)
 
   def graph(self):
