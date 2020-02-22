@@ -5,11 +5,11 @@ import quantities as pq
 
 def mean_firing_rate(spikes):
   ''' get mean firing rate of spikes in Hz'''
-  return np.array([
+  result = [
       elephant.statistics.mean_firing_rate(spikes[i])
       for i in range(len(spikes))
-  ],
-                  dtype=np.float32)
+  ]
+  return np.array(result, dtype=np.float32)
 
 
 def van_rossum_distance(spikes1, spikes2):

@@ -24,6 +24,9 @@ class Summary(object):
         os.path.join(hparams.output_dir, 'validation'))
     tf.summary.trace_on(graph=True, profiler=False)
     self._policy = policy
+    # color for matplotlib
+    self._real_color = 'dodgerblue'
+    self._fake_color = 'orangered'
 
   def _get_writer(self, training):
     return self.train_writer if training else self.val_writer
@@ -58,13 +61,18 @@ class Summary(object):
     plt.figure(figsize=(20, 4))
     # plot signal
     plt.subplot(211)
-    plt.plot(signal, label='signal', zorder=-12, c='r')
+    plt.plot(signal, label='signal', zorder=-12, color=self._real_color)
     plt.legend(ncol=3, frameon=False, loc=(.02, .85))
     self._simple_axis(plt.gca())
     plt.tight_layout()
     # plot spike train
     plt.subplot(212)
-    plt.bar(np.arange(len(spike)), spike, width=0.3, label='spike', color='b')
+    plt.bar(
+        range(len(spike)),
+        spike,
+        width=0.6,
+        label='spike',
+        color=self._fake_color)
     plt.ylim(0, 1.3)
     plt.legend(ncol=3, frameon=False, loc=(.02, .85))
     self._simple_axis(plt.gca())
@@ -112,28 +120,25 @@ class Summary(object):
     for i in range(min(20, signals.shape[0])):
       image = self._plot_trace(signals[i], spikes[i])
       images.append(image)
-    images = tf.stack(images)
-    self.image(tag, values=images, step=step, training=training)
+    self.image(tag, values=tf.stack(images), step=step, training=training)
 
   def plot_histogram(self,
                      tag,
                      data,
-                     label,
                      xlabel=None,
                      ylabel=None,
                      step=None,
                      training=False):
-    if type(data) is list or type(data) is tuple:
-      for x, l in zip(data, label):
-        plt.hist(x, label=l, alpha=0.8)
-    else:
-      plt.hist(data, label=label)
+    plt.hist(
+        data,
+        label=['real', 'fake'],
+        color=[self._real_color, self._fake_color],
+        alpha=0.8)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.legent(loc='upper right')
-    image = self._plot_to_image()
-    images = np.array([image])
-    self.image(tag, values=images, step=step, training=training)
+    plt.legend(loc='upper right')
+    images = [self._plot_to_image()]
+    self.image(tag, values=tf.stack(images), step=step, training=training)
 
   def graph(self):
     writer = self._get_writer(training=True)

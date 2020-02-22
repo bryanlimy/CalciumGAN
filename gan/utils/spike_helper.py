@@ -1,5 +1,6 @@
 import numpy as np
 from time import time
+from tqdm import tqdm
 import tensorflow as tf
 import quantities as pq
 from neo.core import SpikeTrain
@@ -67,28 +68,15 @@ def numpy_to_neo_trains(array):
   ]
 
 
-def count_occurrence(array):
-  unique, count = np.unique(array, return_counts=True)
-  return dict(zip(unique, count))
+def neuron_spike_metrics(filename, neuron, metrics):
+  """ measure spike metrics for neuron in file and write results to metrics """
+  with h5_helper.open_h5(filename, mode='r') as file:
+    fake_signals = file['fake_signals'][neuron]
+    real_spikes = file['real_spikes'][neuron]
 
-
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
-
-
-def compute_spike_metrics(metrics,
-                          neuron,
-                          real_signals,
-                          fake_signals,
-                          real_spikes=None,
-                          fake_spikes=None):
-  if real_spikes is None:
-    real_spikes = deconvolve_signals(real_signals)
   real_spikes = numpy_to_neo_trains(real_spikes)
 
-  if fake_spikes is None:
-    fake_spikes = deconvolve_signals(fake_signals)
+  fake_spikes = deconvolve_signals(fake_signals)
   fake_spikes = numpy_to_neo_trains(fake_spikes)
 
   real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
@@ -96,33 +84,19 @@ def compute_spike_metrics(metrics,
   firing_rate_error = np.mean(np.square(real_firing_rate - fake_firing_rate))
   metrics['spike_metrics/firing_rate_error'][neuron] = firing_rate_error
 
-  metrics['firing_rate'] = (real_firing_rate, fake_firing_rate)
+  metrics['histogram/firing_rate'][neuron] = (real_firing_rate,
+                                              fake_firing_rate)
 
-  corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
-  metrics['spike_metrics/cross_coefficient'][neuron] = corrcoef
-
-  covariance = spike_metrics.covariance(real_spikes, fake_spikes)
-  metrics['spike_metrics/covariance'][neuron] = covariance
-
-  # compares to first 1000 samples to save time
-  van_rossum_distance = spike_metrics.van_rossum_distance(
-      real_spikes[:1000], fake_spikes[:1000])
-  metrics['spike_metrics/van_rossum_distance'][neuron] = van_rossum_distance
-
-
-def neuron_spike_metrics(metrics, filename, neuron):
-  """ measure spike metrics for neuron in file and write results to metrics """
-  with h5_helper.open_h5(filename, mode='r') as file:
-    real_signals = file['real_signals'][neuron]
-    fake_signals = file['fake_signals'][neuron]
-    real_spikes = file['real_spikes'][neuron]
-
-  compute_spike_metrics(
-      metrics,
-      real_signals=real_signals,
-      fake_signals=fake_signals,
-      real_spikes=real_spikes,
-      fake_spikes=None)
+  # corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
+  # metrics['spike_metrics/cross_coefficient'][neuron] = corrcoef
+  #
+  # covariance = spike_metrics.covariance(real_spikes, fake_spikes)
+  # metrics['spike_metrics/covariance'][neuron] = covariance
+  #
+  # # compares to first 1000 samples to save time
+  # van_rossum_distance = spike_metrics.van_rossum_distance(
+  #     real_spikes[:1000], fake_spikes[:1000])
+  # metrics['spike_metrics/van_rossum_distance'][neuron] = van_rossum_distance
 
 
 def record_spike_metrics(hparams, epoch, summary):
@@ -134,40 +108,46 @@ def record_spike_metrics(hparams, epoch, summary):
   filename = utils.get_signal_filename(hparams, epoch)
   rearrange_saved_signals(hparams, filename)
 
-  manager = Manager()
-  metrics = manager.dict() if hparams.num_processors > 1 else dict()
+  metrics = dict()
+  if hparams.num_processors > 1:
+    manager = Manager()
+    metrics = manager.dict()
 
+  # populate metrics dictionary
   metrics['spike_metrics/firing_rate_error'] = [None] * hparams.num_neurons
   metrics['spike_metrics/cross_coefficient'] = [None] * hparams.num_neurons
   metrics['spike_metrics/covariance'] = [None] * hparams.num_neurons
   metrics['spike_metrics/van_rossum_distance'] = [None] * hparams.num_neurons
-  metrics['firing_rate'] = [None] * hparams.num_neurons
+  metrics['histogram/firing_rate'] = [None] * hparams.num_neurons
 
   if hparams.num_processors > 1:
     pool = Pool(processes=hparams.num_processors)
     pool.starmap(
         neuron_spike_metrics,
-        [(metrics, filename, neuron) for neuron in range(hparams.num_neurons)])
+        [(filename, neuron, metrics) for neuron in range(hparams.num_neurons)])
     pool.close()
   else:
-    for neuron in range(hparams.num_neurons):
-      neuron_spike_metrics(metrics, filename, neuron)
+    for neuron in tqdm(
+        range(hparams.num_neurons),
+        desc='\tNeuron',
+        disable=not bool(hparams.verbose)):
+      neuron_spike_metrics(filename, neuron, metrics)
 
   end = time()
 
   summary.scalar('elapse/spike_metrics', end - start, training=False)
 
   for key, value in metrics.items():
-    result = np.mean(value)
     if key.startswith('spike_metrics'):
+      result = np.mean(value)
       if hparams.verbose:
         print('\t{}: {:.04f}'.format(key, np.mean(result)))
       summary.scalar(key, result, training=False)
-    elif key == 'firing_rates':
-      for i, firing_rates in enumerate(value):
+    elif key.startswith('histogram'):
+      for i, data in enumerate(value):
         summary.plot_histogram(
-            'firing_rate/neuron_{}'.format(i),
-            firing_rates,
+            '{}/neuron_{}'.format(key[key.find('/') + 1:], i),
+            data,
             xlabel='Hz',
             ylabel='Count',
             training=False)
