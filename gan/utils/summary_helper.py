@@ -131,12 +131,13 @@ class Summary(object):
                      training=False):
     plt.hist(
         data,
+        bins=20,
         label=['real', 'fake'],
         color=[self._real_color, self._fake_color],
         alpha=0.8)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.legend(loc='upper right')
+    plt.legend()
     images = [self._plot_to_image()]
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
@@ -201,4 +202,4 @@ class Summary(object):
     if gan is not None and self._hparams.plot_weights:
       self.plot_weights(gan, training=training)
     if not training and self._policy is not None:
-      self.scalar('loss_scale', self._get_loss_scale(), training=training)
+      self.scalar('model/loss_scale', self._get_loss_scale(), training=training)

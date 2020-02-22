@@ -79,24 +79,28 @@ def neuron_spike_metrics(filename, neuron, metrics):
   fake_spikes = deconvolve_signals(fake_signals)
   fake_spikes = numpy_to_neo_trains(fake_spikes)
 
-  real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
-  fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
-  firing_rate_error = np.mean(np.square(real_firing_rate - fake_firing_rate))
-  metrics['spike_metrics/firing_rate_error'][neuron] = firing_rate_error
+  if 'spike_metrics/firing_rate_error' in metrics:
+    real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
+    fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
+    firing_rate_error = np.mean(np.square(real_firing_rate - fake_firing_rate))
+    metrics['spike_metrics/firing_rate_error'][neuron] = firing_rate_error
 
-  metrics['histogram/firing_rate'][neuron] = (real_firing_rate,
-                                              fake_firing_rate)
+    if 'histogram/firing_rate' in metrics:
+      metrics['histogram/firing_rate'][neuron] = (real_firing_rate,
+                                                  fake_firing_rate)
+  if 'spike_metrics/cross_coefficient' in metrics:
+    corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
+    metrics['spike_metrics/cross_coefficient'][neuron] = corrcoef
 
-  # corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
-  # metrics['spike_metrics/cross_coefficient'][neuron] = corrcoef
-  #
-  # covariance = spike_metrics.covariance(real_spikes, fake_spikes)
-  # metrics['spike_metrics/covariance'][neuron] = covariance
-  #
-  # # compares to first 1000 samples to save time
-  # van_rossum_distance = spike_metrics.van_rossum_distance(
-  #     real_spikes[:1000], fake_spikes[:1000])
-  # metrics['spike_metrics/van_rossum_distance'][neuron] = van_rossum_distance
+  if 'spike_metrics/covariance' in metrics:
+    covariance = spike_metrics.covariance(real_spikes, fake_spikes)
+    metrics['spike_metrics/covariance'][neuron] = covariance
+
+  if 'spike_metrics/van_rossum_distance' in metrics:
+    # compares to first 1000 samples to save time
+    van_rossum_distance = spike_metrics.van_rossum_distance(
+        real_spikes[:1000], fake_spikes[:1000])
+    metrics['spike_metrics/van_rossum_distance'][neuron] = van_rossum_distance
 
 
 def record_spike_metrics(hparams, epoch, summary):
@@ -114,11 +118,12 @@ def record_spike_metrics(hparams, epoch, summary):
     metrics = manager.dict()
 
   # populate metrics dictionary
+  hparams.num_neurons = 10
   metrics['spike_metrics/firing_rate_error'] = [None] * hparams.num_neurons
-  metrics['spike_metrics/cross_coefficient'] = [None] * hparams.num_neurons
-  metrics['spike_metrics/covariance'] = [None] * hparams.num_neurons
-  metrics['spike_metrics/van_rossum_distance'] = [None] * hparams.num_neurons
   metrics['histogram/firing_rate'] = [None] * hparams.num_neurons
+  # metrics['spike_metrics/cross_coefficient'] = [None] * hparams.num_neurons
+  # metrics['spike_metrics/covariance'] = [None] * hparams.num_neurons
+  # metrics['spike_metrics/van_rossum_distance'] = [None] * hparams.num_neurons
 
   if hparams.num_processors > 1:
     pool = Pool(processes=hparams.num_processors)
@@ -149,5 +154,5 @@ def record_spike_metrics(hparams, epoch, summary):
             '{}/neuron_{}'.format(key[key.find('/') + 1:], i),
             data,
             xlabel='Hz',
-            ylabel='Count',
+            ylabel='Amount',
             training=False)
