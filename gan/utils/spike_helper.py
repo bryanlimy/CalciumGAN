@@ -103,6 +103,22 @@ def neuron_spike_metrics(filename, neuron, metrics):
     metrics['spike_metrics/van_rossum_distance'][neuron] = van_rossum_distance
 
 
+def populate_metrics_dict(num_processors, num_neurons):
+  ''' create thread-safe dictionary to store metrics '''
+  keys = [
+      'spike_metrics/firing_rate_error', 'histogram/firing_rate',
+      'spike_metrics/cross_coefficient', 'spike_metrics/covariance',
+      'spike_metrics/van_rossum_distance'
+  ]
+  if num_processors == 1:
+    metrics = {key: [None] * num_neurons for key in keys}
+  else:
+    manager = Manager()
+    metrics = manager.dict(
+        {key: manager.list([None] * num_neurons) for key in keys})
+  return metrics
+
+
 def record_spike_metrics(hparams, epoch, summary):
   if hparams.verbose:
     print('Measuring spike metrics...')
@@ -112,17 +128,7 @@ def record_spike_metrics(hparams, epoch, summary):
   filename = utils.get_signal_filename(hparams, epoch)
   rearrange_saved_signals(hparams, filename)
 
-  metrics = dict()
-  if hparams.num_processors > 1:
-    manager = Manager()
-    metrics = manager.dict()
-
-  # populate metrics dictionary
-  metrics['spike_metrics/firing_rate_error'] = [None] * hparams.num_neurons
-  metrics['histogram/firing_rate'] = [None] * hparams.num_neurons
-  # metrics['spike_metrics/cross_coefficient'] = [None] * hparams.num_neurons
-  # metrics['spike_metrics/covariance'] = [None] * hparams.num_neurons
-  # metrics['spike_metrics/van_rossum_distance'] = [None] * hparams.num_neurons
+  metrics = populate_metrics_dict(hparams.num_processors, hparams.num_neurons)
 
   if hparams.num_processors > 1:
     pool = Pool(processes=hparams.num_processors)

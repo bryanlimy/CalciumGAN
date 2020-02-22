@@ -70,7 +70,7 @@ class Summary(object):
     plt.bar(
         range(len(spike)),
         spike,
-        width=0.6,
+        width=0.4,
         label='spike',
         color=self._fake_color)
     plt.ylim(0, 1.3)
@@ -138,8 +138,9 @@ class Summary(object):
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.legend()
-    images = [self._plot_to_image()]
-    self.image(tag, values=tf.stack(images), step=step, training=training)
+    image = self._plot_to_image()
+    plt.close()
+    self.image(tag, values=tf.stack([image]), step=step, training=training)
 
   def graph(self):
     writer = self._get_writer(training=True)
