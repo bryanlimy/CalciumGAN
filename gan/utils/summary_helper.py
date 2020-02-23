@@ -70,7 +70,7 @@ class Summary(object):
     plt.bar(
         range(len(spike)),
         spike,
-        width=0.4,
+        width=0.6,
         label='spike',
         color=self._fake_color)
     plt.ylim(0, 1.3)
