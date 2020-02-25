@@ -78,9 +78,10 @@ def rearrange_saved_signals(hparams, filename):
 def neuron_spike_metrics(hparams, epoch, neuron, metrics):
   """ measure spike metrics for neuron in file and write results to metrics """
   # get real neuron data
-  with open(utils.get_fake_filename(hparams, neuron), 'rb') as file:
-    data = pickle.load(file)
-  real_spikes = data['real_spikes']
+  real_filename = utils.get_real_neuron_filename(hparams, neuron)
+  with open(real_filename, 'rb') as file:
+    real_data = pickle.load(file)
+  real_spikes = real_data['real_spikes']
   assert type(real_spikes) == list and type(real_spikes[0]) == SpikeTrain
 
   # get fake neuron data
@@ -92,7 +93,15 @@ def neuron_spike_metrics(hparams, epoch, neuron, metrics):
   assert len(real_spikes) == len(fake_spikes)
 
   if 'spike_metrics/firing_rate_error' in metrics:
-    real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
+    if 'firing_rate' in real_data:
+      real_firing_rate = real_data['firing_rate']
+    else:
+      real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
+      # cache firing rate data for neuron
+      real_data['firing_rate'] = real_firing_rate
+      with open(real_filename, 'wb') as file:
+        pickle.dump(real_data, file)
+
     fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
     firing_rate_error = np.mean(np.square(real_firing_rate - fake_firing_rate))
     metrics['spike_metrics/firing_rate_error'][neuron] = firing_rate_error
