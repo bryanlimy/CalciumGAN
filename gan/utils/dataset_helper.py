@@ -3,10 +3,53 @@ import pickle
 import numpy as np
 from math import ceil
 import tensorflow as tf
+from multiprocessing import Pool
 
 from . import utils
+from .spike_helper import numpy_to_neo_trains
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
+
+
+def preprocess_and_cache_neuron(hparams, neuron, signals, spikes):
+  filename = utils.get_real_neuron_filename(hparams, neuron)
+
+  if hparams.normalize:
+    signals = utils.denormalize(
+        signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
+
+  neo_trains = numpy_to_neo_trains(spikes)
+  with open(filename, 'wb') as file:
+    pickle.dump({'real_signals': signals, 'real_spikes': neo_trains}, file)
+
+
+def cache_validation_set(hparams, validation_ds):
+  ''' Cache validation set as pickles for faster spike metrics evaluation '''
+  if hparams.verbose:
+    print('Cache validation dataset to {}'.format(hparams.validation_dir))
+
+  if not os.path.exists(hparams.validation_dir):
+    os.makedirs(hparams.validation_dir)
+
+  real_signals, real_spikes = [], []
+  for signals, spikes in validation_ds:
+    real_signals.append(signals.numpy())
+    real_spikes.append(spikes.numpy())
+
+  real_signals = np.concatenate(real_signals, axis=0)
+  real_signals = utils.swap_neuron_major(hparams, real_signals)
+
+  real_spikes = np.concatenate(real_spikes, axis=0)
+  real_spikes = utils.swap_neuron_major(hparams, real_spikes)
+
+  pool = Pool(processes=hparams.num_processors)
+  pool.starmap(preprocess_and_cache_neuron, [(
+      hparams,
+      neuron,
+      real_signals[neuron],
+      real_spikes[neuron],
+  ) for neuron in range(len(real_spikes))])
+  pool.close()
 
 
 def get_fashion_mnist(hparams):
@@ -51,6 +94,14 @@ def get_dataset_info(hparams):
 
   hparams.signals_min = float(info['signals_min'])
   hparams.signals_max = float(info['signals_max'])
+
+  if hparams.spike_metrics:
+    hparams.generated_dir = os.path.join(hparams.output_dir, 'generated')
+    if not os.path.exists(hparams.generated_dir):
+      os.makedirs(hparams.generated_dir)
+
+    # directory to store preprocessed validation data
+    hparams.validation_dir = os.path.join(hparams.generated_dir, 'validation')
 
 
 def get_calcium_signals(hparams):
@@ -98,6 +149,9 @@ def get_dataset(hparams, summary):
   else:
     train_ds, validation_ds = get_calcium_signals(hparams)
     hparams.num_neurons = hparams.signal_shape[0]
+
+    if hparams.spike_metrics:
+      cache_validation_set(hparams, validation_ds)
 
     # plot signals and spikes from validation set
     sample_signals, sample_spikes = next(iter(validation_ds))

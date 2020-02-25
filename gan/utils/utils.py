@@ -21,7 +21,7 @@ def split(sequence, n):
 
 
 def normalize(x, x_min, x_max):
-  # scale x to be between 0 and 1
+  ''' scale x to be between 0 and 1 '''
   return (x - x_min) / (x_max - x_min)
 
 
@@ -35,32 +35,37 @@ def store_hparams(hparams):
     json.dump(hparams.__dict__, file)
 
 
-def get_signal_filename(hparams, epoch):
+def swap_neuron_major(hparams, array):
+  shape = (hparams.validation_size, hparams.num_neurons)
+  return np.swapaxes(
+      array, axis1=0, axis2=1) if array.shape[:2] == shape else array
+
+
+def get_fake_filename(hparams, epoch):
   """ return the filename of the signal h5 file given epoch """
-  return os.path.join(hparams.output_dir, 'generated',
+  return os.path.join(hparams.generated_dir,
                       'epoch{:03d}_signals.h5'.format(epoch))
 
 
-def save_signals(hparams, epoch, real_signals, real_spikes, fake_signals):
+def get_real_neuron_filename(hparams, neuron):
+  """ return the filename of the pickle for a specific neuron """
+  return os.path.join(hparams.validation_dir,
+                      'neuron_{:03d}.pkl'.format(neuron))
+
+
+def save_fake_signals(hparams, epoch, fake_signals):
   if hparams.normalize:
-    real_signals = denormalize(
-        real_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
     fake_signals = denormalize(
         fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-  filename = get_signal_filename(hparams, epoch)
-
-  if not os.path.exists(os.path.dirname(filename)):
-    os.makedirs(os.path.dirname(filename))
+  filename = get_fake_filename(hparams, epoch)
 
   with h5_helper.open_h5(filename, mode='a') as file:
-    h5_helper.create_or_append_h5(file, 'real_spikes', real_spikes)
-    h5_helper.create_or_append_h5(file, 'real_signals', real_signals)
     h5_helper.create_or_append_h5(file, 'fake_signals', fake_signals)
 
 
 def delete_saved_signals(hparams, epoch):
-  filename = get_signal_filename(hparams, epoch)
+  filename = get_fake_filename(hparams, epoch)
   if os.path.exists(filename):
     os.remove(filename)
 
