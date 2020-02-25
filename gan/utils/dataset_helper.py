@@ -6,7 +6,7 @@ import tensorflow as tf
 from multiprocessing import Pool
 
 from . import utils
-from .spike_helper import numpy_to_neo_trains
+from . import spike_helper
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
@@ -18,7 +18,7 @@ def preprocess_and_cache_neuron(hparams, neuron, signals, spikes):
     signals = utils.denormalize(
         signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-  neo_trains = numpy_to_neo_trains(spikes)
+  neo_trains = spike_helper.trains_to_neo(spikes)
   with open(filename, 'wb') as file:
     pickle.dump({'real_signals': signals, 'real_spikes': neo_trains}, file)
 
