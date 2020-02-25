@@ -1,6 +1,7 @@
 import os
 import io
 import numpy as np
+import seaborn as sns
 import tensorflow as tf
 
 import matplotlib
@@ -46,7 +47,7 @@ class Summary(object):
     returns it. The supplied figure is closed and inaccessible after this call.
     """
     buf = io.BytesIO()
-    plt.savefig(buf, dpi=100, format='png')
+    plt.savefig(buf, dpi=80, format='png')
     buf.seek(0)
     return tf.image.decode_png(buf.getvalue(), channels=4)
 
@@ -138,6 +139,19 @@ class Summary(object):
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.legend()
+    image = self._plot_to_image()
+    plt.close()
+    self.image(tag, values=tf.stack([image]), step=step, training=training)
+
+  def plot_heatmap(self,
+                   tag,
+                   matrix,
+                   xlabel='',
+                   ylabel='',
+                   step=None,
+                   training=False):
+    f, ax = plt.subplots(figsize=(8, 8))
+    sns.heatmap(matrix, linewidth=0, ax=ax).set(xlabel=xlabel, ylabel=ylabel)
     image = self._plot_to_image()
     plt.close()
     self.image(tag, values=tf.stack([image]), step=step, training=training)

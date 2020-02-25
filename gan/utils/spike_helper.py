@@ -111,25 +111,34 @@ def neuron_spike_metrics(hparams, epoch, neuron, metrics):
                                                   fake_firing_rate)
   if 'spike_metrics/cross_coefficient' in metrics:
     corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
-    metrics['spike_metrics/cross_coefficient'][neuron] = corrcoef
+    metrics['spike_metrics/cross_coefficient'][neuron] = np.mean(corrcoef)
 
   if 'spike_metrics/covariance' in metrics:
     covariance = spike_metrics.covariance(real_spikes, fake_spikes)
-    metrics['spike_metrics/covariance'][neuron] = covariance
+    metrics['spike_metrics/covariance'][neuron] = np.mean(covariance)
 
   if 'spike_metrics/van_rossum_distance' in metrics:
     # compares to first 1000 samples to save time
-    van_rossum_distance = spike_metrics.van_rossum_distance(
-        real_spikes[:1000], fake_spikes[:1000])
-    metrics['spike_metrics/van_rossum_distance'][neuron] = van_rossum_distance
+    distance = spike_metrics.van_rossum_distance(real_spikes[:1000],
+                                                 fake_spikes[:1000])
+    metrics['spike_metrics/van_rossum_distance'][neuron] = np.mean(distance)
+
+    if 'histogram/van_rossum_distance' in metrics:
+      metrics['histogram/van_rossum_distance'][neuron] = (distance, [])
+
+    if 'heatmap/van_rossum_distance' in metrics:
+      metrics['heatmap/van_rossum_distance'][neuron] = distance
 
 
 def populate_metrics_dict(num_processors, num_neurons):
   ''' create thread-safe dictionary to store metrics '''
   keys = [
-      'spike_metrics/firing_rate_error', 'histogram/firing_rate',
-      'spike_metrics/cross_coefficient', 'spike_metrics/covariance',
-      'spike_metrics/van_rossum_distance'
+      'spike_metrics/firing_rate_error',
+      'histogram/firing_rate',
+      'spike_metrics/covariance',
+      'spike_metrics/van_rossum_distance',
+      'histogram/van_rossum_distance',
+      'heatmap/van_rossum_distance',
   ]
   if num_processors == 1:
     metrics = {key: [None] * num_neurons for key in keys}
@@ -169,6 +178,7 @@ def record_spike_metrics(hparams, epoch, summary):
   summary.scalar('elapse/spike_metrics', end - start, training=False)
 
   for key, value in metrics.items():
+    tag = key[key.find('/') + 1:]
     if key.startswith('spike_metrics'):
       result = np.mean(value)
       if hparams.verbose:
@@ -177,8 +187,12 @@ def record_spike_metrics(hparams, epoch, summary):
     elif key.startswith('histogram'):
       for i, data in enumerate(value):
         summary.plot_histogram(
-            '{}/neuron_{}'.format(key[key.find('/') + 1:], i),
+            '{}_histogram/neuron_{}'.format(tag, i),
             data,
-            xlabel='Hz',
+            xlabel='Hz' if tag == 'firing_rate' else 'distance',
             ylabel='Amount',
             training=False)
+    elif key.startswith('heatmap'):
+      for i, data in enumerate(value):
+        summary.plot_heatmap(
+            '{}_heatmap/neuron_{}'.format(tag, i), data, training=False)
