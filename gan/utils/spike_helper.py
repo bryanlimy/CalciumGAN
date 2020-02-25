@@ -13,65 +13,54 @@ from . import h5_helper
 from . import spike_metrics
 
 
-def oasis_function(signals, threshold=0.5):
-  if signals.dtype != np.double:
-    signals = signals.astype(np.double)
-  spikes = np.zeros(signals.shape, dtype=np.float32)
-  for i in range(len(signals)):
-    _, spikes[i] = oasisAR1(signals[i], g=0.95, s_min=.55)
-  return np.where(spikes > threshold, 1.0, 0.0)
+def train_to_neo(train, t_stop=None):
+  ''' convert a single spike train to Neo SpikeTrain in sec scale '''
+  return SpikeTrain(
+      np.nonzero(train)[0] * pq.ms,
+      units=pq.s,
+      t_stop=train.shape[-1] * pq.ms if t_stop is None else t_stop,
+      dtype=np.float32)
 
 
-def deconvolve_signals(signals, num_processors=1):
+def trains_to_neo(trains):
+  ''' convert array of spike trains to list of  Neo SpikeTrains in sec scale '''
+  assert trains.ndim == 2
+  t_stop = trains.shape[-1] * pq.ms
+  return [train_to_neo(trains[i], t_stop=t_stop) for i in range(len(trains))]
+
+
+def oasis_function(signal, threshold=0.5):
+  ''' apply OASIS function to a single calcium signal and binarize spike train 
+  with threshold '''
+  if signal.dtype != np.double:
+    signal = signal.astype(np.double)
+  _, train = oasisAR1(signal, g=0.95, s_min=.55)
+  return np.where(train > threshold, 1.0, 0.0)
+
+
+def deconvolve_signals(signals, threshold=0.5, to_neo=False):
+  ''' apply OASIS function to array of signals and convert to Neo SpikeTrain 
+  if to_neo is True'''
   if tf.is_tensor(signals):
     signals = signals.numpy()
 
-  shape = signals.shape
-  if len(shape) > 2:
-    signals = np.reshape(signals, newshape=(shape[0] * shape[1], shape[2]))
-
-  if num_processors > 2:
-    num_jobs = min(len(signals), num_processors)
-    pool = Pool(processes=num_jobs)
-    spikes = pool.map(oasis_function, utils.split(signals, n=num_jobs))
-    pool.close()
-    spikes = np.concatenate(spikes, axis=0)
-  else:
-    spikes = np.array(oasis_function(signals), dtype=np.float32)
-
-  return np.reshape(spikes, newshape=shape)
-
-
-def numpy_to_neo_trains(array):
-  ''' convert numpy array to Neo SpikeTrain in sec scale '''
-  if type(array) == list and type(array[0]) == SpikeTrain:
-    return array
-  assert array.ndim == 2
-  t_stop = array.shape[-1] * pq.ms
-  return [
-      SpikeTrain(
-          np.nonzero(array[i])[0] * pq.ms,
-          units=pq.s,
-          t_stop=t_stop,
-          dtype=np.float32) for i in range(len(array))
-  ]
-
-
-def deconvolve_and_neo(signals, threshold=0.5):
   assert signals.ndim == 2
+
   if signals.dtype != np.double:
     signals = signals.astype(np.double)
-  spikes = []
+
+  spike_trains = []
+  t_stop = signals.shape[-1] * pq.ms
+
   for i in range(len(signals)):
-    _, spike = oasisAR1(signals[i], g=0.95, s_min=.55)
-    spike = np.where(spike > threshold, 1.0, 0.0)
-    spike = SpikeTrain(
-        np.nonzero(spike)[0] * pq.ms,
-        units=pq.s,
-        t_stop=spike.shape[-1] * pq.ms,
-        dtype=np.float32)
-    spikes.append(spike)
-  return spikes
+    spike_train = oasis_function(signals[i], threshold=threshold)
+    spike_trains.append(
+        train_to_neo(spike_train, t_stop=t_stop) if to_neo else spike_train)
+
+  if not to_neo:
+    spike_trains = np.array(spike_trains, dtype=np.float32)
+
+  return spike_trains
 
 
 def rearrange_saved_signals(hparams, filename):
@@ -82,7 +71,7 @@ def rearrange_saved_signals(hparams, filename):
       value = file[key][:]
       # check if value has shape (samples, neurons)
       if value.shape[:2] == shape:
-        value = np.swapaxes(value, axis1=0, axis2=1)
+        value = utils.swap_neuron_major(hparams, value)
         h5_helper.overwrite_dataset(file, key, value)
 
 
@@ -98,7 +87,7 @@ def neuron_spike_metrics(hparams, epoch, neuron, metrics):
   fake_filename = utils.get_fake_filename(hparams, epoch)
   with h5_helper.open_h5(fake_filename, mode='r') as file:
     fake_signals = file['fake_signals'][neuron]
-  fake_spikes = deconvolve_and_neo(fake_signals)
+  fake_spikes = deconvolve_signals(fake_signals, to_neo=True)
 
   assert len(real_spikes) == len(fake_spikes)
 
@@ -155,7 +144,6 @@ def record_spike_metrics(hparams, epoch, summary):
 
   if hparams.num_processors > 1:
     pool = Pool(processes=hparams.num_processors)
-
     pool.starmap(
         neuron_spike_metrics,
         [(hparams, epoch, n, metrics) for n in range(hparams.num_neurons)])

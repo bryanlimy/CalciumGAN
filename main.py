@@ -87,12 +87,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
     if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
                                   epoch == hparams.epochs - 1):
-      utils.save_signals(
-          hparams,
-          epoch,
-          real_signals=signal.numpy(),
-          real_spikes=spike.numpy(),
-          fake_signals=fake.numpy())
+      utils.save_fake_signals(hparams, epoch, fake_signals=fake.numpy())
 
   end = time()
 
