@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 from time import time
 from tqdm import tqdm
@@ -41,18 +42,6 @@ def deconvolve_signals(signals, num_processors=1):
   return np.reshape(spikes, newshape=shape)
 
 
-def rearrange_saved_signals(hparams, filename):
-  ''' rearrange signals to (neurons, samples, segments) '''
-  shape = (hparams.validation_size, hparams.num_neurons)
-  with h5_helper.open_h5(filename, mode='r+') as file:
-    for key in file.keys():
-      value = file[key][:]
-      # check if value has shape (samples, neurons)
-      if value.shape[:2] == shape:
-        value = np.swapaxes(value, axis1=0, axis2=1)
-        h5_helper.overwrite_dataset(file, key, value)
-
-
 def numpy_to_neo_trains(array):
   ''' convert numpy array to Neo SpikeTrain in sec scale '''
   if type(array) == list and type(array[0]) == SpikeTrain:
@@ -68,16 +57,50 @@ def numpy_to_neo_trains(array):
   ]
 
 
-def neuron_spike_metrics(filename, neuron, metrics):
+def deconvolve_and_neo(signals, threshold=0.5):
+  assert signals.ndim == 2
+  if signals.dtype != np.double:
+    signals = signals.astype(np.double)
+  spikes = []
+  for i in range(len(signals)):
+    _, spike = oasisAR1(signals[i], g=0.95, s_min=.55)
+    spike = np.where(spike > threshold, 1.0, 0.0)
+    spike = SpikeTrain(
+        np.nonzero(spike)[0] * pq.ms,
+        units=pq.s,
+        t_stop=spike.shape[-1] * pq.ms,
+        dtype=np.float32)
+    spikes.append(spike)
+  return spikes
+
+
+def rearrange_saved_signals(hparams, filename):
+  ''' rearrange signals to (neurons, samples, segments) '''
+  shape = (hparams.validation_size, hparams.num_neurons)
+  with h5_helper.open_h5(filename, mode='r+') as file:
+    for key in file.keys():
+      value = file[key][:]
+      # check if value has shape (samples, neurons)
+      if value.shape[:2] == shape:
+        value = np.swapaxes(value, axis1=0, axis2=1)
+        h5_helper.overwrite_dataset(file, key, value)
+
+
+def neuron_spike_metrics(hparams, epoch, neuron, metrics):
   """ measure spike metrics for neuron in file and write results to metrics """
-  with h5_helper.open_h5(filename, mode='r') as file:
+  # get real neuron data
+  with open(utils.get_fake_filename(hparams, neuron), 'rb') as file:
+    data = pickle.load(file)
+  real_spikes = data['real_spikes']
+  assert type(real_spikes) == list and type(real_spikes[0]) == SpikeTrain
+
+  # get fake neuron data
+  fake_filename = utils.get_fake_filename(hparams, epoch)
+  with h5_helper.open_h5(fake_filename, mode='r') as file:
     fake_signals = file['fake_signals'][neuron]
-    real_spikes = file['real_spikes'][neuron]
+  fake_spikes = deconvolve_and_neo(fake_signals)
 
-  real_spikes = numpy_to_neo_trains(real_spikes)
-
-  fake_spikes = deconvolve_signals(fake_signals)
-  fake_spikes = numpy_to_neo_trains(fake_spikes)
+  assert len(real_spikes) == len(fake_spikes)
 
   if 'spike_metrics/firing_rate_error' in metrics:
     real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
@@ -125,23 +148,24 @@ def record_spike_metrics(hparams, epoch, summary):
 
   start = time()
 
-  filename = utils.get_signal_filename(hparams, epoch)
-  rearrange_saved_signals(hparams, filename)
+  fake_filename = utils.get_fake_filename(hparams, epoch)
+  rearrange_saved_signals(hparams, fake_filename)
 
   metrics = populate_metrics_dict(hparams.num_processors, hparams.num_neurons)
 
   if hparams.num_processors > 1:
     pool = Pool(processes=hparams.num_processors)
+
     pool.starmap(
         neuron_spike_metrics,
-        [(filename, neuron, metrics) for neuron in range(hparams.num_neurons)])
+        [(hparams, epoch, n, metrics) for n in range(hparams.num_neurons)])
     pool.close()
   else:
-    for neuron in tqdm(
+    for n in tqdm(
         range(hparams.num_neurons),
         desc='\tNeuron',
         disable=not bool(hparams.verbose)):
-      neuron_spike_metrics(filename, neuron, metrics)
+      neuron_spike_metrics(hparams, epoch, n, metrics)
 
   end = time()
 
