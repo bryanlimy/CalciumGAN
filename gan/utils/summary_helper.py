@@ -1,13 +1,13 @@
 import os
 import io
 import numpy as np
-import seaborn as sns
 import tensorflow as tf
 
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 plt.style.use('seaborn-deep')
+import seaborn as sns
 
 from . import spike_helper
 
