@@ -6,8 +6,10 @@ import tensorflow as tf
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+plt.style.use('seaborn-deep')
+import seaborn as sns
 
-from .oasis_helper import deconvolve_signals
+from . import spike_helper
 
 
 class Summary(object):
@@ -23,6 +25,9 @@ class Summary(object):
         os.path.join(hparams.output_dir, 'validation'))
     tf.summary.trace_on(graph=True, profiler=False)
     self._policy = policy
+    # color for matplotlib
+    self._real_color = 'dodgerblue'
+    self._fake_color = 'orangered'
 
   def _get_writer(self, training):
     return self.train_writer if training else self.val_writer
@@ -42,10 +47,9 @@ class Summary(object):
     returns it. The supplied figure is closed and inaccessible after this call.
     """
     buf = io.BytesIO()
-    plt.savefig(buf, dpi=100, format='png')
+    plt.savefig(buf, dpi=80, format='png')
     buf.seek(0)
-    image = tf.image.decode_png(buf.getvalue(), channels=4)
-    return image
+    return tf.image.decode_png(buf.getvalue(), channels=4)
 
   def _simple_axis(self, axis):
     """plot only x and y axis, not a frame for subplot ax"""
@@ -58,13 +62,18 @@ class Summary(object):
     plt.figure(figsize=(20, 4))
     # plot signal
     plt.subplot(211)
-    plt.plot(signal, label='signal', zorder=-12, c='r')
+    plt.plot(signal, label='signal', zorder=-12, color=self._real_color)
     plt.legend(ncol=3, frameon=False, loc=(.02, .85))
     self._simple_axis(plt.gca())
     plt.tight_layout()
     # plot spike train
     plt.subplot(212)
-    plt.bar(np.arange(len(spike)), spike, width=0.3, label='spike', color='b')
+    plt.bar(
+        range(len(spike)),
+        spike,
+        width=0.6,
+        label='spike',
+        color=self._fake_color)
     plt.ylim(0, 1.3)
     plt.legend(ncol=3, frameon=False, loc=(.02, .85))
     self._simple_axis(plt.gca())
@@ -101,7 +110,7 @@ class Summary(object):
 
     # deconvolve signals if spikes aren't provided
     if spikes is None:
-      spikes = deconvolve_signals(signals)
+      spikes = spike_helper.deconvolve_signals(signals)
 
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
@@ -112,8 +121,40 @@ class Summary(object):
     for i in range(min(20, signals.shape[0])):
       image = self._plot_trace(signals[i], spikes[i])
       images.append(image)
-    images = tf.stack(images)
-    self.image(tag, values=images, step=step, training=training)
+    self.image(tag, values=tf.stack(images), step=step, training=training)
+
+  def plot_histogram(self,
+                     tag,
+                     data,
+                     xlabel=None,
+                     ylabel=None,
+                     step=None,
+                     training=False):
+    plt.hist(
+        data,
+        bins=20,
+        label=['real', 'fake'],
+        color=[self._real_color, self._fake_color],
+        alpha=0.8)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend()
+    image = self._plot_to_image()
+    plt.close()
+    self.image(tag, values=tf.stack([image]), step=step, training=training)
+
+  def plot_heatmap(self,
+                   tag,
+                   matrix,
+                   xlabel='',
+                   ylabel='',
+                   step=None,
+                   training=False):
+    f, ax = plt.subplots(figsize=(8, 8))
+    sns.heatmap(matrix, linewidth=0, ax=ax).set(xlabel=xlabel, ylabel=ylabel)
+    image = self._plot_to_image()
+    plt.close()
+    self.image(tag, values=tf.stack([image]), step=step, training=training)
 
   def graph(self):
     writer = self._get_writer(training=True)
@@ -176,4 +217,4 @@ class Summary(object):
     if gan is not None and self._hparams.plot_weights:
       self.plot_weights(gan, training=training)
     if not training and self._policy is not None:
-      self.scalar('loss_scale', self._get_loss_scale(), training=training)
+      self.scalar('model/loss_scale', self._get_loss_scale(), training=training)

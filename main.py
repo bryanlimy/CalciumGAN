@@ -1,4 +1,5 @@
 import os
+import warnings
 import argparse
 import numpy as np
 from time import time
@@ -11,10 +12,7 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
-from gan.utils import utils
+from gan.utils import utils, spike_helper
 from gan.models.registry import get_models
 from gan.utils.summary_helper import Summary
 from gan.utils.dataset_helper import get_dataset
@@ -39,8 +37,8 @@ def train(hparams, train_ds, gan, summary, epoch):
 
   for signal, spike in tqdm(
       train_ds,
-      desc='Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs),
-      total=hparams.steps_per_epoch,
+      desc='Train',
+      total=hparams.train_steps,
       disable=not bool(hparams.verbose)):
 
     gen_loss, dis_loss, gradient_penalty, metrics = gan.train(signal)
@@ -71,7 +69,11 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
   start = time()
 
-  for signal, spike in validation_ds:
+  for signal, spike in tqdm(
+      validation_ds,
+      desc='Validate',
+      total=hparams.validation_steps,
+      disable=not bool(hparams.verbose)):
     fake, gen_loss, dis_loss, gradient_penalty, metrics = gan.validate(signal)
 
     gen_losses.append(gen_loss)
@@ -83,13 +85,9 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    if hparams.spike_metrics:
-      utils.save_signals(
-          hparams,
-          epoch,
-          real_signals=signal.numpy(),
-          real_spikes=spike.numpy(),
-          fake_signals=fake.numpy())
+    if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
+                                  epoch == hparams.epochs - 1):
+      utils.save_fake_signals(hparams, epoch, fake_signals=fake.numpy())
 
   end = time()
 
@@ -107,10 +105,10 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
   if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
                                 epoch == hparams.epochs - 1):
-    utils.measure_spike_metrics(hparams, epoch, summary)
+    spike_helper.record_spike_metrics(hparams, epoch, summary)
 
-  if not hparams.keep_generated:
-    utils.delete_generated_file(hparams, epoch)
+  if hparams.delete_generated:
+    utils.delete_saved_signals(hparams, epoch)
 
   return gen_loss, dis_loss
 
@@ -121,6 +119,9 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 
   for epoch in range(hparams.epochs):
     start = time()
+
+    if hparams.verbose:
+      print('Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs))
 
     train_gen_loss, train_dis_loss = train(
         hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
@@ -141,8 +142,8 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
                                             val_gen_loss, val_dis_loss,
                                             (end - start) / 60))
 
-    if hparams.save_checkpoints and (epoch % 10 == 0 or
-                                     epoch == hparams.epochs - 1):
+    if not hparams.skip_checkpoints and (epoch % 10 == 0 or
+                                         epoch == hparams.epochs - 1):
       utils.save_models(hparams, gan, epoch)
 
 
@@ -197,6 +198,7 @@ def main(hparams, return_metrics=False):
       summary=summary)
 
   end = time()
+
   summary.scalar('elapse/total', end - start)
 
   if return_metrics:
@@ -228,9 +230,9 @@ if __name__ == '__main__':
       action='store_true',
       help='delete output directory if exists')
   parser.add_argument(
-      '--keep_generated',
+      '--delete_generated',
       action='store_true',
-      help='keep generated calcium signals and spike trains')
+      help='delete generated signals and spike trains')
   parser.add_argument(
       '--num_processors',
       default=8,
@@ -250,14 +252,18 @@ if __name__ == '__main__':
       action='store_true',
       help='flag to plot weights and activations in TensorBoard')
   parser.add_argument(
-      '--save_checkpoints',
-      action='store_true',
-      help='flag to save model checkpoints')
+      '--skip_checkpoints', action='store_true', help='skip saving checkpoints')
   parser.add_argument(
       '--mixed_precision', action='store_true', help='use mixed precision')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 
   hparams.global_step = 0
+
+  # disabble warnings except verbose == 2
+  if hparams.verbose != 2:
+    warnings.simplefilter(action='ignore', category=FutureWarning)
+    warnings.simplefilter(action='ignore', category=UserWarning)
+    warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
   main(hparams)

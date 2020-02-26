@@ -104,8 +104,14 @@ venv.bak/
 .mypy_cache/
 
 *.DS_Store
-.idea
+
+*.pkl
+*.h5
+*.record
+.idea/
 runs
 tfrecords
-*.pkl
 oasis/
+elephant/
+
+

@@ -32,3 +32,19 @@ def create_or_append_h5(file, name, value):
         data=value,
         chunks=True,
         maxshape=(None, value.shape[1], value.shape[2]))
+
+
+def dataset_length(filename, name):
+  with open_h5(filename, 'r') as file:
+    dataset = file[name]
+    length = dataset.len()
+  return length
+
+
+def overwrite_dataset(file, name, value):
+  ''' overwrite dataset with value '''
+  if name not in file.keys():
+    raise KeyError('{} cannot be found'.format(name))
+  del file[name]
+  file.create_dataset(
+      name, shape=value.shape, dtype=value.dtype, data=value, chunks=True)

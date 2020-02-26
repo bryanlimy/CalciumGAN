@@ -2,27 +2,26 @@ import os
 import json
 import pickle
 import numpy as np
-from time import time
 from glob import glob
 import tensorflow as tf
-from shutil import rmtree
-from multiprocessing import Pool
 
-from .oasis_helper import deconvolve_signals
-from .h5_helpers import open_h5, create_or_append_h5
-from .spike_metrics import mean_spike_count_error, van_rossum_distance
+from . import h5_helper
+
+
+def split_index(length, n):
+  """ return a list of (start, end) that divide length into n chunks """
+  k, m = divmod(length, n)
+  return [(i * k + min(i, m), (i + 1) * k + min(i + 1, m)) for i in range(n)]
 
 
 def split(sequence, n):
-  """ divide sequence into n sub-sequence evenly"""
-  k, m = divmod(len(sequence), n)
-  return [
-      sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
-  ]
+  """ divide sequence into n sub-sequences evenly"""
+  indexes = split_index(len(sequence), n)
+  return [sequence[indexes[i][0]:indexes[i][1]] for i in range(len(indexes))]
 
 
 def normalize(x, x_min, x_max):
-  # scale x to be between 0 and 1
+  ''' scale x to be between 0 and 1 '''
   return (x - x_min) / (x_max - x_min)
 
 
@@ -36,25 +35,39 @@ def store_hparams(hparams):
     json.dump(hparams.__dict__, file)
 
 
-def get_signal_filename(hparams, epoch):
+def swap_neuron_major(hparams, array):
+  shape = (hparams.validation_size, hparams.num_neurons)
+  return np.swapaxes(
+      array, axis1=0, axis2=1) if array.shape[:2] == shape else array
+
+
+def get_fake_filename(hparams, epoch):
   """ return the filename of the signal h5 file given epoch """
-  return os.path.join(hparams.output_dir,
+  return os.path.join(hparams.generated_dir,
                       'epoch{:03d}_signals.h5'.format(epoch))
 
 
-def save_signals(hparams, epoch, real_signals, real_spikes, fake_signals):
-  filename = get_signal_filename(hparams, epoch)
+def get_real_neuron_filename(hparams, neuron):
+  """ return the filename of the pickle for a specific neuron """
+  return os.path.join(hparams.validation_dir,
+                      'neuron_{:03d}.pkl'.format(neuron))
 
+
+def save_fake_signals(hparams, epoch, fake_signals):
   if hparams.normalize:
-    real_signals = denormalize(
-        real_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
     fake_signals = denormalize(
         fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-  with open_h5(filename, mode='a') as file:
-    create_or_append_h5(file, 'real_spikes', real_spikes)
-    create_or_append_h5(file, 'real_signals', real_signals)
-    create_or_append_h5(file, 'fake_signals', fake_signals)
+  filename = get_fake_filename(hparams, epoch)
+
+  with h5_helper.open_h5(filename, mode='a') as file:
+    h5_helper.create_or_append_h5(file, 'fake_signals', fake_signals)
+
+
+def delete_saved_signals(hparams, epoch):
+  filename = get_fake_filename(hparams, epoch)
+  if os.path.exists(filename):
+    os.remove(filename)
 
 
 def save_models(hparams, gan, epoch):
@@ -71,11 +84,11 @@ def save_models(hparams, gan, epoch):
     }, file)
 
   if hparams.verbose:
-    print('Saved model checkpoint to {}\n'.format(filename))
+    print('Saved checkpoint to {}\n'.format(filename))
 
 
 def load_models(hparams, generator, discriminator):
-  ckpts = glob(os.path.join(hparams.output_dir, 'epoch-*'))
+  ckpts = glob(os.path.join(hparams.output_dir, 'checkpoints', 'epoch-*'))
   if ckpts:
     ckpts.sort()
     filename = ckpts[-1]
@@ -83,82 +96,18 @@ def load_models(hparams, generator, discriminator):
       ckpt = pickle.load(file)
     generator.set_weights(ckpt['generator_weights'])
     discriminator.set_weights(ckpt['discriminator_weights'])
-
     if hparams.verbose:
-      print('restore checkpoint {}'.format(filename))
+      print('Restored checkpoint at {}'.format(filename))
 
 
-def deconvolve_saved_signals(hparams, filename):
-  start = time()
-  with open_h5(filename, mode='a') as file:
-    fake_signals = file['fake_signals'][:]
-    fake_spikes = deconvolve_signals(
-        fake_signals, num_processors=hparams.num_processors)
-    file.create_dataset(
-        'fake_spikes',
-        dtype=np.float32,
-        data=fake_spikes,
-        chunks=True,
-        maxshape=(None, fake_spikes.shape[1], fake_spikes.shape[2]))
-  elapse = time() - start
-
-  if hparams.verbose:
-    print('deconvolve {} signals in {:.2f}s'.format(len(fake_spikes), elapse))
-
-
-def van_rossum_distance_loop(args):
-  real_spikes, fake_spikes = args
-  assert real_spikes.shape == fake_spikes.shape
-  shape = real_spikes.shape
-  distances = np.zeros((shape[0], shape[1]), dtype=np.float32)
-  for i in range(shape[0]):
-    for neuron in range(shape[1]):
-      distances[i][neuron] = van_rossum_distance(real_spikes[i][neuron],
-                                                 fake_spikes[i][neuron])
-  return distances
-
-
-def get_mean_van_rossum_distance(hparams, real_spikes, fake_spikes):
-  start = time()
-  if hparams.num_processors > 2:
-    num_jobs = min(len(real_spikes), hparams.num_processors)
-    real_spikes_split = split(real_spikes, n=num_jobs)
-    fake_spikes_split = split(fake_spikes, n=num_jobs)
-    pool = Pool(processes=num_jobs)
-    distances = pool.map(van_rossum_distance_loop,
-                         list(zip(real_spikes_split, fake_spikes_split)))
-    pool.close()
-    distances = np.concatenate(distances, axis=0)
+def add_to_dict(dictionary, tag, value):
+  """ Add tag with value to dictionary """
+  if type(value) is np.ndarray:
+    value = value.astype(np.float32)
+  elif type(value) is list:
+    value = np.array(value, dtype=np.float32)
   else:
-    distances = van_rossum_distance_loop((real_spikes, fake_spikes))
-  mean_distance = np.mean(distances)
-  elapse = time() - start
+    value = np.array([value], dtype=np.float32)
 
-  if hparams.verbose:
-    print('mean van Rossum distance in {:.2f}s'.format(elapse))
-
-  return mean_distance
-
-
-def measure_spike_metrics(hparams, epoch, summary):
-  filename = get_signal_filename(hparams, epoch)
-  deconvolve_saved_signals(hparams, filename)
-
-  with open_h5(filename, mode='r') as file:
-    real_spikes = file['real_spikes'][:]
-    fake_spikes = file['fake_spikes'][:]
-
-  mean_spike_error = mean_spike_count_error(real_spikes, fake_spikes)
-  van_rossum_distance = get_mean_van_rossum_distance(hparams, real_spikes,
-                                                     fake_spikes)
-
-  summary.scalar(
-      'spike_metrics/spike_count_mse', mean_spike_error, training=False)
-  summary.scalar(
-      'spike_metrics/van_rossum_distance', van_rossum_distance, training=False)
-
-
-def delete_generated_file(hparams, epoch):
-  filename = get_signal_filename(hparams, epoch)
-  if os.path.exists(filename):
-    os.remove(filename)
+  dictionary[tag] = np.concatenate(
+      (dictionary[tag], value), axis=0) if tag in dictionary else value

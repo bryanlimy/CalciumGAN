@@ -25,8 +25,8 @@ def get_models(hparams, summary):
   generator = _GENERATORS[hparams.generator](hparams)
   discriminator = _DISCRIMINATORS[hparams.discriminator](hparams)
 
-  summary.scalar('trainable_parameters/generator',
+  summary.scalar('model/trainable_parameters/generator',
                  count_trainable_params(generator))
-  summary.scalar('trainable_parameters/discriminator',
+  summary.scalar('model/trainable_parameters/discriminator',
                  count_trainable_params(discriminator))
   return generator, discriminator
