@@ -60,8 +60,17 @@ def save_fake_signals(hparams, epoch, fake_signals):
 
   filename = get_fake_filename(hparams, epoch)
 
-  with h5_helper.open_h5(filename, mode='a') as file:
-    h5_helper.create_or_append_h5(file, 'fake_signals', fake_signals)
+  h5_helper.write(filename, {'signals': fake_signals})
+
+  # store generated data information
+  info_filename = os.path.join(hparams.generated_dir, 'info.pkl')
+  info = {}
+  if os.path.exists(info_filename):
+    with open(info_filename, 'rb') as file:
+      info = pickle.load(file)
+  info[epoch] = {'global_step': hparams.global_step, 'filename': filename}
+  with open(info_filename, 'wb') as file:
+    pickle.dump(info, file)
 
 
 def delete_saved_signals(hparams, epoch):
@@ -100,14 +109,6 @@ def load_models(hparams, generator, discriminator):
       print('Restored checkpoint at {}'.format(filename))
 
 
-def add_to_dict(dictionary, tag, value):
-  """ Add tag with value to dictionary """
-  if type(value) is np.ndarray:
-    value = value.astype(np.float32)
-  elif type(value) is list:
-    value = np.array(value, dtype=np.float32)
-  else:
-    value = np.array([value], dtype=np.float32)
-
-  dictionary[tag] = np.concatenate(
-      (dictionary[tag], value), axis=0) if tag in dictionary else value
+def is_neuron_major(array, hparams):
+  ''' return True if the array is neuron-major '''
+  return array.shape[0] == hparams.num_neurons

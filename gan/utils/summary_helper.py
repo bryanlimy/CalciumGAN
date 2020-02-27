@@ -123,25 +123,28 @@ class Summary(object):
       images.append(image)
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
-  def plot_histogram(self,
-                     tag,
-                     data,
-                     xlabel=None,
-                     ylabel=None,
-                     step=None,
-                     training=False):
-    plt.hist(
-        data,
-        bins=20,
-        label=['real', 'fake'],
-        color=[self._real_color, self._fake_color],
-        alpha=0.8)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.legend()
-    image = self._plot_to_image()
-    plt.close()
-    self.image(tag, values=tf.stack([image]), step=step, training=training)
+  def plot_histograms(self,
+                      tag,
+                      data,
+                      xlabel=None,
+                      ylabel=None,
+                      step=None,
+                      training=False):
+    assert type(data) == list and type(data[0]) == tuple
+    images = []
+    for i in range(len(data)):
+      plt.hist(
+          data,
+          bins=20,
+          label=['real', 'fake'],
+          color=[self._real_color, self._fake_color],
+          alpha=0.8)
+      plt.xlabel(xlabel)
+      plt.ylabel(ylabel)
+      plt.legend()
+      images.append(self._plot_to_image())
+      plt.close()
+    self.image(tag, values=tf.stack(images), step=step, training=training)
 
   def plot_heatmap(self,
                    tag,

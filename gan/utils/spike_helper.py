@@ -63,100 +63,11 @@ def deconvolve_signals(signals, threshold=0.5, to_neo=False):
   return spike_trains
 
 
-def rearrange_saved_signals(hparams, filename):
-  ''' rearrange signals to (neurons, samples, segments) '''
-  shape = (hparams.validation_size, hparams.num_neurons)
-  with h5_helper.open_h5(filename, mode='r+') as file:
-    for key in file.keys():
-      value = file[key][:]
-      # check if value has shape (samples, neurons)
-      if value.shape[:2] == shape:
-        value = utils.swap_neuron_major(hparams, value)
-        h5_helper.overwrite_dataset(file, key, value)
-
-
-def neuron_spike_metrics(hparams, epoch, neuron, metrics):
-  """ measure spike metrics for neuron in file and write results to metrics """
-  # get real neuron data
-  real_filename = utils.get_real_neuron_filename(hparams, neuron)
-  with open(real_filename, 'rb') as file:
-    real_data = pickle.load(file)
-  real_spikes = real_data['real_spikes']
-  assert type(real_spikes) == list and type(real_spikes[0]) == SpikeTrain
-
-  # get fake neuron data
-  fake_filename = utils.get_fake_filename(hparams, epoch)
-  with h5_helper.open_h5(fake_filename, mode='r') as file:
-    fake_signals = file['fake_signals'][neuron]
-  fake_spikes = deconvolve_signals(fake_signals, to_neo=True)
-
-  assert len(real_spikes) == len(fake_spikes)
-
-  if 'spike_metrics/firing_rate_error' in metrics:
-    if 'firing_rate' in real_data:
-      real_firing_rate = real_data['firing_rate']
-    else:
-      real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
-      # cache firing rate data for neuron
-      real_data['firing_rate'] = real_firing_rate
-      with open(real_filename, 'wb') as file:
-        pickle.dump(real_data, file)
-
-    fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
-    firing_rate_error = np.mean(np.square(real_firing_rate - fake_firing_rate))
-    metrics['spike_metrics/firing_rate_error'][neuron] = firing_rate_error
-
-    if 'histogram/firing_rate' in metrics:
-      metrics['histogram/firing_rate'][neuron] = (real_firing_rate,
-                                                  fake_firing_rate)
-  if 'spike_metrics/cross_coefficient' in metrics:
-    corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
-    metrics['spike_metrics/cross_coefficient'][neuron] = np.mean(corrcoef)
-
-  if 'spike_metrics/covariance' in metrics:
-    covariance = spike_metrics.covariance(real_spikes, fake_spikes)
-    metrics['spike_metrics/covariance'][neuron] = np.mean(covariance)
-
-  if 'spike_metrics/van_rossum_distance' in metrics:
-    # compares to first 1000 samples to save time
-    distance = spike_metrics.van_rossum_distance(real_spikes[:1000],
-                                                 fake_spikes[:1000])
-    metrics['spike_metrics/van_rossum_distance'][neuron] = np.mean(distance)
-
-    if 'histogram/van_rossum_distance' in metrics:
-      metrics['histogram/van_rossum_distance'][neuron] = (distance, [])
-
-    if 'heatmap/van_rossum_distance' in metrics:
-      metrics['heatmap/van_rossum_distance'][neuron] = distance
-
-
-def populate_metrics_dict(num_processors, num_neurons):
-  ''' create thread-safe dictionary to store metrics '''
-  keys = [
-      'spike_metrics/firing_rate_error',
-      'histogram/firing_rate',
-      'spike_metrics/covariance',
-      'spike_metrics/van_rossum_distance',
-      'histogram/van_rossum_distance',
-      'heatmap/van_rossum_distance',
-  ]
-  if num_processors == 1:
-    metrics = {key: [None] * num_neurons for key in keys}
-  else:
-    manager = Manager()
-    metrics = manager.dict(
-        {key: manager.list([None] * num_neurons) for key in keys})
-  return metrics
-
-
 def record_spike_metrics(hparams, epoch, summary):
   if hparams.verbose:
     print('Measuring spike metrics...')
 
   start = time()
-
-  fake_filename = utils.get_fake_filename(hparams, epoch)
-  rearrange_saved_signals(hparams, fake_filename)
 
   metrics = populate_metrics_dict(hparams.num_processors, hparams.num_neurons)
 
