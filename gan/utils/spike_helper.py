@@ -1,16 +1,8 @@
-import pickle
 import numpy as np
-from time import time
-from tqdm import tqdm
 import tensorflow as tf
 import quantities as pq
 from neo.core import SpikeTrain
 from oasis.oasis_methods import oasisAR1
-from multiprocessing import Manager, Pool
-
-from . import utils
-from . import h5_helper
-from . import spike_metrics
 
 
 def train_to_neo(train, t_stop=None):
@@ -61,49 +53,3 @@ def deconvolve_signals(signals, threshold=0.5, to_neo=False):
     spike_trains = np.array(spike_trains, dtype=np.float32)
 
   return spike_trains
-
-
-def record_spike_metrics(hparams, epoch, summary):
-  if hparams.verbose:
-    print('Measuring spike metrics...')
-
-  start = time()
-
-  metrics = populate_metrics_dict(hparams.num_processors, hparams.num_neurons)
-
-  if hparams.num_processors > 1:
-    pool = Pool(processes=hparams.num_processors)
-    pool.starmap(
-        neuron_spike_metrics,
-        [(hparams, epoch, n, metrics) for n in range(hparams.num_neurons)])
-    pool.close()
-  else:
-    for n in tqdm(
-        range(hparams.num_neurons),
-        desc='\tNeuron',
-        disable=not bool(hparams.verbose)):
-      neuron_spike_metrics(hparams, epoch, n, metrics)
-
-  end = time()
-
-  summary.scalar('elapse/spike_metrics', end - start, training=False)
-
-  for key, value in metrics.items():
-    tag = key[key.find('/') + 1:]
-    if key.startswith('spike_metrics'):
-      result = np.mean(value)
-      if hparams.verbose:
-        print('\t{}: {:.04f}'.format(key, result))
-      summary.scalar(key, result, training=False)
-    elif key.startswith('histogram'):
-      for i, data in enumerate(value):
-        summary.plot_histogram(
-            '{}_histogram/neuron_{}'.format(tag, i),
-            data,
-            xlabel='Hz' if tag == 'firing_rate' else 'distance',
-            ylabel='Amount',
-            training=False)
-    elif key.startswith('heatmap'):
-      for i, data in enumerate(value):
-        summary.plot_heatmap(
-            '{}_heatmap/neuron_{}'.format(tag, i), data, training=False)

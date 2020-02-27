@@ -50,22 +50,20 @@ def deconvolve_from_file(hparams, filename):
   h5_helper.write(filename, {'spikes': fake_spikes})
 
 
-def _firing_rate_metrics(hparams, filename, neuron):
-  if hparams.verbose == 2:
-    print('\tComputing firing rate for neuron #{}'.format(neuron))
+def get_neo_trains(filename, hparams, index, neuron):
   # get real neuron data
   real_spikes = h5_helper.get(
-      hparams.validation_cache,
-      name='spikes',
-      index=neuron,
-      neuron=True,
-      hparams=hparams)
-  real_spikes = spike_helper.trains_to_neo(real_spikes)
+      filename, name='spikes', index=index, neuron=neuron, hparams=hparams)
+  return spike_helper.trains_to_neo(real_spikes)
 
-  # get fake neuron data
-  fake_spikes = h5_helper.get(
-      filename, name='spikes', index=neuron, neuron=True, hparams=hparams)
-  fake_spikes = spike_helper.trains_to_neo(fake_spikes)
+
+def mean_firing_rate(hparams, filename, neuron):
+  if hparams.verbose == 2:
+    print('\tComputing firing rate for neuron #{}'.format(neuron))
+
+  real_spikes = get_neo_trains(
+      hparams.validation_cache, hparams, index=neuron, neuron=True)
+  fake_spikes = get_neo_trains(filename, hparams, index=neuron, neuron=True)
 
   real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
   fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
@@ -82,14 +80,14 @@ def firing_rate_metrics(hparams, info, summary):
 
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
-      _firing_rate_metrics,
+      mean_firing_rate,
       [(hparams, info['filename'], n) for n in range(hparams.num_neurons)])
   pool.close()
 
   firing_rate_errors, firing_rate_pairs = [], []
   for result in results:
     firing_rate_errors.append(result['firing_rate_error'])
-    firing_rate_pairs.append(results['firing_rate_pair'])
+    firing_rate_pairs.append(result['firing_rate_pair'])
 
   summary.scalar(
       'spike_metrics/firing_rate_error',
@@ -106,26 +104,69 @@ def firing_rate_metrics(hparams, info, summary):
       training=False)
 
 
-def correlation_coefficients_metrics(metrics, neuron, real_spikes, fake_spikes):
-  corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
-  metrics['spike_metrics/cross_coefficient'][neuron] = np.mean(corrcoef)
+def covariance(hparams, filename, neuron):
+  if hparams.verbose == 2:
+    print('\tComputing covariance for neuron #{}'.format(neuron))
+
+  real_spikes = get_neo_trains(
+      hparams.validation_cache, hparams, index=neuron, neuron=True)
+  fake_spikes = get_neo_trains(filename, hparams, index=neuron, neuron=True)
+
+  return np.mean(spike_metrics.covariance(real_spikes, fake_spikes))
 
 
-def covariance_metrics(metrics, neuron, real_spikes, fake_spikes):
-  covariance = spike_metrics.covariance(real_spikes, fake_spikes)
-  metrics['spike_metrics/covariance'][neuron] = np.mean(covariance)
+def covariance_metrics(hparams, info, summary):
+  if hparams.verbose:
+    print('Computing covariance')
+
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(
+      covariance,
+      [(hparams, info['filename'], n) for n in range(hparams.num_neurons)])
+  pool.close()
+
+  summary.scalar(
+      'spike_metrics/covariance',
+      np.mean(results),
+      step=info['global_step'],
+      training=False)
 
 
-def van_rossum_metrics(metrics, neuron, real_spikes, fake_spikes):
-  distance = spike_metrics.van_rossum_distance(real_spikes[:1000],
-                                               fake_spikes[:1000])
-  metrics['spike_metrics/van_rossum_distance'][neuron] = np.mean(distance)
+def neuron_van_rossum_distance(hparams, filename, neuron):
+  if hparams.verbose == 2:
+    print('\tComputing van-rossum distance for neuron #{}'.format(neuron))
 
-  if 'histogram/van_rossum_distance' in metrics:
-    metrics['histogram/van_rossum_distance'][neuron] = (distance, [])
+  real_spikes = get_neo_trains(
+      hparams.validation_cache, hparams, index=neuron, neuron=True)[:500]
+  fake_spikes = get_neo_trains(
+      filename, hparams, index=neuron, neuron=True)[:500]
 
-  if 'heatmap/van_rossum_distance' in metrics:
-    metrics['heatmap/van_rossum_distance'][neuron] = distance
+  return np.mean(spike_metrics.van_rossum_distance(real_spikes, fake_spikes))
+
+
+def sample_van_rossum_histogram(hparams, filename, sample):
+
+  real_spikes = get_neo_trains(
+      hparams.validation_cache, hparams, index=sample, neuron=False)[:500]
+  fake_spikes = get_neo_trains(
+      filename, hparams, index=sample, neuron=False)[:500]
+
+
+def van_rossum_metrics(hparams, info, summary):
+  if hparams.verbose:
+    print('Computing van-rossum distance')
+
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(
+      neuron_van_rossum_distance,
+      [(hparams, info['filename'], n) for n in range(hparams.num_neurons)])
+  pool.close()
+
+  summary.scalar(
+      'spike_metrics/van_rossum_distance',
+      np.mean(results),
+      step=info['global_step'],
+      training=False)
 
 
 def compute_epoch_spike_metrics(hparams, info, summary):

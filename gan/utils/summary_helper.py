@@ -134,7 +134,7 @@ class Summary(object):
     images = []
     for i in range(len(data)):
       plt.hist(
-          data,
+          data[i],
           bins=20,
           label=['real', 'fake'],
           color=[self._real_color, self._fake_color],
