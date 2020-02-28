@@ -128,6 +128,7 @@ class Summary(object):
                       data,
                       xlabel=None,
                       ylabel=None,
+                      title=None,
                       step=None,
                       training=False):
     assert type(data) == list and type(data[0]) == tuple
@@ -141,6 +142,8 @@ class Summary(object):
           alpha=0.8)
       plt.xlabel(xlabel)
       plt.ylabel(ylabel)
+      if title is not None:
+        plt.title(title.format(i))
       plt.legend()
       images.append(self._plot_to_image())
       plt.close()

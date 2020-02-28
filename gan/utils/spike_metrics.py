@@ -13,24 +13,27 @@ def mean_firing_rate(spikes):
 
 
 def correlation_coefficients(spikes1, spikes2, binsize=500 * pq.ms):
-  result = elephant.spike_train_correlation.corrcoef(
-      elephant.conversion.BinnedSpikeTrain(spikes1 + spikes2, binsize=binsize))
-  return (result[len(spikes1):, :len(spikes2)]).astype(np.float32)
+  binned = elephant.conversion.BinnedSpikeTrain(
+      spikes1 + spikes2 if spikes2 is not None else spikes1, binsize=binsize)
+  result = elephant.spike_train_correlation.corrcoef(binned)
+  return result[len(spikes1):, :len(spikes2)] if spikes2 is not None else result
 
 
 def covariance(spikes1, spikes2, binsize=500 * pq.ms):
-  result = elephant.spike_train_correlation.covariance(
-      elephant.conversion.BinnedSpikeTrain(spikes1 + spikes2, binsize=binsize))
-  return (result[len(spikes1):, :len(spikes2)]).astype(np.float32)
+  binned = elephant.conversion.BinnedSpikeTrain(
+      spikes1 + spikes2 if spikes2 is not None else spikes1, binsize=binsize)
+  result = elephant.spike_train_correlation.covariance(binned)
+  return result[len(spikes1):, :len(spikes2)] if spikes2 is not None else result
 
 
 def van_rossum_distance(spikes1, spikes2):
   ''' return the mean van rossum distance between spikes1 and spikes2 '''
-  result = elephant.spike_train_dissimilarity.van_rossum_dist(spikes1 + spikes2)
-  return (result[len(spikes1):, :len(spikes2)]).astype(np.float32)
+  spikes = spikes1 + spikes2 if spikes2 is not None else spikes1
+  result = elephant.spike_train_dissimilarity.van_rossum_dist(spikes)
+  return result[len(spikes1):, :len(spikes2)] if spikes2 is not None else result
 
 
 def victor_purpura_distance(spikes1, spikes2):
-  result = elephant.spike_train_dissimilarity.victor_purpura_dist(spikes1 +
-                                                                  spikes2)
-  return (result[len(spikes1):, :len(spikes2)]).astype(np.float32)
+  spikes = spikes1 + spikes2 if spikes2 is not None else spikes1
+  result = elephant.spike_train_dissimilarity.victor_purpura_dist(spikes)
+  return result[len(spikes1):, :len(spikes2)] if spikes2 is not None else result

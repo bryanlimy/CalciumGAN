@@ -1,6 +1,7 @@
 import os
 import json
 import pickle
+import warnings
 import argparse
 import numpy as np
 from tqdm import tqdm
@@ -100,6 +101,7 @@ def firing_rate_metrics(hparams, info, summary):
       firing_rate_pairs,
       xlabel='Hz',
       ylabel='Count',
+      title='Neuron #{:03d}',
       step=info['global_step'],
       training=False)
 
@@ -145,11 +147,24 @@ def neuron_van_rossum_distance(hparams, filename, neuron):
 
 
 def sample_van_rossum_histogram(hparams, filename, sample):
+  if hparams.verbose == 2:
+    print('\tComputing van-rossum distance for sample #{}'.format(sample))
 
   real_spikes = get_neo_trains(
-      hparams.validation_cache, hparams, index=sample, neuron=False)[:500]
-  fake_spikes = get_neo_trains(
-      filename, hparams, index=sample, neuron=False)[:500]
+      hparams.validation_cache, hparams, index=sample, neuron=False)
+  real_van_rossum = spike_metrics.van_rossum_distance(real_spikes, None)
+
+  fake_spikes = get_neo_trains(filename, hparams, index=sample, neuron=False)
+  fake_van_rossum = spike_metrics.van_rossum_distance(fake_spikes, None)
+
+  assert real_van_rossum.shape == fake_van_rossum.shape
+
+  diag_indices = np.triu_indices(len(real_van_rossum), k=1)
+
+  real_van_rossum = real_van_rossum[diag_indices]
+  fake_van_rossum = fake_van_rossum[diag_indices]
+
+  return (real_van_rossum, fake_van_rossum)
 
 
 def van_rossum_metrics(hparams, info, summary):
@@ -168,12 +183,29 @@ def van_rossum_metrics(hparams, info, summary):
       step=info['global_step'],
       training=False)
 
+  # get the first 100 samples van rossum distance
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(sample_van_rossum_histogram,
+                         [(hparams, info['filename'], i) for i in range(100)])
+  pool.close()
+
+  summary.plot_histograms(
+      'van_rossum_distance_histograms',
+      results,
+      xlabel='Distance',
+      ylabel='Count',
+      title='Sample #{:03d}',
+      step=info['global_step'],
+      training=False)
+
 
 def compute_epoch_spike_metrics(hparams, info, summary):
   if not h5_helper.contains(info['filename'], 'spikes'):
     deconvolve_from_file(hparams, info['filename'])
 
   firing_rate_metrics(hparams, info, summary)
+
+  van_rossum_metrics(hparams, info, summary)
 
 
 def main(hparams):
