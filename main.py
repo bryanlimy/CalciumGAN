@@ -105,13 +105,10 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       elapse=end - start,
       training=False)
 
-  if hparams.store_generated:
+  if hparams.store_generated and (epoch % hparams.spike_metrics_freq == 0 or
+                                  epoch == hparams.epoch - 1):
     fake_signals = tf.concat(fake_signals, axis=0)
     utils.save_fake_signals(hparams, epoch, fake_signals=fake_signals.numpy())
-
-  if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
-                                epoch == hparams.epochs - 1):
-    spike_helper.record_spike_metrics(hparams, epoch, summary)
 
   return gen_loss, dis_loss
 
