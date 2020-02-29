@@ -1,7 +1,6 @@
 import os
 import json
 import pickle
-import warnings
 import argparse
 import numpy as np
 from tqdm import tqdm
@@ -77,7 +76,7 @@ def mean_firing_rate(hparams, filename, neuron):
 
 def firing_rate_metrics(hparams, info, summary):
   if hparams.verbose:
-    print('Computing firing rate')
+    print('\tComputing firing rate')
 
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
@@ -108,7 +107,7 @@ def firing_rate_metrics(hparams, info, summary):
 
 def covariance(hparams, filename, neuron):
   if hparams.verbose == 2:
-    print('\tComputing covariance for neuron #{}'.format(neuron))
+    print('\t\tComputing covariance for neuron #{}'.format(neuron))
 
   real_spikes = get_neo_trains(
       hparams.validation_cache, hparams, index=neuron, neuron=True)
@@ -119,7 +118,7 @@ def covariance(hparams, filename, neuron):
 
 def covariance_metrics(hparams, info, summary):
   if hparams.verbose:
-    print('Computing covariance')
+    print('\tComputing covariance')
 
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
@@ -136,7 +135,7 @@ def covariance_metrics(hparams, info, summary):
 
 def neuron_van_rossum_distance(hparams, filename, neuron):
   if hparams.verbose == 2:
-    print('\tComputing van-rossum distance for neuron #{}'.format(neuron))
+    print('\t\tComputing van-rossum distance for neuron #{}'.format(neuron))
 
   real_spikes = get_neo_trains(
       hparams.validation_cache, hparams, index=neuron, neuron=True)[:500]
@@ -148,7 +147,7 @@ def neuron_van_rossum_distance(hparams, filename, neuron):
 
 def sample_van_rossum_histogram(hparams, filename, sample):
   if hparams.verbose == 2:
-    print('\tComputing van-rossum distance for sample #{}'.format(sample))
+    print('\t\tComputing van-rossum distance for sample #{}'.format(sample))
 
   real_spikes = get_neo_trains(
       hparams.validation_cache, hparams, index=sample, neuron=False)
@@ -169,7 +168,7 @@ def sample_van_rossum_histogram(hparams, filename, sample):
 
 def van_rossum_metrics(hparams, info, summary):
   if hparams.verbose:
-    print('Computing van-rossum distance')
+    print('\tComputing van-rossum distance')
 
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
@@ -204,6 +203,8 @@ def compute_epoch_spike_metrics(hparams, info, summary):
     deconvolve_from_file(hparams, info['filename'])
 
   firing_rate_metrics(hparams, info, summary)
+
+  covariance_metrics(hparams, info, summary)
 
   van_rossum_metrics(hparams, info, summary)
 
