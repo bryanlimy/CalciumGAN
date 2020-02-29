@@ -2,6 +2,7 @@ import os
 import json
 import pickle
 import argparse
+import warnings
 import numpy as np
 from tqdm import tqdm
 from glob import glob
@@ -218,9 +219,12 @@ def main(hparams):
 
   epochs = sorted(list(info.keys()))
   for epoch in epochs:
+    start = time()
     if hparams.verbose:
-      print('Compute metrics for {}'.format(info[epoch]['filename']))
+      print('\nCompute metrics for {}'.format(info[epoch]['filename']))
     compute_epoch_spike_metrics(hparams, info[epoch], summary)
+    end = time()
+    print('{} took {:.02f}s'.format(info[epoch]['filename'], end - start))
 
 
 if __name__ == '__main__':
@@ -233,5 +237,8 @@ if __name__ == '__main__':
       help='number of processing cores to use for metrics calculation')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
+
+  if hparams.verbose != 2:
+    warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
   main(hparams)
