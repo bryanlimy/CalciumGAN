@@ -134,14 +134,15 @@ def covariance_metrics(hparams, info, summary):
       training=False)
 
 
-def neuron_van_rossum_distance(hparams, filename, neuron):
+def neuron_van_rossum_distance(hparams, filename, neuron, num_samples):
   if hparams.verbose == 2:
     print('\t\tComputing van-rossum distance for neuron #{}'.format(neuron))
 
   real_spikes = get_neo_trains(
-      hparams.validation_cache, hparams, index=neuron, neuron=True)[:500]
+      hparams.validation_cache, hparams, index=neuron,
+      neuron=True)[:num_samples]
   fake_spikes = get_neo_trains(
-      filename, hparams, index=neuron, neuron=True)[:500]
+      filename, hparams, index=neuron, neuron=True)[:num_samples]
 
   return np.mean(spike_metrics.van_rossum_distance(real_spikes, fake_spikes))
 
@@ -171,10 +172,11 @@ def van_rossum_metrics(hparams, info, summary):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
 
+  # compute neuron-wise van rossum distance error with 500 samples
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
       neuron_van_rossum_distance,
-      [(hparams, info['filename'], n) for n in range(hparams.num_neurons)])
+      [(hparams, info['filename'], n, 500) for n in range(hparams.num_neurons)])
   pool.close()
 
   summary.scalar(
@@ -183,10 +185,10 @@ def van_rossum_metrics(hparams, info, summary):
       step=info['global_step'],
       training=False)
 
-  # get the first 100 samples van rossum distance
+  # compute first 50 samples' sample-wise van rossum distance
   pool = Pool(hparams.num_processors)
   results = pool.starmap(sample_van_rossum_histogram,
-                         [(hparams, info['filename'], i) for i in range(100)])
+                         [(hparams, info['filename'], i) for i in range(50)])
   pool.close()
 
   summary.plot_histograms(
@@ -224,6 +226,13 @@ def main(hparams):
       print('\nCompute metrics for {}'.format(info[epoch]['filename']))
     compute_epoch_spike_metrics(hparams, info[epoch], summary)
     end = time()
+
+    summary.scalar(
+        'elapse/spike_metrics',
+        end - start,
+        step=info[epoch]['global_step'],
+        training=False)
+
     print('{} took {:.02f}s'.format(info[epoch]['filename'], end - start))
 
 
