@@ -106,13 +106,15 @@ def firing_rate_metrics(hparams, info, summary):
       training=False)
 
 
-def covariance(hparams, filename, neuron):
+def covariance(hparams, filename, neuron, num_samples):
   if hparams.verbose == 2:
     print('\t\tComputing covariance for neuron #{}'.format(neuron))
 
   real_spikes = get_neo_trains(
-      hparams.validation_cache, hparams, index=neuron, neuron=True)
-  fake_spikes = get_neo_trains(filename, hparams, index=neuron, neuron=True)
+      hparams.validation_cache, hparams, index=neuron,
+      neuron=True)[:num_samples]
+  fake_spikes = get_neo_trains(
+      filename, hparams, index=neuron, neuron=True)[:num_samples]
 
   return np.mean(spike_metrics.covariance(real_spikes, fake_spikes))
 
@@ -121,10 +123,11 @@ def covariance_metrics(hparams, info, summary):
   if hparams.verbose:
     print('\tComputing covariance')
 
+  # compute neuron-wise covariance with 1000 samples
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      covariance,
-      [(hparams, info['filename'], n) for n in range(hparams.num_neurons)])
+  results = pool.starmap(covariance, [
+      (hparams, info['filename'], n, 1000) for n in range(hparams.num_neurons)
+  ])
   pool.close()
 
   summary.scalar(
@@ -280,6 +283,8 @@ def main(hparams):
   load_hparams(hparams)
   info = load_info(hparams)
   summary = Summary(hparams)
+
+  hparams.num_neurons = 10
 
   epochs = sorted(list(info.keys()))
   for epoch in epochs:
