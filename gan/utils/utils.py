@@ -33,7 +33,7 @@ def denormalize(x, x_min, x_max):
 
 def get_current_git_hash():
   ''' return the current Git hash '''
-  return subprocess.check_output(['git', 'subprocess',
+  return subprocess.check_output(['git', 'describe',
                                   '--always']).strip().decode()
 
 
