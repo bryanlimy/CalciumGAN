@@ -239,6 +239,8 @@ if __name__ == '__main__':
   hparams = parser.parse_args()
 
   if hparams.verbose != 2:
+    warnings.simplefilter(action='ignore', category=UserWarning)
     warnings.simplefilter(action='ignore', category=RuntimeWarning)
+    warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
   main(hparams)
