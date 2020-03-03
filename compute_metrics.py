@@ -168,6 +168,44 @@ def sample_van_rossum_histogram(hparams, filename, sample):
   return (real_van_rossum, fake_van_rossum)
 
 
+def neuron_van_rossum_heatmap(hparams, filename, neuron, num_samples):
+  if hparams.verbose == 2:
+    print('\t\tComputing van-rossum heatmap for neuron #{}'.format(neuron))
+
+  real_spikes = get_neo_trains(
+      hparams.validation_cache, hparams, index=neuron,
+      neuron=True)[:num_samples]
+  fake_spikes = get_neo_trains(
+      filename, hparams, index=neuron, neuron=True)[:num_samples]
+
+  distances = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
+  # create a copy of distances matrix for modification
+  distances_tmp = np.copy(distances)
+
+  heatmap = np.full((num_samples, num_samples),
+                    fill_value=np.nan,
+                    dtype=np.float32)
+
+  # get the index with the minimum value
+  min_index = np.unravel_index(np.argmin(distances), distances.shape)
+
+  row_order = np.full((num_samples,), fill_value=-1, dtype=np.int)
+  row_order[0] = min_index[0]
+  column_order = np.argsort(distances[min_index[0]])
+
+  for i in range(num_samples):
+    if i != 0:
+      row_order[i] = np.argsort(distances_tmp[:, column_order[i]])[0]
+    heatmap[i] = distances[row_order[i]][column_order]
+    distances_tmp[row_order[i]][:] = np.inf
+
+  return {
+      'heatmap': heatmap,
+      'xticklabels': row_order,
+      'yticklabels': column_order
+  }
+
+
 def van_rossum_metrics(hparams, info, summary):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
@@ -197,6 +235,30 @@ def van_rossum_metrics(hparams, info, summary):
       xlabel='Distance',
       ylabel='Count',
       title='Sample #{:03d}',
+      step=info['global_step'],
+      training=False)
+
+  # compute neuron-wise van rossum heapmap for 50 samples
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(
+      neuron_van_rossum_heatmap,
+      [(hparams, info['filename'], i, 50) for i in range(hparams.num_neurons)])
+  pool.close()
+
+  heatmaps, xticklabels, yticklabels = [], [], []
+  for i in range(len(results)):
+    heatmaps.append(results[i]['heatmap'])
+    xticklabels.append(results[i]['xticklabels'])
+    yticklabels.append(results[i]['yticklabels'])
+
+  summary.plot_heatmaps(
+      'van_rossum_neuron_distance_heatmaps',
+      heatmaps,
+      xlabel='Fake sample no.',
+      ylabel='Real sample no.',
+      xticklabels=xticklabels,
+      yticklabels=yticklabels,
+      title='Neuron #{:03d}',
       step=info['global_step'],
       training=False)
 

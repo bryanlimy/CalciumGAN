@@ -1,3 +1,4 @@
+import os
 import h5py
 import numpy as np
 from time import sleep
@@ -6,6 +7,9 @@ from . import utils
 
 
 def _open(filename, *args, **kwargs):
+  if not os.path.exists(filename):
+    print('{} not found'.format(filename))
+    exit()
   while True:
     try:
       file = h5py.File(filename, *args, **kwargs)
