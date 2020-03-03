@@ -234,11 +234,6 @@ if __name__ == '__main__':
       action='store_true',
       help='store generated signals and spike trains every spike_metrics_freq')
   parser.add_argument(
-      '--num_processors',
-      default=8,
-      type=int,
-      help='number of processing cores to use for metrics calculation')
-  parser.add_argument(
       '--spike_metrics',
       action='store_true',
       help='flag to calculate spike metrics')

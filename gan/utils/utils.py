@@ -1,6 +1,7 @@
 import os
 import json
 import pickle
+import subprocess
 import numpy as np
 from glob import glob
 import tensorflow as tf
@@ -30,7 +31,14 @@ def denormalize(x, x_min, x_max):
   return x * (x_max - x_min) + x_min
 
 
+def get_current_git_hash():
+  ''' return the current Git hash '''
+  return subprocess.check_output(['git', 'subprocess',
+                                  '--always']).strip().decode()
+
+
 def store_hparams(hparams):
+  hparams.git_hash = get_current_git_hash()
   with open(os.path.join(hparams.output_dir, 'hparams.json'), 'w') as file:
     json.dump(hparams.__dict__, file)
 
