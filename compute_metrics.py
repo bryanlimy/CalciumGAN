@@ -284,8 +284,6 @@ def main(hparams):
   info = load_info(hparams)
   summary = Summary(hparams)
 
-  hparams.num_neurons = 10
-
   epochs = sorted(list(info.keys()))
   for epoch in epochs:
     start = time()
