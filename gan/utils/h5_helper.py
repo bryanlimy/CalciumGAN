@@ -6,10 +6,14 @@ from time import sleep
 from . import utils
 
 
-def _open(filename, *args, **kwargs):
+def _open(filename, mode):
+  if mode == 'r' or mode == 'r+':
+    if not os.path.exists(filename):
+      print('{} not found'.format(filename))
+      exit()
   while True:
     try:
-      file = h5py.File(filename, *args, **kwargs)
+      file = h5py.File(filename, mode=mode)
       break
     except OSError:
       sleep(1)
