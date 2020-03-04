@@ -77,7 +77,7 @@ def get_dataset_info(hparams):
   hparams.signals_min = float(info['signals_min'])
   hparams.signals_max = float(info['signals_max'])
 
-  if hparams.store_generated:
+  if hparams.save_generated:
     hparams.generated_dir = os.path.join(hparams.output_dir, 'generated')
     if not os.path.exists(hparams.generated_dir):
       os.makedirs(hparams.generated_dir)
@@ -132,7 +132,7 @@ def get_dataset(hparams, summary):
     train_ds, validation_ds = get_calcium_signals(hparams)
     hparams.num_neurons = hparams.signal_shape[0]
 
-    if hparams.store_generated:
+    if hparams.save_generated:
       cache_validation_set(hparams, validation_ds)
 
     # plot signals and spikes from validation set

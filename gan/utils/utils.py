@@ -49,24 +49,13 @@ def swap_neuron_major(hparams, array):
       array, axis1=0, axis2=1) if array.shape[:2] == shape else array
 
 
-def get_fake_filename(hparams, epoch):
-  """ return the filename of the signal h5 file given epoch """
-  return os.path.join(hparams.generated_dir,
-                      'epoch{:03d}_signals.h5'.format(epoch))
-
-
-def get_real_neuron_filename(hparams, neuron):
-  """ return the filename of the pickle for a specific neuron """
-  return os.path.join(hparams.validation_dir,
-                      'neuron_{:03d}.pkl'.format(neuron))
-
-
 def save_fake_signals(hparams, epoch, fake_signals):
   if hparams.normalize:
     fake_signals = denormalize(
         fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-  filename = get_fake_filename(hparams, epoch)
+  filename = os.path.join(hparams.generated_dir,
+                          'epoch{:03d}_signals.h5'.format(epoch))
 
   h5_helper.write(filename, {'signals': fake_signals})
 
@@ -79,12 +68,6 @@ def save_fake_signals(hparams, epoch, fake_signals):
   info[epoch] = {'global_step': hparams.global_step, 'filename': filename}
   with open(info_filename, 'wb') as file:
     pickle.dump(info, file)
-
-
-def delete_saved_signals(hparams, epoch):
-  filename = get_fake_filename(hparams, epoch)
-  if os.path.exists(filename):
-    os.remove(filename)
 
 
 def save_models(hparams, gan, epoch):

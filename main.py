@@ -87,9 +87,9 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    # store generated signals
-    if hparams.store_generated:
-      fake_signals.append(fake)
+    if hparams.save_generated and (epoch % hparams.save_generated_freq == 0 or
+                                   epoch == hparams.epochs - 1):
+      fake_signals.append(fake.numpy())
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
   gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
@@ -105,10 +105,9 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       elapse=end - start,
       training=False)
 
-  if hparams.store_generated and (epoch % hparams.spike_metrics_freq == 0 or
-                                  epoch == hparams.epochs - 1):
-    fake_signals = tf.concat(fake_signals, axis=0)
-    utils.save_fake_signals(hparams, epoch, fake_signals=fake_signals.numpy())
+  if fake_signals:
+    fake_signals = np.vstack(fake_signals)
+    utils.save_fake_signals(hparams, epoch, fake_signals=fake_signals)
 
   return gen_loss, dis_loss
 
@@ -230,18 +229,10 @@ if __name__ == '__main__':
       action='store_true',
       help='delete output directory if exists')
   parser.add_argument(
-      '--store_generated',
+      '--save_generated',
       action='store_true',
-      help='store generated signals and spike trains every spike_metrics_freq')
-  parser.add_argument(
-      '--spike_metrics',
-      action='store_true',
-      help='flag to calculate spike metrics')
-  parser.add_argument(
-      '--spike_metrics_freq',
-      default=10,
-      type=int,
-      help='number of epochs every spike metrics')
+      help='store generated signals every save_generated_freq')
+  parser.add_argument('--save_generated_freq', default=10, type=int)
   parser.add_argument(
       '--plot_weights',
       action='store_true',
@@ -260,9 +251,5 @@ if __name__ == '__main__':
     warnings.simplefilter(action='ignore', category=FutureWarning)
     warnings.simplefilter(action='ignore', category=UserWarning)
     warnings.simplefilter(action='ignore', category=RuntimeWarning)
-
-  # generated signals must be stored if computing spike metrics
-  if hparams.spike_metrics:
-    hparams.store_generated = True
 
   main(hparams)
