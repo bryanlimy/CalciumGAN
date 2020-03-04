@@ -40,6 +40,7 @@ def load_info(hparams):
 
 
 def deconvolve_from_file(hparams, filename):
+  print('\tDeconvolve {}'.format(filename))
   fake_signals = h5_helper.get(filename, name='signals')
   pool = Pool(hparams.num_processors)
   fake_spikes = pool.starmap(
