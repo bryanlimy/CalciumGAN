@@ -39,16 +39,23 @@ def load_info(hparams):
   return info
 
 
+def deconvolve_neuron(hparams, filename, neuron):
+  signals = h5_helper.get(
+      filename, name='signals', index=neuron, neuron=True, hparams=hparams)
+
+  return spike_helper.deconvolve_signals(signals, threshold=0.5)
+
+
 def deconvolve_from_file(hparams, filename):
   print('\tDeconvolve {}'.format(filename))
-  fake_signals = h5_helper.get(filename, name='signals')
+
   pool = Pool(hparams.num_processors)
   fake_spikes = pool.starmap(
-      spike_helper.deconvolve_signals,
-      [(fake_signals[i], 0.5, False) for i in range(len(fake_signals))])
+      deconvolve_neuron,
+      [(hparams, filename, n) for n in range(hparams.num_neurons)])
   pool.close()
 
-  fake_spikes = np.array(fake_spikes, dtype=np.float32)
+  fake_spikes = np.stack(fake_spikes, axis=1)
   h5_helper.write(filename, {'spikes': fake_spikes})
 
 
