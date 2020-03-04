@@ -1,6 +1,7 @@
 import os
 import json
 import pickle
+import subprocess
 import numpy as np
 from glob import glob
 import tensorflow as tf
@@ -30,7 +31,14 @@ def denormalize(x, x_min, x_max):
   return x * (x_max - x_min) + x_min
 
 
+def get_current_git_hash():
+  ''' return the current Git hash '''
+  return subprocess.check_output(['git', 'describe',
+                                  '--always']).strip().decode()
+
+
 def store_hparams(hparams):
+  hparams.git_hash = get_current_git_hash()
   with open(os.path.join(hparams.output_dir, 'hparams.json'), 'w') as file:
     json.dump(hparams.__dict__, file)
 
@@ -41,33 +49,25 @@ def swap_neuron_major(hparams, array):
       array, axis1=0, axis2=1) if array.shape[:2] == shape else array
 
 
-def get_fake_filename(hparams, epoch):
-  """ return the filename of the signal h5 file given epoch """
-  return os.path.join(hparams.generated_dir,
-                      'epoch{:03d}_signals.h5'.format(epoch))
-
-
-def get_real_neuron_filename(hparams, neuron):
-  """ return the filename of the pickle for a specific neuron """
-  return os.path.join(hparams.validation_dir,
-                      'neuron_{:03d}.pkl'.format(neuron))
-
-
 def save_fake_signals(hparams, epoch, fake_signals):
   if hparams.normalize:
     fake_signals = denormalize(
         fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-  filename = get_fake_filename(hparams, epoch)
+  filename = os.path.join(hparams.generated_dir,
+                          'epoch{:03d}_signals.h5'.format(epoch))
 
-  with h5_helper.open_h5(filename, mode='a') as file:
-    h5_helper.create_or_append_h5(file, 'fake_signals', fake_signals)
+  h5_helper.write(filename, {'signals': fake_signals})
 
-
-def delete_saved_signals(hparams, epoch):
-  filename = get_fake_filename(hparams, epoch)
-  if os.path.exists(filename):
-    os.remove(filename)
+  # store generated data information
+  info_filename = os.path.join(hparams.generated_dir, 'info.pkl')
+  info = {}
+  if os.path.exists(info_filename):
+    with open(info_filename, 'rb') as file:
+      info = pickle.load(file)
+  info[epoch] = {'global_step': hparams.global_step, 'filename': filename}
+  with open(info_filename, 'wb') as file:
+    pickle.dump(info, file)
 
 
 def save_models(hparams, gan, epoch):
@@ -100,14 +100,6 @@ def load_models(hparams, generator, discriminator):
       print('Restored checkpoint at {}'.format(filename))
 
 
-def add_to_dict(dictionary, tag, value):
-  """ Add tag with value to dictionary """
-  if type(value) is np.ndarray:
-    value = value.astype(np.float32)
-  elif type(value) is list:
-    value = np.array(value, dtype=np.float32)
-  else:
-    value = np.array([value], dtype=np.float32)
-
-  dictionary[tag] = np.concatenate(
-      (dictionary[tag], value), axis=0) if tag in dictionary else value
+def is_neuron_major(array, hparams):
+  ''' return True if the array is neuron-major '''
+  return array.shape[0] == hparams.num_neurons

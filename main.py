@@ -69,6 +69,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
   start = time()
 
+  fake_signals = []
   for signal, spike in tqdm(
       validation_ds,
       desc='Validate',
@@ -76,6 +77,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       disable=not bool(hparams.verbose)):
     fake, gen_loss, dis_loss, gradient_penalty, metrics = gan.validate(signal)
 
+    # append losses and metrics
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
     if gradient_penalty is not None:
@@ -85,15 +87,15 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
-                                  epoch == hparams.epochs - 1):
-      utils.save_fake_signals(hparams, epoch, fake_signals=fake.numpy())
-
-  end = time()
+    if hparams.save_generated and (epoch % hparams.save_generated_freq == 0 or
+                                   epoch == hparams.epochs - 1):
+      fake_signals.append(fake.numpy())
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
   gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
   results = {key: np.mean(item) for key, item in results.items()}
+
+  end = time()
 
   summary.log(
       gen_loss,
@@ -103,12 +105,9 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       elapse=end - start,
       training=False)
 
-  if hparams.spike_metrics and (epoch % hparams.spike_metrics_freq == 0 or
-                                epoch == hparams.epochs - 1):
-    spike_helper.record_spike_metrics(hparams, epoch, summary)
-
-  if hparams.delete_generated:
-    utils.delete_saved_signals(hparams, epoch)
+  if fake_signals:
+    fake_signals = np.vstack(fake_signals)
+    utils.save_fake_signals(hparams, epoch, fake_signals=fake_signals)
 
   return gen_loss, dis_loss
 
@@ -230,23 +229,10 @@ if __name__ == '__main__':
       action='store_true',
       help='delete output directory if exists')
   parser.add_argument(
-      '--delete_generated',
+      '--save_generated',
       action='store_true',
-      help='delete generated signals and spike trains')
-  parser.add_argument(
-      '--num_processors',
-      default=8,
-      type=int,
-      help='number of processing cores to use for metrics calculation')
-  parser.add_argument(
-      '--spike_metrics',
-      action='store_true',
-      help='flag to calculate spike metrics')
-  parser.add_argument(
-      '--spike_metrics_freq',
-      default=10,
-      type=int,
-      help='number of epochs every spike metrics')
+      help='store generated signals every save_generated_freq')
+  parser.add_argument('--save_generated_freq', default=10, type=int)
   parser.add_argument(
       '--plot_weights',
       action='store_true',

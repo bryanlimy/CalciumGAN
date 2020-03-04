@@ -46,6 +46,7 @@ class Summary(object):
     Converts the matplotlib plot specified by 'figure' to a PNG image and
     returns it. The supplied figure is closed and inaccessible after this call.
     """
+    plt.tight_layout()
     buf = io.BytesIO()
     plt.savefig(buf, dpi=80, format='png')
     buf.seek(0)
@@ -123,38 +124,60 @@ class Summary(object):
       images.append(image)
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
-  def plot_histogram(self,
-                     tag,
-                     data,
-                     xlabel=None,
-                     ylabel=None,
-                     step=None,
-                     training=False):
-    plt.hist(
-        data,
-        bins=20,
-        label=['real', 'fake'],
-        color=[self._real_color, self._fake_color],
-        alpha=0.8)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.legend()
-    image = self._plot_to_image()
-    plt.close()
-    self.image(tag, values=tf.stack([image]), step=step, training=training)
+  def plot_histograms(self,
+                      tag,
+                      data,
+                      xlabel=None,
+                      ylabel=None,
+                      title=None,
+                      step=None,
+                      training=False):
+    assert type(data) == list and type(data[0]) == tuple
+    images = []
+    for i in range(len(data)):
+      plt.hist(
+          data[i],
+          bins=20,
+          label=['real', 'fake'],
+          color=[self._real_color, self._fake_color],
+          alpha=0.8)
+      plt.xlabel(xlabel)
+      plt.ylabel(ylabel)
+      if title is not None:
+        plt.title(title.format(i))
+      plt.legend()
+      images.append(self._plot_to_image())
+      plt.close()
+    self.image(tag, values=tf.stack(images), step=step, training=training)
 
-  def plot_heatmap(self,
-                   tag,
-                   matrix,
-                   xlabel='',
-                   ylabel='',
-                   step=None,
-                   training=False):
-    f, ax = plt.subplots(figsize=(8, 8))
-    sns.heatmap(matrix, linewidth=0, ax=ax).set(xlabel=xlabel, ylabel=ylabel)
-    image = self._plot_to_image()
-    plt.close()
-    self.image(tag, values=tf.stack([image]), step=step, training=training)
+  def plot_heatmaps(self,
+                    tag,
+                    matrix,
+                    xlabel=None,
+                    ylabel=None,
+                    xticklabels='auto',
+                    yticklabels='auto',
+                    title=None,
+                    step=None,
+                    training=False):
+    assert type(matrix) == list and type(matrix[0]) == np.ndarray
+    images = []
+    for i in range(len(matrix)):
+      f, ax = plt.subplots(figsize=(8, 8))
+      ax = sns.heatmap(
+          matrix[i],
+          cmap='YlOrRd',
+          xticklabels=xticklabels[i] if type(xticklabels) == list else 'auto',
+          yticklabels=yticklabels[i] if type(xticklabels) == list else 'auto',
+          ax=ax)
+      if xlabel is not None and ylabel is not None:
+        ax.set(xlabel=xlabel, ylabel=ylabel)
+      if title is not None:
+        ax.set_title(title.format(i))
+      image = self._plot_to_image()
+      plt.close()
+      images.append(image)
+    self.image(tag, values=tf.stack(images), step=step, training=training)
 
   def graph(self):
     writer = self._get_writer(training=True)
