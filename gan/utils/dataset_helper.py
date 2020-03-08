@@ -10,11 +10,12 @@ from . import spike_helper
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
+from time import time
+
 
 def cache_validation_set(hparams, validation_ds):
   ''' Cache validation set as pickles for faster spike metrics evaluation '''
-  if hparams.verbose:
-    print('Cache validation dataset to {}'.format(hparams.validation_cache))
+  start = time()
 
   real_signals, real_spikes = [], []
   for signal, spike in validation_ds:
@@ -32,6 +33,12 @@ def cache_validation_set(hparams, validation_ds):
       'signals': real_signals,
       'spikes': real_spikes
   })
+
+  end = time()
+
+  if hparams.verbose:
+    print('Cache validation dataset to {} in {:.02f}s'.format(
+        hparams.validation_cache, end - start))
 
 
 def get_fashion_mnist(hparams):
@@ -119,6 +126,7 @@ def get_calcium_signals(hparams):
       tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
   validation_ds = validation_ds.map(_parse_example, num_parallel_calls=AUTOTUNE)
   validation_ds = validation_ds.batch(hparams.batch_size)
+  validation_ds = validation_ds.prefetch(AUTOTUNE)
 
   return train_ds, validation_ds
 

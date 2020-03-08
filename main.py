@@ -35,7 +35,7 @@ def train(hparams, train_ds, gan, summary, epoch):
 
   start = time()
 
-  for signal, spike in tqdm(
+  for signal, _ in tqdm(
       train_ds,
       desc='Train',
       total=hparams.train_steps,
@@ -70,7 +70,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
   start = time()
 
   fake_signals = []
-  for signal, spike in tqdm(
+  for signal, _ in tqdm(
       validation_ds,
       desc='Validate',
       total=hparams.validation_steps,
@@ -149,7 +149,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 def test(validation_ds, gan):
   gen_losses, dis_losses, results = [], [], {}
 
-  for signal, spike in validation_ds:
+  for signal, _ in validation_ds:
     _, gen_loss, dis_loss, _, metrics = gan.validate(signal)
 
     gen_losses.append(gen_loss)
