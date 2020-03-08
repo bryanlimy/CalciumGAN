@@ -19,12 +19,22 @@ class Summary(object):
   """
 
   def __init__(self, hparams, policy=None):
-    self._hparams = hparams
-    self.train_writer = tf.summary.create_file_writer(hparams.output_dir)
+    self._output_dir = hparams.output_dir
+
+    self.train_writer = tf.summary.create_file_writer(self._output_dir)
     self.val_writer = tf.summary.create_file_writer(
-        os.path.join(hparams.output_dir, 'validation'))
-    tf.summary.trace_on(graph=True, profiler=False)
+        os.path.join(self._output_dir, 'validation'))
+
     self._policy = policy
+
+    self._plot_weights = hparams.plot_weights
+
+    # return hparams global step helper function
+    def _get_global_step():
+      return hparams.global_step
+
+    self.global_step = _get_global_step
+
     # color for matplotlib
     self._real_color = 'dodgerblue'
     self._fake_color = 'orangered'
@@ -32,14 +42,8 @@ class Summary(object):
   def _get_writer(self, training):
     return self.train_writer if training else self.val_writer
 
-  def _get_step(self):
-    return self._hparams.global_step
-
   def _get_loss_scale(self):
-    if self._policy is None:
-      return None
-    else:
-      return self._policy.loss_scale._current_loss_scale
+    return self._policy.loss_scale._current_loss_scale if self._policy else None
 
   def _plot_to_image(self):
     """
@@ -85,19 +89,19 @@ class Summary(object):
 
   def scalar(self, tag, value, step=None, training=True):
     writer = self._get_writer(training)
-    step = self._get_step() if step is None else step
+    step = self.global_step() if step is None else step
     with writer.as_default():
       tf.summary.scalar(tag, value, step=step)
 
   def histogram(self, tag, values, step=None, training=True):
     writer = self._get_writer(training)
-    step = self._get_step() if step is None else step
+    step = self.global_step() if step is None else step
     with writer.as_default():
       tf.summary.histogram(tag, values, step=step)
 
   def image(self, tag, values, step=None, training=True):
     writer = self._get_writer(training)
-    step = self._get_step() if step is None else step
+    step = self.global_step() if step is None else step
     with writer.as_default():
       tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
 
@@ -182,7 +186,8 @@ class Summary(object):
   def graph(self):
     writer = self._get_writer(training=True)
     with writer.as_default():
-      tf.summary.trace_export(name='models', step=0)
+      tf.summary.trace_export(
+          name='models', step=0, profiler_outdir=self._output_dir)
 
   def variable_summary(self, variable, name=None, step=None, training=True):
     if name is None:
@@ -237,7 +242,7 @@ class Summary(object):
         self.scalar(tag, value, training=training)
     if elapse is not None:
       self.scalar('elapse', elapse, training=training)
-    if gan is not None and self._hparams.plot_weights:
+    if gan is not None and self._plot_weights:
       self.plot_weights(gan, training=training)
     if not training and self._policy is not None:
       self.scalar('model/loss_scale', self._get_loss_scale(), training=training)
