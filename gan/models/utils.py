@@ -1,5 +1,11 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import layers
+
+
+def activation_fn(name, **kwargs):
+  return layers.LeakyReLU() if name == 'leakyrelu' else layers.Activation(
+      name, **kwargs)
 
 
 def count_trainable_params(model):
@@ -43,7 +49,7 @@ def calculate_input_config(num_neurons,
   return (int(num_units), noise_dim), int(num_units) * noise_dim
 
 
-class Conv1DTranspose(tf.keras.layers.Layer):
+class Conv1DTranspose(layers.Layer):
 
   def __init__(
       self,
@@ -52,13 +58,12 @@ class Conv1DTranspose(tf.keras.layers.Layer):
       strides,
       padding='valid',
       output_padding=None,
-      activation=0,
+      activation='linear',
   ):
     super().__init__()
-    self.activation = tf.keras.layers.Activation(
-        activation) if activation else None
+    self.activation = activation_fn(activation)
 
-    self._conv2dtranspose = tf.keras.layers.Conv2DTranspose(
+    self._conv2dtranspose = layers.Conv2DTranspose(
         filters=filters,
         kernel_size=(kernel_size, 1),
         strides=(strides, 1),

@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 
-from .utils import Conv1DTranspose, calculate_input_config
+from .utils import Conv1DTranspose, calculate_input_config, activation_fn
 
 
 @register
@@ -16,24 +16,24 @@ def mlp(hparams):
   signal_length = hparams.signal_shape[-1]
 
   outputs = layers.Dense(num_units, use_bias=False)(inputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Reshape(shape)(outputs)
 
   outputs = layers.Dense(signal_length // 6)(outputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   outputs = layers.Dense(signal_length // 3)(outputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   outputs = layers.Dense(signal_length)(outputs)
   outputs = layers.Reshape(hparams.signal_shape)(outputs)
 
   if hparams.normalize:
-    outputs = layers.Activation('sigmoid', dtype=tf.float32)(outputs)
+    outputs = activation_fn('sigmoid', dtype=tf.float32)(outputs)
   else:
-    outputs = layers.Activation('linear', dtype=tf.float32)(outputs)
+    outputs = activation_fn('linear', dtype=tf.float32)(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
@@ -52,27 +52,27 @@ def conv1d(hparams):
   signal_length = hparams.signal_shape[-1]
 
   outputs = layers.Dense(num_units, use_bias=False)(inputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Reshape(shape)(outputs)
 
   outputs = Conv1DTranspose(signal_length // 4, kernel_size, strides)(outputs)
   outputs = layers.BatchNormalization()(outputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
 
   outputs = Conv1DTranspose(signal_length // 2, kernel_size, strides)(outputs)
   outputs = layers.BatchNormalization()(outputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
 
   outputs = Conv1DTranspose(signal_length, kernel_size, strides)(outputs)
   outputs = layers.BatchNormalization()(outputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
 
   outputs = layers.Dense(hparams.signal_shape[-1])(outputs)
 
   if hparams.normalize:
-    outputs = layers.Activation('sigmoid', dtype=tf.float32)(outputs)
+    outputs = activation_fn('sigmoid', dtype=tf.float32)(outputs)
   else:
-    outputs = layers.Activation('linear', dtype=tf.float32)(outputs)
+    outputs = activation_fn('linear', dtype=tf.float32)(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
@@ -86,7 +86,7 @@ def rnn(hparams):
   signal_length = hparams.signal_shape[-1]
 
   outputs = layers.Dense(num_units, use_bias=False)(inputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Reshape(shape)(outputs)
 
   num_units = hparams.signal_shape[-1]
@@ -118,8 +118,8 @@ def rnn(hparams):
   outputs = layers.Dense(num_units)(outputs)
 
   if hparams.normalize:
-    outputs = layers.Activation('sigmoid', dtype=tf.float32)(outputs)
+    outputs = activation_fn('sigmoid', dtype=tf.float32)(outputs)
   else:
-    outputs = layers.Activation('linear', dtype=tf.float32)(outputs)
+    outputs = activation_fn('linear', dtype=tf.float32)(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')

@@ -217,7 +217,7 @@ if __name__ == '__main__':
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
   parser.add_argument('--generator', default='conv1d', type=str)
   parser.add_argument('--discriminator', default='conv1d', type=str)
-  parser.add_argument('--activation', default='tanh', type=str)
+  parser.add_argument('--activation', default='linear', type=str)
   parser.add_argument('--algorithm', default='gan', type=str)
   parser.add_argument(
       '--n_critic',

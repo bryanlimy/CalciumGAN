@@ -2,8 +2,9 @@ from .registry import discriminator_register as register
 
 import numpy as np
 import tensorflow as tf
-
 from tensorflow.keras import layers
+
+from .utils import activation_fn
 
 
 @register
@@ -13,20 +14,20 @@ def mlp(hparams):
   signal_shape = hparams.signal_shape[-1]
 
   outputs = layers.Dense(signal_shape)(inputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   outputs = layers.Dense(signal_shape // 3)(outputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   outputs = layers.Dense(signal_shape // 6)(outputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   outputs = layers.Flatten()(outputs)
   outputs = layers.Dense(1)(outputs)
-  outputs = layers.Activation('linear', dtype=tf.float32)(outputs)
+  outputs = activation_fn('linear', dtype=tf.float32)(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
 
@@ -40,24 +41,24 @@ def conv1d(hparams):
 
   outputs = layers.Conv1D(
       filters=signal_length, kernel_size=kernel_size, strides=strides)(inputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   outputs = layers.Conv1D(
       filters=signal_length // 2, kernel_size=kernel_size,
       strides=strides)(outputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   outputs = layers.Conv1D(
       filters=signal_length // 4, kernel_size=kernel_size,
       strides=strides)(outputs)
-  outputs = layers.Activation(hparams.activation)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   outputs = layers.Flatten()(outputs)
   outputs = layers.Dense(1)(outputs)
-  outputs = layers.Activation('linear', dtype=tf.float32)(outputs)
+  outputs = activation_fn('linear', dtype=tf.float32)(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
 
@@ -94,6 +95,6 @@ def rnn(hparams):
 
   outputs = layers.Flatten()(outputs)
   outputs = layers.Dense(1)(outputs)
-  outputs = layers.Activation('linear', dtype=tf.float32)(outputs)
+  outputs = activation_fn('linear', dtype=tf.float32)(outputs)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='discriminator')
