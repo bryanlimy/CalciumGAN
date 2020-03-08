@@ -56,15 +56,18 @@ def conv1d(hparams):
   outputs = layers.Reshape(shape)(outputs)
 
   outputs = Conv1DTranspose(signal_length // 4, kernel_size, strides)(outputs)
-  outputs = layers.BatchNormalization()(outputs)
+  if hparams.batch_norm:
+    outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   outputs = Conv1DTranspose(signal_length // 2, kernel_size, strides)(outputs)
-  outputs = layers.BatchNormalization()(outputs)
+  if hparams.batch_norm:
+    outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   outputs = Conv1DTranspose(signal_length, kernel_size, strides)(outputs)
-  outputs = layers.BatchNormalization()(outputs)
+  if hparams.batch_norm:
+    outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   outputs = layers.Dense(hparams.signal_shape[-1])(outputs)
