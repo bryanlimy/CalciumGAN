@@ -1,6 +1,7 @@
-__all__ = ['discriminators', 'generators', 'registry', 'utils']
+__all__ = ['mlp', 'registry', 'rnn', 'utils', 'wavegan']
 
-from .discriminators import *
-from .generators import *
+from .mlp import *
 from .registry import *
+from .rnn import *
 from .utils import *
+from .wavegan import *
