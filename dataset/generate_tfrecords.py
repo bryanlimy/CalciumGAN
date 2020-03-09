@@ -45,6 +45,10 @@ def get_segments(hparams):
 
   assert raw_signals.shape == raw_spikes.shape
 
+  # set signals and spikes to WC [sequence, num. neurons]
+  raw_signals = np.swapaxes(raw_signals, 0, 1)
+  raw_spikes = np.swapaxes(raw_spikes, 0, 1)
+
   # max and min value of signals
   hparams.signals_min = np.min(raw_signals)
   hparams.signals_max = np.max(raw_signals)
@@ -59,16 +63,16 @@ def get_segments(hparams):
     print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
         np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
 
-  num_neurons = raw_signals.shape[0]
-  num_samples = raw_signals.shape[1] - hparams.sequence_length
-  signals = np.zeros((num_samples, num_neurons, hparams.sequence_length),
-                     dtype=np.float32)
-  spikes = np.zeros((num_samples, num_neurons, hparams.sequence_length),
-                    dtype=np.float32)
+  hparams.num_neurons = raw_signals.shape[1]
+  num_samples = raw_signals.shape[0] - hparams.sequence_length
+
+  shape = (num_samples, hparams.sequence_length, hparams.num_neurons)
+  signals = np.zeros(shape, dtype=np.float32)
+  spikes = np.zeros(shape, dtype=np.float32)
 
   for i in tqdm(range(num_samples)):
-    signals[i] = raw_signals[:, i:i + hparams.sequence_length]
-    spikes[i] = raw_spikes[:, i:i + hparams.sequence_length]
+    signals[i] = raw_signals[i:i + hparams.sequence_length, :]
+    spikes[i] = raw_spikes[i:i + hparams.sequence_length, :]
 
   assert signals.shape == spikes.shape
 
@@ -147,10 +151,8 @@ def main(hparams):
   signals = signals[indexes]
   spikes = spikes[indexes]
 
-  train_size = int(len(signals) * 0.7)
-
-  hparams.train_size = train_size
-  hparams.validation_size = len(signals) - train_size
+  hparams.train_size = int(len(signals) * hparams.train_percentage)
+  hparams.validation_size = len(signals) - hparams.train_size
   hparams.signal_shape = signals.shape[1:]
   hparams.spike_shape = spikes.shape[1:]
 
@@ -163,29 +165,32 @@ def main(hparams):
   write_to_records(
       hparams,
       mode='train',
-      signals=signals[:train_size],
-      spikes=spikes[:train_size])
+      signals=signals[:hparams.train_size],
+      spikes=spikes[:hparams.train_size])
 
   write_to_records(
       hparams,
       mode='validation',
-      signals=signals[train_size:],
-      spikes=spikes[train_size:])
+      signals=signals[hparams.train_size:],
+      spikes=spikes[hparams.train_size:])
 
   # save information of the dataset
   with open(os.path.join(hparams.output_dir, 'info.pkl'), 'wb') as file:
-    pickle.dump({
+    info = {
         'train_size': hparams.train_size,
         'validation_size': hparams.validation_size,
         'signal_shape': hparams.signal_shape,
         'spike_shape': hparams.spike_shape,
+        'num_neurons': hparams.num_neurons,
+        'sequence_length': hparams.sequence_length,
         'num_train_shards': hparams.num_train_shards,
         'num_validation_shards': hparams.num_validation_shards,
         'buffer_size': min(hparams.num_per_shard, hparams.train_size),
         'normalize': hparams.normalize,
         'signals_min': hparams.signals_min,
         'signals_max': hparams.signals_max
-    }, file)
+    }
+    pickle.dump(info, file)
 
   print('saved {} TFRecords to {}'.format(
       hparams.num_train_shards + hparams.num_validation_shards,
@@ -200,6 +205,7 @@ if __name__ == '__main__':
   parser.add_argument('--sequence_length', default=1024, type=int)
   parser.add_argument('--normalize', action='store_true')
   parser.add_argument('--replace', action='store_true')
+  parser.add_argument('--train_percentage', default=0.7, type=float)
   parser.add_argument(
       '--target_shard_size',
       default=1,

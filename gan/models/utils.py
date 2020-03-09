@@ -15,10 +15,24 @@ def count_trainable_params(model):
 
 
 def calculate_convolution_steps(layer, output, kernel_size, strides, padding):
-  ''' Calculate the amount of steps in the input is needed for Conv1DTranpose 
-  to return a tensor with output number of steps
   '''
-  steps = (1 / strides) * (output + 2 * padding - kernel_size) + 1
+  Calculate the amount of steps in the input is needed for Conv1DTranpose 
+  to return a tensor with output number of steps
+  :param layer: current layer index
+  :param output: size of output
+  :param kernel_size: kernel size
+  :param strides: stride size
+  :param padding: type of padding
+  :return: the steps size to Conv1DTranpose to get output size
+  '''
+  if padding == 'same':
+    steps = output / strides
+  else:
+    steps = (1 / strides) * (output - kernel_size) + 1
+
+  if not steps.is_integer():
+    raise ValueError('Conv1D: step {} is not an integer.'.format(steps))
+
   if layer > 1:
     steps = calculate_convolution_steps(
         layer=layer - 1,
@@ -26,23 +40,22 @@ def calculate_convolution_steps(layer, output, kernel_size, strides, padding):
         kernel_size=kernel_size,
         strides=strides,
         padding=padding)
-  if not steps.is_integer():
-    raise ValueError('Conv1D: step {} is not an integer.'.format(steps))
+
   return steps
 
 
-def calculate_input_config(num_neurons,
+def calculate_input_config(output,
                            noise_dim,
                            num_convolution=0,
                            kernel_size=0,
                            strides=0,
-                           padding=0):
+                           padding='same'):
   if num_convolution == 0:
-    num_units = num_neurons
+    num_units = output
   else:
     num_units = calculate_convolution_steps(
         layer=num_convolution,
-        output=num_neurons,
+        output=output,
         kernel_size=kernel_size,
         strides=strides,
         padding=padding)
@@ -56,7 +69,7 @@ class Conv1DTranspose(layers.Layer):
       filters,
       kernel_size,
       strides,
-      padding='valid',
+      padding='same',
       output_padding=None,
       activation='linear',
   ):

@@ -76,6 +76,8 @@ def get_dataset_info(hparams):
   hparams.validation_size = info['validation_size']
   hparams.signal_shape = info['signal_shape']
   hparams.spike_shape = info['spike_shape']
+  hparams.num_neurons = info['num_neurons']
+  hparams.sequence_length = info['sequence_length']
   hparams.num_train_shards = info['num_train_shards']
   hparams.num_validation_shards = info['num_validation_shards']
   hparams.buffer_size = info['buffer_size']
@@ -138,7 +140,6 @@ def get_dataset(hparams, summary):
     train_ds, validation_ds = get_fashion_mnist(hparams)
   else:
     train_ds, validation_ds = get_calcium_signals(hparams)
-    hparams.num_neurons = hparams.signal_shape[0]
 
     if hparams.save_generated:
       cache_validation_set(hparams, validation_ds)

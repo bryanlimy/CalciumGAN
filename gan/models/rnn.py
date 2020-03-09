@@ -9,6 +9,7 @@ from .utils import calculate_input_config, activation_fn
 
 @register('rnn')
 def get_rnn(hparams):
+  # TODO make it works for NWC
   return generator(hparams), discriminator(hparams)
 
 

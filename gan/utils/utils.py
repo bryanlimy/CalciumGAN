@@ -102,4 +102,24 @@ def load_models(hparams, generator, discriminator):
 
 def is_neuron_major(array, hparams):
   ''' return True if the array is neuron-major '''
+  # TODO make it works with 3 dimensional array
   return array.shape[0] == hparams.num_neurons
+
+
+def set_array_format(array, format, hparams):
+  # TODO make it works with 3 dimensional array
+  assert len(array.shape) == len(format)
+
+  # get NWC format index
+  shape = list(array.shape)
+  newshape = [
+      shape.index(hparams.sequence_length if i == 'W' else hparams.num_neurons)
+      for i in format
+  ]
+
+  if sorted(newshape) == newshape:
+    return array
+  elif type(array) == np.ndarray:
+    return np.swapaxes(array, newshape[0], newshape[1])
+  else:
+    return tf.transpose(array, perm=newshape)

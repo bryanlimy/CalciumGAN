@@ -95,6 +95,10 @@ def validate(hparams, validation_ds, gan, summary, epoch):
   gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
   results = {key: np.mean(item) for key, item in results.items()}
 
+  if fake_signals:
+    fake_signals = np.vstack(fake_signals)
+    utils.save_fake_signals(hparams, epoch, fake_signals=fake_signals)
+
   end = time()
 
   summary.log(
@@ -104,10 +108,6 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       metrics=results,
       elapse=end - start,
       training=False)
-
-  if fake_signals:
-    fake_signals = np.vstack(fake_signals)
-    utils.save_fake_signals(hparams, epoch, fake_signals=fake_signals)
 
   return gen_loss, dis_loss
 
@@ -128,11 +128,15 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
 
-    end = time()
-
     # test generated data and plot in TensorBoard
     summary.plot_traces(
         'fake', signals=gan.generate(test_noise, denorm=True), training=False)
+
+    if not hparams.skip_checkpoints and (epoch % 10 == 0 or
+                                         epoch == hparams.epochs - 1):
+      utils.save_models(hparams, gan, epoch)
+
+    end = time()
 
     if hparams.verbose:
       print('Train: generator loss {:.04f} discriminator loss {:.04f}\n'
@@ -140,10 +144,6 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
             'Elapse: {:.02f} mins\n'.format(train_gen_loss, train_dis_loss,
                                             val_gen_loss, val_dis_loss,
                                             (end - start) / 60))
-
-    if not hparams.skip_checkpoints and (epoch % 10 == 0 or
-                                         epoch == hparams.epochs - 1):
-      utils.save_models(hparams, gan, epoch)
 
 
 def test(validation_ds, gan):

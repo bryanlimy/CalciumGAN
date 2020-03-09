@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 plt.style.use('seaborn-deep')
 import seaborn as sns
 
-from . import spike_helper
+from . import utils, spike_helper
 
 
 class Summary(object):
@@ -19,6 +19,7 @@ class Summary(object):
   """
 
   def __init__(self, hparams, policy=None):
+    self._hparams = hparams
     self._output_dir = hparams.output_dir
 
     self.train_writer = tf.summary.create_file_writer(self._output_dir)
@@ -113,6 +114,9 @@ class Summary(object):
     if len(signals.shape) > 2:
       signals = signals[0]
 
+    signals = utils.set_array_format(
+        signals, format='CW', hparams=self._hparams)
+
     # deconvolve signals if spikes aren't provided
     if spikes is None:
       spikes = spike_helper.deconvolve_signals(signals)
@@ -121,6 +125,8 @@ class Summary(object):
       spikes = spikes.numpy()
     if len(spikes.shape) > 2:
       spikes = spikes[0]
+
+    spikes = utils.set_array_format(spikes, format='CW', hparams=self._hparams)
 
     # plot traces at most
     for i in range(min(20, signals.shape[0])):

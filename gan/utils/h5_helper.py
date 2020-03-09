@@ -6,19 +6,6 @@ from time import sleep
 from . import utils
 
 
-def _open(filename, mode):
-  if (mode == 'r' or mode == 'r+') and not os.path.exists(filename):
-    print('{} not found'.format(filename))
-    exit()
-  while True:
-    try:
-      file = h5py.File(filename, mode=mode)
-      break
-    except OSError:
-      sleep(1)
-  return file
-
-
 def append(ds, value):
   """ append value to a H5 dataset """
   if type(value) != np.ndarray:
@@ -30,14 +17,14 @@ def append(ds, value):
 def write(filename, content):
   """ create dataset and write content to H5 file """
   assert type(content) == dict
-  with _open(filename, mode='a') as file:
+  with h5py.File(filename, mode='a') as file:
     for key, value in content.items():
       file.create_dataset(key, shape=value.shape, dtype=np.float32, data=value)
 
 
 def overwrite(filename, name, value):
   ''' overwrite dataset with value '''
-  with _open(filename, mode='r+') as file:
+  with h5py.File(filename, mode='r+') as file:
     if name not in file.keys():
       raise KeyError('{} cannot be found'.format(name))
     del file[name]
@@ -57,7 +44,7 @@ def get(filename, name, index=None, neuron=None, hparams=None):
   :param hparams: (Optional) hparams dict
   :return: dataset
   """
-  with _open(filename, mode='r') as file:
+  with h5py.File(filename, mode='r') as file:
     if name not in file.keys():
       raise KeyError('{} cannot be found'.format(name))
     ds = file[name]
@@ -72,13 +59,13 @@ def get(filename, name, index=None, neuron=None, hparams=None):
 
 
 def get_dataset_length(filename, name):
-  with _open(filename, mode='r') as file:
+  with h5py.File(filename, mode='r') as file:
     dataset = file[name]
     length = dataset.len()
   return length
 
 
 def contains(filename, name):
-  with _open(filename, mode='r') as file:
+  with h5py.File(filename, mode='r') as file:
     keys = list(file.keys())
   return name in keys
