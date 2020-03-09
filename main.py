@@ -43,7 +43,8 @@ def train(hparams, train_ds, gan, summary, epoch):
 
     gen_loss, dis_loss, gradient_penalty, metrics = gan.train(signal)
 
-    if hparams.global_step % hparams.summary_freq == 0:
+    # log training progress every 200 steps
+    if hparams.global_step % 200 == 0:
       summary.log(
           gen_loss,
           dis_loss,
@@ -128,13 +129,12 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
 
-    # test generated data and plot in TensorBoard
-    summary.plot_traces(
-        'fake', signals=gan.generate(test_noise, denorm=True), training=False)
-
-    if not hparams.skip_checkpoints and (epoch % 10 == 0 or
-                                         epoch == hparams.epochs - 1):
-      utils.save_models(hparams, gan, epoch)
+    if epoch % 10 == 0 or epoch == hparams.epochs - 1:
+      # test generated data and plot in TensorBoard
+      summary.plot_traces(
+          'fake', signals=gan.generate(test_noise, denorm=True), training=False)
+      if not hparams.skip_checkpoints:
+        utils.save_models(hparams, gan, epoch)
 
     end = time()
 
@@ -213,7 +213,6 @@ if __name__ == '__main__':
   parser.add_argument('--dropout', default=0.2, type=float)
   parser.add_argument('--learning_rate', default=0.0001, type=float)
   parser.add_argument('--noise_dim', default=128, type=int)
-  parser.add_argument('--summary_freq', default=200, type=int)
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
   parser.add_argument('--model', default='mlp', type=str)
   parser.add_argument('--activation', default='linear', type=str)
