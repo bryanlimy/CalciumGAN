@@ -62,8 +62,7 @@ function main() {
   command+="-v /media/data0/bryanlimy/runs:/home/bryanlimy/calcium_imaging_gan/runs"
   command+=" "
   command+="bryanlimy/projects:0.5-calcium-gan-base zsh"
-  echo "$command"
-#  eval "$command"
+  eval "$command"
 }
 
 main
