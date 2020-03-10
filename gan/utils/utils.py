@@ -100,26 +100,30 @@ def load_models(hparams, generator, discriminator):
       print('Restored checkpoint at {}'.format(filename))
 
 
-def is_neuron_major(array, hparams):
-  ''' return True if the array is neuron-major '''
-  # TODO make it works with 3 dimensional array
-  return array.shape[0] == hparams.num_neurons
+def get_array_format(shape, hparams):
+  ''' get the array data format in string
+  N: number of samples
+  W: sequence length
+  C: number of neurons
+  '''
+  assert len(shape) <= 3
+  return ''.join([
+      'W' if s == hparams.sequence_length else
+      'C' if s == hparams.num_neurons else 'N' for s in shape
+  ])
 
 
-def set_array_format(array, format, hparams):
-  # TODO make it works with 3 dimensional array
-  assert len(array.shape) == len(format)
+def set_array_format(array, data_format, hparams):
+  ''' set array to the given data format '''
+  assert len(array.shape) == len(data_format)
 
-  # get NWC format index
-  shape = list(array.shape)
-  newshape = [
-      shape.index(hparams.sequence_length if i == 'W' else hparams.num_neurons)
-      for i in format
-  ]
+  current_format = get_array_format(array.shape, hparams)
 
-  if sorted(newshape) == newshape:
+  if data_format == current_format:
     return array
-  elif type(array) == np.ndarray:
-    return np.swapaxes(array, newshape[0], newshape[1])
+
+  perm = [data_format.index(s) for s in current_format]
+  if tf.is_tensor(array):
+    return tf.transpose(array, perm=perm)
   else:
-    return tf.transpose(array, perm=newshape)
+    return np.transpose(array, axes=perm)
