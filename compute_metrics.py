@@ -101,14 +101,14 @@ def neuron_firing_rate(hparams, filename, neuron):
   }
 
 
-def firing_rate_metrics(hparams, info, summary):
+def firing_rate_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing firing rate')
 
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
       neuron_firing_rate,
-      [(hparams, info['filename'], n) for n in range(hparams.num_neurons)])
+      [(hparams, filename, n) for n in range(hparams.num_neurons)])
   pool.close()
 
   firing_rate_errors, firing_rate_pairs = [], []
@@ -119,7 +119,7 @@ def firing_rate_metrics(hparams, info, summary):
   summary.scalar(
       'spike_metrics/firing_rate_error',
       np.mean(firing_rate_errors),
-      step=info['global_step'],
+      step=epoch,
       training=False)
 
   summary.plot_histograms(
@@ -128,7 +128,7 @@ def firing_rate_metrics(hparams, info, summary):
       xlabel='Hz',
       ylabel='Count',
       title='Neuron #{:03d}',
-      step=info['global_step'],
+      step=epoch,
       training=False)
 
 
@@ -152,7 +152,7 @@ def neuron_covariance(hparams, filename, neuron, num_samples):
   return np.mean(spike_metrics.covariance(real_spikes, fake_spikes))
 
 
-def covariance_metrics(hparams, info, summary):
+def covariance_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing covariance')
 
@@ -160,14 +160,11 @@ def covariance_metrics(hparams, info, summary):
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
       neuron_covariance,
-      [(hparams, info['filename'], n, 500) for n in range(hparams.num_neurons)])
+      [(hparams, filename, n, 500) for n in range(hparams.num_neurons)])
   pool.close()
 
   summary.scalar(
-      'spike_metrics/covariance',
-      np.mean(results),
-      step=info['global_step'],
-      training=False)
+      'spike_metrics/covariance', np.mean(results), step=epoch, training=False)
 
 
 def neuron_van_rossum_distance(hparams, filename, neuron, num_samples):
@@ -276,7 +273,7 @@ def sample_van_rossum_histogram(hparams, filename, sample):
   return (real_van_rossum, fake_van_rossum)
 
 
-def van_rossum_metrics(hparams, info, summary):
+def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
 
@@ -284,20 +281,20 @@ def van_rossum_metrics(hparams, info, summary):
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
       neuron_van_rossum_distance,
-      [(hparams, info['filename'], n, 500) for n in range(hparams.num_neurons)])
+      [(hparams, filename, n, 500) for n in range(hparams.num_neurons)])
   pool.close()
 
   summary.scalar(
       'spike_metrics/van_rossum_distance',
       np.mean(results),
-      step=info['global_step'],
+      step=epoch,
       training=False)
 
   # compute neuron-wise van rossum heat-map for 50 samples
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
       neuron_van_rossum_heatmap,
-      [(hparams, info['filename'], i, 50) for i in range(hparams.num_neurons)])
+      [(hparams, filename, i, 50) for i in range(hparams.num_neurons)])
   pool.close()
 
   heatmaps, xticklabels, yticklabels = [], [], []
@@ -314,13 +311,13 @@ def van_rossum_metrics(hparams, info, summary):
       xticklabels=xticklabels,
       yticklabels=yticklabels,
       title='Neuron #{:03d}',
-      step=info['global_step'],
+      step=epoch,
       training=False)
 
   # compute first 50 samples' sample-wise van rossum distance
   pool = Pool(hparams.num_processors)
   results = pool.starmap(sample_van_rossum_histogram,
-                         [(hparams, info['filename'], i) for i in range(50)])
+                         [(hparams, filename, i) for i in range(50)])
   pool.close()
 
   summary.plot_histograms(
@@ -329,19 +326,19 @@ def van_rossum_metrics(hparams, info, summary):
       xlabel='Distance',
       ylabel='Count',
       title='Sample #{:03d}',
-      step=info['global_step'],
+      step=epoch,
       training=False)
 
 
-def compute_epoch_spike_metrics(hparams, info, summary):
-  if not h5_helper.contains(info['filename'], 'spikes'):
-    deconvolve_from_file(hparams, info['filename'])
+def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
+  if not h5_helper.contains(filename, 'spikes'):
+    deconvolve_from_file(hparams, filename)
 
-  firing_rate_metrics(hparams, info, summary)
+  firing_rate_metrics(hparams, summary, filename, epoch)
 
-  covariance_metrics(hparams, info, summary)
+  covariance_metrics(hparams, summary, filename, epoch)
 
-  van_rossum_metrics(hparams, info, summary)
+  van_rossum_metrics(hparams, summary, filename, epoch)
 
 
 def main(hparams):
@@ -354,18 +351,19 @@ def main(hparams):
   epochs = sorted(list(info.keys()))
   for epoch in epochs:
     start = time()
+
     if hparams.verbose:
       print('\nCompute metrics for {}'.format(info[epoch]['filename']))
-    compute_epoch_spike_metrics(hparams, info[epoch], summary)
+
+    compute_epoch_spike_metrics(hparams, summary, info[epoch]['filename'],
+                                epoch)
     end = time()
 
     summary.scalar(
-        'elapse/spike_metrics',
-        end - start,
-        step=info[epoch]['global_step'],
-        training=False)
+        'elapse/spike_metrics', end - start, step=epoch, training=False)
 
-    print('{} took {:.02f}s'.format(info[epoch]['filename'], end - start))
+    print('{} took {:.02f} mins'.format(info[epoch]['filename'],
+                                        (end - start) / 60))
 
 
 if __name__ == '__main__':

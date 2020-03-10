@@ -153,7 +153,11 @@ def get_dataset(hparams, summary):
     sample_signals = utils.denormalize(
         sample_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
     summary.plot_traces(
-        'real', signals=sample_signals, spikes=sample_spikes, training=False)
+        'real',
+        signals=sample_signals,
+        spikes=sample_spikes,
+        step=0,
+        training=False)
 
   hparams.train_steps = ceil(hparams.train_size / hparams.batch_size)
   hparams.validation_steps = ceil(hparams.validation_size / hparams.batch_size)

@@ -132,7 +132,10 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
     if epoch % 10 == 0 or epoch == hparams.epochs - 1:
       # test generated data and plot in TensorBoard
       summary.plot_traces(
-          'fake', signals=gan.generate(test_noise, denorm=True), training=False)
+          'fake',
+          signals=gan.generate(test_noise, denorm=True),
+          step=epoch,
+          training=False)
       if not hparams.skip_checkpoints:
         utils.save_models(hparams, gan, epoch)
 
