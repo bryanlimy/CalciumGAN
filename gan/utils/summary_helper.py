@@ -20,25 +20,20 @@ class Summary(object):
 
   def __init__(self, hparams, policy=None):
     self._hparams = hparams
-    self._output_dir = hparams.output_dir
 
-    self.train_writer = tf.summary.create_file_writer(self._output_dir)
+    self.train_writer = tf.summary.create_file_writer(hparams.output_dir)
     self.val_writer = tf.summary.create_file_writer(
-        os.path.join(self._output_dir, 'validation'))
+        os.path.join(hparams.output_dir, 'validation'))
 
     self._policy = policy
-
     self._plot_weights = hparams.plot_weights
-
-    # return hparams global step helper function
-    def _get_global_step():
-      return hparams.global_step
-
-    self.global_step = _get_global_step
 
     # color for matplotlib
     self._real_color = 'dodgerblue'
     self._fake_color = 'orangered'
+
+  def _get_global_step(self):
+    return self._hparams.global_step
 
   def _get_writer(self, training):
     return self.train_writer if training else self.val_writer
@@ -46,7 +41,8 @@ class Summary(object):
   def _get_loss_scale(self):
     return self._policy.loss_scale._current_loss_scale if self._policy else None
 
-  def _plot_to_image(self):
+  @staticmethod
+  def _plot_to_image():
     """
     Converts the matplotlib plot specified by 'figure' to a PNG image and
     returns it. The supplied figure is closed and inaccessible after this call.
@@ -57,7 +53,8 @@ class Summary(object):
     buf.seek(0)
     return tf.image.decode_png(buf.getvalue(), channels=4)
 
-  def _simple_axis(self, axis):
+  @staticmethod
+  def _simple_axis(axis):
     """plot only x and y axis, not a frame for subplot ax"""
     axis.spines['top'].set_visible(False)
     axis.spines['right'].set_visible(False)
@@ -90,19 +87,19 @@ class Summary(object):
 
   def scalar(self, tag, value, step=None, training=True):
     writer = self._get_writer(training)
-    step = self.global_step() if step is None else step
+    step = self._get_global_step() if step is None else step
     with writer.as_default():
       tf.summary.scalar(tag, value, step=step)
 
   def histogram(self, tag, values, step=None, training=True):
     writer = self._get_writer(training)
-    step = self.global_step() if step is None else step
+    step = self._get_global_step() if step is None else step
     with writer.as_default():
       tf.summary.histogram(tag, values, step=step)
 
   def image(self, tag, values, step=None, training=True):
     writer = self._get_writer(training)
-    step = self.global_step() if step is None else step
+    step = self._get_global_step() if step is None else step
     with writer.as_default():
       tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
 
@@ -115,7 +112,7 @@ class Summary(object):
       signals = signals[0]
 
     signals = utils.set_array_format(
-        signals, format='CW', hparams=self._hparams)
+        signals, data_format='CW', hparams=self._hparams)
 
     # deconvolve signals if spikes aren't provided
     if spikes is None:
@@ -126,7 +123,8 @@ class Summary(object):
     if len(spikes.shape) > 2:
       spikes = spikes[0]
 
-    spikes = utils.set_array_format(spikes, format='CW', hparams=self._hparams)
+    spikes = utils.set_array_format(
+        spikes, data_format='CW', hparams=self._hparams)
 
     # plot traces at most
     for i in range(min(20, signals.shape[0])):
@@ -193,7 +191,7 @@ class Summary(object):
     writer = self._get_writer(training=True)
     with writer.as_default():
       tf.summary.trace_export(
-          name='models', step=0, profiler_outdir=self._output_dir)
+          name='models', step=0, profiler_outdir=self._hparams.output_dir)
 
   def variable_summary(self, variable, name=None, step=None, training=True):
     if name is None:

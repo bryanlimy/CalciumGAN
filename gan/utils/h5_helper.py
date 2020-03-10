@@ -15,11 +15,13 @@ def append(ds, value):
 
 
 def write(filename, content):
-  """ create dataset and write content to H5 file """
+  """ create dataset and write content to H5 file
+  NOTE: dataset must be stored in NWC data format
+  """
   assert type(content) == dict
   with h5py.File(filename, mode='a') as file:
-    for key, value in content.items():
-      file.create_dataset(key, shape=value.shape, dtype=np.float32, data=value)
+    for k, v in content.items():
+      file.create_dataset(k, shape=v.shape, dtype=v.dtype, data=v)
 
 
 def overwrite(filename, name, value):
@@ -31,31 +33,24 @@ def overwrite(filename, name, value):
     file.create_dataset(name, shape=value.shape, dtype=np.float32, data=value)
 
 
-def get(filename, name, index=None, neuron=None, hparams=None):
+def get(filename, name, neuron=None, sample=None):
   """
-  Return the dataset with the given name and index
-  If index is specified, neuron and hparams must also be provided
-  :param filename: h5 filename
-  :param name: name of the dataset
-  :param index: (Optional) index in the dataset to return, otherwise return 
-                            the whole dataset 
-  :param neuron: (Optional) True if index is for a specific neuron
-                            False if index is for a specific sample
-  :param hparams: (Optional) hparams dict
-  :return: dataset
+  Return the dataset with the given name
+  NOTE: Dataset must be stored in NWC format
+  neuron: index of the specific neuron to be returned
+  sample: index of the specific sample to be returned
   """
+  assert not (neuron is not None and sample is not None)
   with h5py.File(filename, mode='r') as file:
     if name not in file.keys():
       raise KeyError('{} cannot be found'.format(name))
     ds = file[name]
-    if index is None:
-      return ds[:]
+    if neuron is not None:
+      return ds[:, :, neuron]
+    elif sample is not None:
+      return ds[sample, :, :]
     else:
-      assert type(neuron) is bool and hparams is not None
-      if utils.is_neuron_major(ds, hparams):
-        return ds[index, :, :] if neuron else ds[:, index, :]
-      else:
-        return ds[:, index, :] if neuron else ds[index, :, :]
+      return ds[:]
 
 
 def get_dataset_length(filename, name):

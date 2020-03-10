@@ -12,7 +12,7 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-from gan.utils import utils, spike_helper
+from gan.utils import utils
 from gan.models.registry import get_models
 from gan.utils.summary_helper import Summary
 from gan.utils.dataset_helper import get_dataset
@@ -123,11 +123,11 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
     if hparams.verbose:
       print('Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs))
 
-    # train_gen_loss, train_dis_loss = train(
-    #     hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
-    #
-    # val_gen_loss, val_dis_loss = validate(
-    #     hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
+    train_gen_loss, train_dis_loss = train(
+        hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
+
+    val_gen_loss, val_dis_loss = validate(
+        hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
 
     if epoch % 10 == 0 or epoch == hparams.epochs - 1:
       # test generated data and plot in TensorBoard
@@ -245,7 +245,7 @@ if __name__ == '__main__':
 
   hparams.global_step = 0
 
-  # disabble warnings except verbose == 2
+  # disable warnings except verbose == 2
   if hparams.verbose != 2:
     warnings.simplefilter(action='ignore', category=FutureWarning)
     warnings.simplefilter(action='ignore', category=UserWarning)

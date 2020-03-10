@@ -119,10 +119,13 @@ def set_array_format(array, data_format, hparams):
 
   current_format = get_array_format(array.shape, hparams)
 
+  assert set(current_format) == set(data_format)
+
   if data_format == current_format:
     return array
 
-  perm = [data_format.index(s) for s in current_format]
+  perm = [current_format.index(s) for s in data_format]
+
   if tf.is_tensor(array):
     return tf.transpose(array, perm=perm)
   else:
