@@ -337,7 +337,7 @@ def compute_epoch_spike_metrics(hparams, info, summary):
   if not h5_helper.contains(info['filename'], 'spikes'):
     deconvolve_from_file(hparams, info['filename'])
 
-  # firing_rate_metrics(hparams, info, summary)
+  firing_rate_metrics(hparams, info, summary)
 
   covariance_metrics(hparams, info, summary)
 
