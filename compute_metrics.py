@@ -351,12 +351,10 @@ def main(hparams):
   epochs = sorted(list(info.keys()))
   for epoch in epochs:
     start = time()
-
     if hparams.verbose:
       print('\nCompute metrics for {}'.format(info[epoch]['filename']))
-
-    compute_epoch_spike_metrics(hparams, summary, info[epoch]['filename'],
-                                epoch)
+    compute_epoch_spike_metrics(
+        hparams, summary, filename=info[epoch]['filename'], epoch=epoch)
     end = time()
 
     summary.scalar(
@@ -369,11 +367,7 @@ def main(hparams):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='runs')
-  parser.add_argument(
-      '--num_processors',
-      default=6,
-      type=int,
-      help='number of processing cores to use for metrics calculation')
+  parser.add_argument('--num_processors', default=6, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 
