@@ -4,12 +4,13 @@ function print_help() {
   echo "Usage: ./run_docker.sh --name [NAME] [OPTIONS]"
   echo "  --name    name of the container"
   echo "  --cpus    number of CPU cores to use"
-  echo "  --gpus     use GPUs"
-
+  echo "  --gpus    use GPUs"
+  echo "  --mem     amount of memory to use in GB"
 }
 
 name='container_1'
 cpus=10
+mem=16
 gpus=false
 
 while [ ! $# -eq 0 ]; do
@@ -28,6 +29,10 @@ while [ ! $# -eq 0 ]; do
       ;;
     --gpus)
       gpus=true
+      ;;
+    --mem)
+      shift
+      mem=$1
       ;;
     *)
       echo "Unknown flag $1, please check available flags with --help"
@@ -48,6 +53,8 @@ function main() {
     command+="--gpus all"
   fi
   command+=" "
+  command+="--memory $((mem * 1024))m --oom-kill-disable"
+  command+=" "
   command+="-v ~/Git/calcium_imaging_gan/:/home/bryanlimy/calcium_imaging_gan"
   command+=" "
   command+="-v /media/data0/bryanlimy/calcium_datasets/:/home/bryanlimy/calcium_imaging_gan/dataset/tfrecords"
@@ -55,7 +62,8 @@ function main() {
   command+="-v /media/data0/bryanlimy/runs:/home/bryanlimy/calcium_imaging_gan/runs"
   command+=" "
   command+="bryanlimy/projects:0.5-calcium-gan-base zsh"
-  eval "$command"
+  echo "$command"
+#  eval "$command"
 }
 
 main
