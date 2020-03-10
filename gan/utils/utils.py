@@ -84,7 +84,7 @@ def save_models(hparams, gan, epoch):
     }, file)
 
   if hparams.verbose:
-    print('Saved checkpoint to {}\n'.format(filename))
+    print('Saved checkpoint to {}'.format(filename))
 
 
 def load_models(hparams, generator, discriminator):

@@ -97,8 +97,8 @@ def validate(hparams, validation_ds, gan, summary, epoch):
   results = {key: np.mean(item) for key, item in results.items()}
 
   if fake_signals:
-    fake_signals = np.vstack(fake_signals)
-    utils.save_fake_signals(hparams, epoch, fake_signals=fake_signals)
+    utils.save_fake_signals(
+        hparams, epoch, fake_signals=np.vstack(fake_signals))
 
   end = time()
 

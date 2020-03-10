@@ -23,11 +23,15 @@ def cache_validation_set(hparams, validation_ds):
     real_spikes.append(spike.numpy())
 
   real_signals = np.concatenate(real_signals, axis=0)
-  real_spikes = np.concatenate(real_spikes, axis=0)
+  real_spikes = np.concatenate(real_spikes, axis=0).astype(np.int8)
 
   if hparams.normalize:
     real_signals = utils.denormalize(
         real_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
+
+  # ensure data are stored as NWC
+  assert utils.get_array_format(real_signals.shape, hparams) == 'NWC'
+  assert utils.get_array_format(real_spikes.shape, hparams) == 'NWC'
 
   h5_helper.write(hparams.validation_cache, {
       'signals': real_signals,
