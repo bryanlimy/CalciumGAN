@@ -12,7 +12,7 @@ def get_conv1d(hparams):
   return generator(hparams), discriminator(hparams)
 
 
-def generator(hparams, kernel_size=4, strides=2, padding='valid'):
+def generator(hparams, filters=32, kernel_size=4, strides=2, padding='same'):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
   shape, num_units = calculate_input_config(
@@ -22,28 +22,33 @@ def generator(hparams, kernel_size=4, strides=2, padding='valid'):
       kernel_size=kernel_size,
       strides=strides,
       padding=padding)
-  signal_length = hparams.signal_shape[-1]
 
-  outputs = layers.Dense(num_units, use_bias=False)(inputs)
+  outputs = layers.Dense(num_units)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Reshape(shape)(outputs)
 
-  outputs = Conv1DTranspose(signal_length // 4, kernel_size, strides)(outputs)
+  # Layer 1
+  outputs = Conv1DTranspose(
+      filters * 2, kernel_size, strides, padding=padding)(outputs)
   if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
-  outputs = Conv1DTranspose(signal_length // 2, kernel_size, strides)(outputs)
+  # Layer 2
+  outputs = Conv1DTranspose(
+      filters, kernel_size, strides, padding=padding)(outputs)
   if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
-  outputs = Conv1DTranspose(signal_length, kernel_size, strides)(outputs)
+  # Layer 3
+  outputs = Conv1DTranspose(
+      hparams.num_neurons, kernel_size, strides, padding=padding)(outputs)
   if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
-  outputs = layers.Dense(hparams.signal_shape[-1])(outputs)
+  outputs = layers.Dense(hparams.num_neurons)(outputs)
 
   if hparams.normalize:
     outputs = activation_fn('sigmoid', dtype=tf.float32)(outputs)
@@ -53,25 +58,28 @@ def generator(hparams, kernel_size=4, strides=2, padding='valid'):
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
 
-def discriminator(hparams, kernel_size=4, strides=2):
+def discriminator(hparams, filters=32, kernel_size=4, strides=2,
+                  padding='same'):
   inputs = tf.keras.Input(hparams.signal_shape, name='signals')
 
-  signal_length = hparams.signal_shape[-1]
-
+  # Layer 1
   outputs = layers.Conv1D(
-      filters=signal_length, kernel_size=kernel_size, strides=strides)(inputs)
+      filters, kernel_size=kernel_size, strides=strides,
+      padding=padding)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
+  # Layer 2
   outputs = layers.Conv1D(
-      filters=signal_length // 2, kernel_size=kernel_size,
-      strides=strides)(outputs)
+      filters * 2, kernel_size=kernel_size, strides=strides,
+      padding=padding)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
+  # Layer 3
   outputs = layers.Conv1D(
-      filters=signal_length // 4, kernel_size=kernel_size,
-      strides=strides)(outputs)
+      filters * 3, kernel_size=kernel_size, strides=strides,
+      padding=padding)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 

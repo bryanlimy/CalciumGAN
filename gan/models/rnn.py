@@ -9,25 +9,21 @@ from .utils import calculate_input_config, activation_fn
 
 @register('rnn')
 def get_rnn(hparams):
-  # TODO make it works for NWC
   return generator(hparams), discriminator(hparams)
 
 
-def generator(hparams):
+def generator(hparams, units=64):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
   shape, num_units = calculate_input_config(
-      num_neurons=hparams.num_neurons, noise_dim=hparams.noise_dim)
-  signal_length = hparams.signal_shape[-1]
+      output=hparams.sequence_length, noise_dim=hparams.noise_dim)
 
-  outputs = layers.Dense(num_units, use_bias=False)(inputs)
+  outputs = layers.Dense(num_units)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Reshape(shape)(outputs)
 
-  num_units = hparams.signal_shape[-1]
-
   outputs = layers.GRU(
-      signal_length // 9,
+      units,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
@@ -35,7 +31,7 @@ def generator(hparams):
       time_major=False)(outputs)
 
   outputs = layers.GRU(
-      signal_length // 6,
+      units * 2,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
@@ -43,7 +39,7 @@ def generator(hparams):
       time_major=False)(outputs)
 
   outputs = layers.GRU(
-      signal_length // 3,
+      hparams.num_neurons,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
@@ -60,13 +56,11 @@ def generator(hparams):
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
 
-def discriminator(hparams):
+def discriminator(hparams, units=64):
   inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
-  signal_length = hparams.signal_shape[-1]
-
   outputs = layers.GRU(
-      signal_length // 3,
+      units * 3,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
@@ -74,7 +68,7 @@ def discriminator(hparams):
       time_major=False)(inputs)
 
   outputs = layers.GRU(
-      signal_length // 6,
+      units * 2,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
@@ -82,7 +76,7 @@ def discriminator(hparams):
       time_major=False)(outputs)
 
   outputs = layers.GRU(
-      signal_length // 9,
+      units,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,

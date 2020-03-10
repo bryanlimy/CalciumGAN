@@ -1,7 +1,6 @@
 import os
 import h5py
 import numpy as np
-from time import sleep
 
 from . import utils
 

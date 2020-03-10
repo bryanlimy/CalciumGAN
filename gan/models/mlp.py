@@ -12,22 +12,29 @@ def get_models(hparams):
   return generator(hparams), discriminator(hparams)
 
 
-def generator(hparams):
+def generator(hparams, units=64):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  outputs = layers.Dense(hparams.sequence_length // 4)(inputs)
+  shape, num_units = calculate_input_config(
+      output=hparams.sequence_length, noise_dim=hparams.noise_dim)
+
+  outputs = layers.Dense(num_units)(inputs)
+  outputs = activation_fn(hparams.activation)(outputs)
+  outputs = layers.Reshape(shape)(outputs)
+
+  outputs = layers.Dense(units)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = layers.Dense(hparams.sequence_length // 3)(outputs)
+  outputs = layers.Dense(units * 2)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = layers.Dense(hparams.sequence_length // 2)(outputs)
+  outputs = layers.Dense(units * 3)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = layers.Dense(np.prod(hparams.signal_shape))(outputs)
+  outputs = layers.Dense(hparams.num_neurons)(outputs)
   outputs = layers.Reshape(hparams.signal_shape)(outputs)
 
   if hparams.normalize:
@@ -38,23 +45,26 @@ def generator(hparams):
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
 
-def discriminator(hparams):
+def discriminator(hparams, units=64):
   inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
-  outputs = layers.Flatten()(inputs)
-
-  outputs = layers.Dense(hparams.sequence_length // 2)(outputs)
+  outputs = layers.Dense(units * 4)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = layers.Dense(hparams.sequence_length // 3)(outputs)
+  outputs = layers.Dense(units * 3)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = layers.Dense(hparams.sequence_length // 4)(outputs)
+  outputs = layers.Dense(units * 2)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
+  outputs = layers.Dense(units)(outputs)
+  outputs = activation_fn(hparams.activation)(outputs)
+  outputs = layers.Dropout(hparams.dropout)(outputs)
+
+  outputs = layers.Flatten()(outputs)
   outputs = layers.Dense(1)(outputs)
   outputs = activation_fn('linear', dtype=tf.float32)(outputs)
 
