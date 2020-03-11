@@ -46,7 +46,7 @@ def generator(hparams, units=64):
       return_sequences=True,
       time_major=False)(outputs)
 
-  outputs = layers.Dense(num_units)(outputs)
+  outputs = layers.Dense(hparams.num_neurons)(outputs)
 
   if hparams.normalize:
     outputs = activation_fn('sigmoid', dtype=tf.float32)(outputs)
@@ -80,7 +80,7 @@ def discriminator(hparams, units=64):
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
-      return_sequences=False,
+      return_sequences=True,
       time_major=False)(outputs)
 
   outputs = layers.Flatten()(outputs)
