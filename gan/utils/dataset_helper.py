@@ -132,7 +132,6 @@ def get_calcium_signals(hparams):
       tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
   validation_ds = validation_ds.map(_parse_example, num_parallel_calls=AUTOTUNE)
   validation_ds = validation_ds.batch(hparams.batch_size)
-  validation_ds = validation_ds.prefetch(AUTOTUNE)
 
   return train_ds, validation_ds
 

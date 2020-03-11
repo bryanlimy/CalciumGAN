@@ -1,26 +1,30 @@
-import os
 import h5py
 import numpy as np
-
-from . import utils
 
 
 def append(ds, value):
   """ append value to a H5 dataset """
-  if type(value) != np.ndarray:
-    value = np.array(value, dtype=np.float32)
   ds.resize((ds.shape[0] + value.shape[0]), axis=0)
   ds[-value.shape[0]:] = value
 
 
 def write(filename, content):
-  """ create dataset and write content to H5 file
+  """ write or append content to H5 file
   NOTE: dataset must be stored in NWC data format
   """
   assert type(content) == dict
   with h5py.File(filename, mode='a') as file:
     for k, v in content.items():
-      file.create_dataset(k, shape=v.shape, dtype=v.dtype, data=v)
+      if k in file:
+        append(file[k], v)
+      else:
+        file.create_dataset(
+            k,
+            shape=v.shape,
+            dtype=v.dtype,
+            data=v,
+            chunks=True,
+            maxshape=(None,) + v.shape[1:])
 
 
 def overwrite(filename, name, value):
@@ -29,7 +33,7 @@ def overwrite(filename, name, value):
     if name not in file.keys():
       raise KeyError('{} cannot be found'.format(name))
     del file[name]
-    file.create_dataset(name, shape=value.shape, dtype=np.float32, data=value)
+    file.create_dataset(name, shape=value.shape, dtype=value.dtype, data=value)
 
 
 def get(filename, name, neuron=None, sample=None):

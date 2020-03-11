@@ -49,15 +49,14 @@ def swap_neuron_major(hparams, array):
       array, axis1=0, axis2=1) if array.shape[:2] == shape else array
 
 
-def save_fake_signals(hparams, epoch, fake_signals):
-  if hparams.normalize:
-    fake_signals = denormalize(
-        fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
-
+def save_fake_signals(hparams, epoch, signals):
   filename = os.path.join(hparams.generated_dir,
                           'epoch{:03d}_signals.h5'.format(epoch))
+  if hparams.normalize:
+    signals = denormalize(
+        signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-  h5_helper.write(filename, {'signals': fake_signals})
+  h5_helper.write(filename, {'signals': signals})
 
   # store generated data information
   info_filename = os.path.join(hparams.generated_dir, 'info.pkl')
@@ -65,9 +64,10 @@ def save_fake_signals(hparams, epoch, fake_signals):
   if os.path.exists(info_filename):
     with open(info_filename, 'rb') as file:
       info = pickle.load(file)
-  info[epoch] = {'global_step': hparams.global_step, 'filename': filename}
-  with open(info_filename, 'wb') as file:
-    pickle.dump(info, file)
+  if epoch not in info:
+    info[epoch] = {'global_step': hparams.global_step, 'filename': filename}
+    with open(info_filename, 'wb') as file:
+      pickle.dump(info, file)
 
 
 def save_models(hparams, gan, epoch):

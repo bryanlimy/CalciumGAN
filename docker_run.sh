@@ -9,8 +9,7 @@ function print_help() {
 }
 
 name='container_1'
-cpus=10
-mem=16
+cpus=8
 gpus=false
 
 while [ ! $# -eq 0 ]; do
@@ -30,10 +29,6 @@ while [ ! $# -eq 0 ]; do
     --gpus)
       gpus=true
       ;;
-    --mem)
-      shift
-      mem=$1
-      ;;
     *)
       echo "Unknown flag $1, please check available flags with --help"
       exit 1
@@ -52,8 +47,6 @@ function main() {
     command+=" "
     command+="--gpus all"
   fi
-  command+=" "
-  command+="--memory $((mem * 1024))m --oom-kill-disable"
   command+=" "
   command+="-v ~/Git/calcium_imaging_gan/:/home/bryanlimy/calcium_imaging_gan"
   command+=" "

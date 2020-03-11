@@ -70,7 +70,6 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
   start = time()
 
-  fake_signals = []
   for signal, _ in tqdm(
       validation_ds,
       desc='Validate',
@@ -90,15 +89,11 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
     if hparams.save_generated and (epoch % hparams.save_generated_freq == 0 or
                                    epoch == hparams.epochs - 1):
-      fake_signals.append(fake.numpy())
+      utils.save_fake_signals(hparams, epoch, signals=fake.numpy())
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
   gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
   results = {key: np.mean(item) for key, item in results.items()}
-
-  if fake_signals:
-    utils.save_fake_signals(
-        hparams, epoch, fake_signals=np.vstack(fake_signals))
 
   end = time()
 
@@ -207,6 +202,9 @@ def main(hparams, return_metrics=False):
     return test(validation_ds, gan)
 
 
+from functools import partial
+from memory_profiler import memory_usage
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--input_dir', default='dataset/tfrecords')
@@ -226,23 +224,12 @@ if __name__ == '__main__':
       default=5,
       type=int,
       help='number of steps between each generator update')
-  parser.add_argument(
-      '--clear_output_dir',
-      action='store_true',
-      help='delete output directory if exists')
-  parser.add_argument(
-      '--save_generated',
-      action='store_true',
-      help='store generated signals every save_generated_freq')
+  parser.add_argument('--clear_output_dir', action='store_true')
+  parser.add_argument('--save_generated', action='store_true')
   parser.add_argument('--save_generated_freq', default=10, type=int)
-  parser.add_argument(
-      '--plot_weights',
-      action='store_true',
-      help='flag to plot weights and activations in TensorBoard')
-  parser.add_argument(
-      '--skip_checkpoints', action='store_true', help='skip saving checkpoints')
-  parser.add_argument(
-      '--mixed_precision', action='store_true', help='use mixed precision')
+  parser.add_argument('--plot_weights', action='store_true')
+  parser.add_argument('--skip_checkpoints', action='store_true')
+  parser.add_argument('--mixed_precision', action='store_true')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 
@@ -254,4 +241,5 @@ if __name__ == '__main__':
     warnings.simplefilter(action='ignore', category=UserWarning)
     warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
-  main(hparams)
+  mem_usage = memory_usage(partial(main, hparams))
+  print('Maximum memory usage: {:.02f}GB'.format(np.max(mem_usage) / 1024))

@@ -29,14 +29,14 @@ def generator(hparams, filters=32, kernel_size=4, strides=2, padding='same'):
 
   # Layer 1
   outputs = Conv1DTranspose(
-      filters * 2, kernel_size, strides, padding=padding)(outputs)
+      filters, kernel_size, strides, padding=padding)(outputs)
   if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 2
   outputs = Conv1DTranspose(
-      filters, kernel_size, strides, padding=padding)(outputs)
+      filters * 2, kernel_size, strides, padding=padding)(outputs)
   if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
@@ -64,7 +64,7 @@ def discriminator(hparams, filters=32, kernel_size=4, strides=2,
 
   # Layer 1
   outputs = layers.Conv1D(
-      filters, kernel_size=kernel_size, strides=strides,
+      filters * 3, kernel_size=kernel_size, strides=strides,
       padding=padding)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
@@ -78,7 +78,7 @@ def discriminator(hparams, filters=32, kernel_size=4, strides=2,
 
   # Layer 3
   outputs = layers.Conv1D(
-      filters * 3, kernel_size=kernel_size, strides=strides,
+      filters, kernel_size=kernel_size, strides=strides,
       padding=padding)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)

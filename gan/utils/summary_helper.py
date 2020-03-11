@@ -126,10 +126,10 @@ class Summary(object):
     spikes = utils.set_array_format(
         spikes, data_format='CW', hparams=self._hparams)
 
-    # plot traces at most
-    for i in range(min(20, signals.shape[0])):
+    for i in range(min(15, len(signals))):
       image = self._plot_trace(signals[i], spikes[i])
       images.append(image)
+
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
   def plot_histograms(self,
