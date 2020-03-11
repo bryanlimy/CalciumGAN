@@ -1,5 +1,4 @@
 import os
-import warnings
 import argparse
 import numpy as np
 from time import time
@@ -202,9 +201,6 @@ def main(hparams, return_metrics=False):
     return test(validation_ds, gan)
 
 
-from functools import partial
-from memory_profiler import memory_usage
-
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--input_dir', default='dataset/tfrecords')
@@ -235,11 +231,4 @@ if __name__ == '__main__':
 
   hparams.global_step = 0
 
-  # disable warnings except verbose == 2
-  if hparams.verbose != 2:
-    warnings.simplefilter(action='ignore', category=FutureWarning)
-    warnings.simplefilter(action='ignore', category=UserWarning)
-    warnings.simplefilter(action='ignore', category=RuntimeWarning)
-
-  mem_usage = memory_usage(partial(main, hparams))
-  print('Maximum memory usage: {:.02f}GB'.format(np.max(mem_usage) / 1024))
+  main(hparams)
