@@ -97,38 +97,44 @@ def get_record_filename(hparams, mode, shard_id, num_shards):
   return os.path.join(hparams.output_dir, filename)
 
 
-def write_to_record(hparams, mode, shard, num_shards, signals, spikes):
+def write_to_record(hparams, mode, shard, num_shards, signals, spikes, indexes):
   record_filename = get_record_filename(hparams, mode, shard, num_shards)
   print('writing {} segments to {}...'.format(len(signals), record_filename))
 
   with tf.io.TFRecordWriter(record_filename) as writer:
-    for signal, spike in zip(signals, spikes):
-      example = serialize_example(signal, spike)
+    for i in indexes:
+      example = serialize_example(signals[i], spikes[i])
       writer.write(example)
 
 
-def write_to_records(hparams, mode, signals, spikes):
+def write_to_records(hparams, mode, signals, spikes, indexes):
   if not os.path.exists(hparams.output_dir):
     os.makedirs(hparams.output_dir)
 
   # calculate the number of records to create
   num_shards = 1 if hparams.num_per_shard == 0 else ceil(
-      len(signals) / hparams.num_per_shard)
+      len(indexes) / hparams.num_per_shard)
 
   print('writing {} segments to {} {} records...'.format(
-      len(signals), num_shards, mode))
+      len(indexes), num_shards, mode))
 
   if mode == 'train':
     hparams.num_train_shards = num_shards
   else:
     hparams.num_validation_shards = num_shards
 
-  sharded_signals = split(signals, num_shards)
-  sharded_spikes = split(spikes, num_shards)
+  sharded_indexes = split(indexes, num_shards)
 
   for shard in range(num_shards):
-    write_to_record(hparams, mode, shard, num_shards, sharded_signals[shard],
-                    sharded_spikes[shard])
+    write_to_record(
+        hparams,
+        mode=mode,
+        shard=shard,
+        num_shards=num_shards,
+        signals=signals,
+        spikes=spikes,
+        indexes=sharded_indexes[shard],
+    )
 
 
 def main(hparams):
@@ -148,8 +154,6 @@ def main(hparams):
   # shuffle data
   indexes = np.arange(len(signals))
   np.random.shuffle(indexes)
-  signals = signals[indexes]
-  spikes = spikes[indexes]
 
   hparams.train_size = int(len(signals) * hparams.train_percentage)
   hparams.validation_size = len(signals) - hparams.train_size
@@ -165,14 +169,16 @@ def main(hparams):
   write_to_records(
       hparams,
       mode='train',
-      signals=signals[:hparams.train_size],
-      spikes=spikes[:hparams.train_size])
+      signals=signals,
+      spikes=spikes,
+      indexes=indexes[:hparams.train_size])
 
   write_to_records(
       hparams,
       mode='validation',
-      signals=signals[hparams.train_size:],
-      spikes=spikes[hparams.train_size:])
+      signals=signals,
+      spikes=spikes,
+      indexes=indexes[hparams.train_size:])
 
   # save information of the dataset
   with open(os.path.join(hparams.output_dir, 'info.pkl'), 'wb') as file:
