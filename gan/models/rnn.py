@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 
-from .utils import calculate_input_config, activation_fn
+from .utils import activation_fn
 
 
 @register('rnn')
@@ -12,16 +12,23 @@ def get_rnn(hparams):
   return generator(hparams), discriminator(hparams)
 
 
-def generator(hparams, units=64):
+def calculate_input_config(sequence_length, noise_dim, upscale, num_layers):
+  num_step = sequence_length / (upscale**(num_layers - 1))
+  assert num_step.is_integer()
+  return (int(num_step), noise_dim), int(num_step) * noise_dim
+
+
+def generator(hparams, units=64, upscale=2):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  shape, num_units = calculate_input_config(
-      output=hparams.sequence_length, noise_dim=hparams.noise_dim)
+  shape, size = calculate_input_config(
+      hparams.sequence_length, hparams.noise_dim, upscale, num_layers=3)
 
-  outputs = layers.Dense(num_units)(inputs)
+  outputs = layers.Dense(np.prod(shape))(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Reshape(shape)(outputs)
 
+  # Layer 1
   outputs = layers.GRU(
       units,
       activation=hparams.activation,
@@ -30,6 +37,9 @@ def generator(hparams, units=64):
       return_sequences=True,
       time_major=False)(outputs)
 
+  outputs = layers.UpSampling1D(upscale)(outputs)
+
+  # Layer 2
   outputs = layers.GRU(
       units * 2,
       activation=hparams.activation,
@@ -38,6 +48,9 @@ def generator(hparams, units=64):
       return_sequences=True,
       time_major=False)(outputs)
 
+  outputs = layers.UpSampling1D(upscale)(outputs)
+
+  # Layer 3
   outputs = layers.GRU(
       hparams.num_neurons,
       activation=hparams.activation,
