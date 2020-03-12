@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 from math import ceil
+from tqdm import tqdm
 import tensorflow as tf
 
 from . import utils
@@ -10,15 +11,14 @@ from . import spike_helper
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
-from time import time
-
 
 def cache_validation_set(hparams, validation_ds):
   ''' Cache validation set as pickles for faster spike metrics evaluation '''
-  start = time()
+  if hparams.verbose:
+    print('Cache validation dataset to {}'.format(hparams.validation_cache))
 
   real_signals, real_spikes = [], []
-  for signal, spike in validation_ds:
+  for signal, spike in tqdm(validation_ds, disable=not bool(hparams.verbose)):
     real_signals.append(signal.numpy())
     real_spikes.append(spike.numpy())
 
@@ -37,12 +37,6 @@ def cache_validation_set(hparams, validation_ds):
       'signals': real_signals,
       'spikes': real_spikes
   })
-
-  end = time()
-
-  if hparams.verbose:
-    print('Cache validation dataset to {} in {:.02f}s'.format(
-        hparams.validation_cache, end - start))
 
 
 def get_fashion_mnist(hparams):

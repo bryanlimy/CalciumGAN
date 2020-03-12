@@ -114,11 +114,17 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
   for epoch in range(hparams.epochs):
     start = time()
 
+    if not summary.profiled:
+      summary.profiler_trace()
+
     if hparams.verbose:
       print('Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs))
 
     train_gen_loss, train_dis_loss = train(
         hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
+
+    if not summary.profiled:
+      summary.profiler_export()
 
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)

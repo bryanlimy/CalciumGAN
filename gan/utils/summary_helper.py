@@ -20,10 +20,15 @@ class Summary(object):
 
   def __init__(self, hparams, policy=None):
     self._hparams = hparams
-
-    self.train_writer = tf.summary.create_file_writer(hparams.output_dir)
-    self.val_writer = tf.summary.create_file_writer(
+    self._train_dir = hparams.output_dir
+    self._validation_dir = os.path.join(
         os.path.join(hparams.output_dir, 'validation'))
+    self._profiler_dir = os.path.join(
+        os.path.join(hparams.output_dir, 'profiler'))
+    self.profiled = False
+
+    self.train_writer = tf.summary.create_file_writer(self._train_dir)
+    self.val_writer = tf.summary.create_file_writer(self._validation_dir)
 
     self._policy = policy
     self._plot_weights = hparams.plot_weights
@@ -187,11 +192,17 @@ class Summary(object):
       images.append(image)
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
-  def graph(self):
+  def profiler_trace(self):
+    tf.summary.trace_on(graph=True, profiler=True)
+
+  def profiler_export(self):
     writer = self._get_writer(training=True)
     with writer.as_default():
       tf.summary.trace_export(
-          name='models', step=0, profiler_outdir=self._hparams.output_dir)
+          name='models',
+          step=self._get_global_step(),
+          profiler_outdir=self._profiler_dir)
+    self.profiled = True
 
   def variable_summary(self, variable, name=None, step=None, training=True):
     if name is None:
