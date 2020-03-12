@@ -107,6 +107,12 @@ class Summary(object):
     with writer.as_default():
       tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
 
+  def profiler_trace(self):
+    tf.summary.trace_on(graph=True, profiler=True)
+
+  def profiler_export(self):
+    tf.summary.trace_export(name='models', profiler_outdir=self._profiler_dir)
+
   def plot_traces(self, tag, signals, spikes=None, step=None, training=True):
     images = []
 
@@ -190,14 +196,6 @@ class Summary(object):
       plt.close()
       images.append(image)
     self.image(tag, values=tf.stack(images), step=step, training=training)
-
-  def profiler_trace(self):
-    tf.summary.trace_on(graph=True, profiler=True)
-
-  def profiler_export(self):
-    writer = self._get_writer(training=True)
-    with writer.as_default():
-      tf.summary.trace_export(name='models')
 
   def variable_summary(self, variable, name=None, step=None, training=True):
     if name is None:

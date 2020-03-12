@@ -5,12 +5,13 @@ function print_help() {
   echo "  --name    name of the container"
   echo "  --cpus    number of CPU cores to use"
   echo "  --gpus    use GPUs"
-  echo "  --mem     amount of memory to use in GB"
+  echo "  --root    run container as root user"
 }
 
 name='container_1'
 cpus=8
 gpus=false
+as_root=false
 
 while [ ! $# -eq 0 ]; do
   case "$1" in
@@ -29,6 +30,9 @@ while [ ! $# -eq 0 ]; do
     --gpus)
       gpus=true
       ;;
+    --root)
+      as_root=true
+      ;;
     *)
       echo "Unknown flag $1, please check available flags with --help"
       exit 1
@@ -38,7 +42,11 @@ while [ ! $# -eq 0 ]; do
 done
 
 function main() {
-  command="docker run -it --rm -u $(id -u):$(id -g)"
+  command="docker run -it --rm"
+  if [ "$as_root" = "false" ]; then
+    command+=" "
+    command+="-u $(id -u):$(id -g)"
+  fi
   command+=" "
   command+="--name $name"
   command+=" "
