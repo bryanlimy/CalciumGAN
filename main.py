@@ -31,6 +31,7 @@ def set_precision_policy(hparams):
 
 def train(hparams, train_ds, gan, summary, epoch):
   gen_losses, dis_losses = [], []
+  batch_count = 0
 
   start = time()
 
@@ -40,7 +41,14 @@ def train(hparams, train_ds, gan, summary, epoch):
       total=hparams.train_steps,
       disable=not bool(hparams.verbose)):
 
+    if hparams.profile and batch_count == 2 and epoch == 1:
+      # profile the training session of the 2nd batch in 2nd epoch
+      summary.profiler_trace()
+
     gen_loss, dis_loss, gradient_penalty, metrics = gan.train(signal)
+
+    if hparams.profile and batch_count == 6 and epoch == 1:
+      summary.profiler_export()
 
     # log training progress every 200 steps
     if hparams.global_step % 200 == 0:
@@ -56,6 +64,7 @@ def train(hparams, train_ds, gan, summary, epoch):
     dis_losses.append(dis_loss)
 
     hparams.global_step += 1
+    batch_count += 1
 
   end = time()
 
@@ -112,19 +121,13 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
   test_noise = gan.get_noise(batch_size=1)
 
   for epoch in range(hparams.epochs):
-    start = time()
-
-    if not summary.profiled:
-      summary.profiler_trace()
-
     if hparams.verbose:
       print('Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs))
 
+    start = time()
+
     train_gen_loss, train_dis_loss = train(
         hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
-
-    if not summary.profiled:
-      summary.profiler_export()
 
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
@@ -136,7 +139,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
           signals=gan.generate(test_noise, denorm=True),
           step=epoch,
           training=False)
-      if not hparams.skip_checkpoints:
+      if hparams.save_checkpoints:
         utils.save_models(hparams, gan, epoch)
 
     end = time()
@@ -230,8 +233,10 @@ if __name__ == '__main__':
   parser.add_argument('--save_generated', action='store_true')
   parser.add_argument('--save_generated_freq', default=10, type=int)
   parser.add_argument('--plot_weights', action='store_true')
-  parser.add_argument('--skip_checkpoints', action='store_true')
+  parser.add_argument('--save_checkpoints', action='store_true')
   parser.add_argument('--mixed_precision', action='store_true')
+  parser.add_argument(
+      '--profile', action='store_true', help='enable TensorBoard profiling')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 

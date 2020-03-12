@@ -25,7 +25,6 @@ class Summary(object):
         os.path.join(hparams.output_dir, 'validation'))
     self._profiler_dir = os.path.join(
         os.path.join(hparams.output_dir, 'profiler'))
-    self.profiled = False
 
     self.train_writer = tf.summary.create_file_writer(self._train_dir)
     self.val_writer = tf.summary.create_file_writer(self._validation_dir)
@@ -198,11 +197,7 @@ class Summary(object):
   def profiler_export(self):
     writer = self._get_writer(training=True)
     with writer.as_default():
-      tf.summary.trace_export(
-          name='models',
-          step=self._get_global_step(),
-          profiler_outdir=self._profiler_dir)
-    self.profiled = True
+      tf.summary.trace_export(name='models')
 
   def variable_summary(self, variable, name=None, step=None, training=True):
     if name is None:
