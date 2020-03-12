@@ -4,12 +4,12 @@ function print_help() {
   echo "Usage: ./run_docker.sh --name [NAME] [OPTIONS]"
   echo "  --name    name of the container"
   echo "  --cpus    number of CPU cores to use"
-  echo "  --gpus     use GPUs"
-
+  echo "  --gpus    use GPUs"
+  echo "  --mem     amount of memory to use in GB"
 }
 
 name='container_1'
-cpus=10
+cpus=8
 gpus=false
 
 while [ ! $# -eq 0 ]; do
@@ -54,7 +54,7 @@ function main() {
   command+=" "
   command+="-v /media/data0/bryanlimy/runs:/home/bryanlimy/calcium_imaging_gan/runs"
   command+=" "
-  command+="bryanlimy/projects:0.5-calcium-gan-base zsh"
+  command+="bryanlimy/projects:0.6-calcium-gan-base zsh"
   eval "$command"
 }
 

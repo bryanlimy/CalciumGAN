@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 plt.style.use('seaborn-deep')
 import seaborn as sns
 
-from . import spike_helper
+from . import utils, spike_helper
 
 
 class Summary(object):
@@ -20,28 +20,29 @@ class Summary(object):
 
   def __init__(self, hparams, policy=None):
     self._hparams = hparams
+
     self.train_writer = tf.summary.create_file_writer(hparams.output_dir)
     self.val_writer = tf.summary.create_file_writer(
         os.path.join(hparams.output_dir, 'validation'))
-    tf.summary.trace_on(graph=True, profiler=False)
+
     self._policy = policy
+    self._plot_weights = hparams.plot_weights
+
     # color for matplotlib
     self._real_color = 'dodgerblue'
     self._fake_color = 'orangered'
 
+  def _get_global_step(self):
+    return self._hparams.global_step
+
   def _get_writer(self, training):
     return self.train_writer if training else self.val_writer
 
-  def _get_step(self):
-    return self._hparams.global_step
-
   def _get_loss_scale(self):
-    if self._policy is None:
-      return None
-    else:
-      return self._policy.loss_scale._current_loss_scale
+    return self._policy.loss_scale._current_loss_scale if self._policy else None
 
-  def _plot_to_image(self):
+  @staticmethod
+  def _plot_to_image():
     """
     Converts the matplotlib plot specified by 'figure' to a PNG image and
     returns it. The supplied figure is closed and inaccessible after this call.
@@ -52,7 +53,8 @@ class Summary(object):
     buf.seek(0)
     return tf.image.decode_png(buf.getvalue(), channels=4)
 
-  def _simple_axis(self, axis):
+  @staticmethod
+  def _simple_axis(axis):
     """plot only x and y axis, not a frame for subplot ax"""
     axis.spines['top'].set_visible(False)
     axis.spines['right'].set_visible(False)
@@ -85,19 +87,19 @@ class Summary(object):
 
   def scalar(self, tag, value, step=None, training=True):
     writer = self._get_writer(training)
-    step = self._get_step() if step is None else step
+    step = self._get_global_step() if step is None else step
     with writer.as_default():
       tf.summary.scalar(tag, value, step=step)
 
   def histogram(self, tag, values, step=None, training=True):
     writer = self._get_writer(training)
-    step = self._get_step() if step is None else step
+    step = self._get_global_step() if step is None else step
     with writer.as_default():
       tf.summary.histogram(tag, values, step=step)
 
   def image(self, tag, values, step=None, training=True):
     writer = self._get_writer(training)
-    step = self._get_step() if step is None else step
+    step = self._get_global_step() if step is None else step
     with writer.as_default():
       tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
 
@@ -109,6 +111,9 @@ class Summary(object):
     if len(signals.shape) > 2:
       signals = signals[0]
 
+    signals = utils.set_array_format(
+        signals, data_format='CW', hparams=self._hparams)
+
     # deconvolve signals if spikes aren't provided
     if spikes is None:
       spikes = spike_helper.deconvolve_signals(signals)
@@ -118,10 +123,13 @@ class Summary(object):
     if len(spikes.shape) > 2:
       spikes = spikes[0]
 
-    # plot traces at most
-    for i in range(min(20, signals.shape[0])):
+    spikes = utils.set_array_format(
+        spikes, data_format='CW', hparams=self._hparams)
+
+    for i in range(min(15, len(signals))):
       image = self._plot_trace(signals[i], spikes[i])
       images.append(image)
+
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
   def plot_histograms(self,
@@ -182,7 +190,8 @@ class Summary(object):
   def graph(self):
     writer = self._get_writer(training=True)
     with writer.as_default():
-      tf.summary.trace_export(name='models', step=0)
+      tf.summary.trace_export(
+          name='models', step=0, profiler_outdir=self._hparams.output_dir)
 
   def variable_summary(self, variable, name=None, step=None, training=True):
     if name is None:
@@ -237,7 +246,7 @@ class Summary(object):
         self.scalar(tag, value, training=training)
     if elapse is not None:
       self.scalar('elapse', elapse, training=training)
-    if gan is not None and self._hparams.plot_weights:
+    if gan is not None and self._plot_weights:
       self.plot_weights(gan, training=training)
     if not training and self._policy is not None:
       self.scalar('model/loss_scale', self._get_loss_scale(), training=training)

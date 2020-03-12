@@ -1,5 +1,4 @@
 import os
-import warnings
 import argparse
 import numpy as np
 from time import time
@@ -12,7 +11,7 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-from gan.utils import utils, spike_helper
+from gan.utils import utils
 from gan.models.registry import get_models
 from gan.utils.summary_helper import Summary
 from gan.utils.dataset_helper import get_dataset
@@ -35,7 +34,7 @@ def train(hparams, train_ds, gan, summary, epoch):
 
   start = time()
 
-  for signal, spike in tqdm(
+  for signal, _ in tqdm(
       train_ds,
       desc='Train',
       total=hparams.train_steps,
@@ -43,7 +42,8 @@ def train(hparams, train_ds, gan, summary, epoch):
 
     gen_loss, dis_loss, gradient_penalty, metrics = gan.train(signal)
 
-    if hparams.global_step % hparams.summary_freq == 0:
+    # log training progress every 200 steps
+    if hparams.global_step % 200 == 0:
       summary.log(
           gen_loss,
           dis_loss,
@@ -69,8 +69,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
   start = time()
 
-  fake_signals = []
-  for signal, spike in tqdm(
+  for signal, _ in tqdm(
       validation_ds,
       desc='Validate',
       total=hparams.validation_steps,
@@ -89,7 +88,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
     if hparams.save_generated and (epoch % hparams.save_generated_freq == 0 or
                                    epoch == hparams.epochs - 1):
-      fake_signals.append(fake.numpy())
+      utils.save_fake_signals(hparams, epoch, signals=fake.numpy())
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
   gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
@@ -104,10 +103,6 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       metrics=results,
       elapse=end - start,
       training=False)
-
-  if fake_signals:
-    fake_signals = np.vstack(fake_signals)
-    utils.save_fake_signals(hparams, epoch, fake_signals=fake_signals)
 
   return gen_loss, dis_loss
 
@@ -128,11 +123,17 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
 
-    end = time()
+    if epoch % 10 == 0 or epoch == hparams.epochs - 1:
+      # test generated data and plot in TensorBoard
+      summary.plot_traces(
+          'fake',
+          signals=gan.generate(test_noise, denorm=True),
+          step=epoch,
+          training=False)
+      if not hparams.skip_checkpoints:
+        utils.save_models(hparams, gan, epoch)
 
-    # test generated data and plot in TensorBoard
-    summary.plot_traces(
-        'fake', signals=gan.generate(test_noise, denorm=True), training=False)
+    end = time()
 
     if hparams.verbose:
       print('Train: generator loss {:.04f} discriminator loss {:.04f}\n'
@@ -141,15 +142,11 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
                                             val_gen_loss, val_dis_loss,
                                             (end - start) / 60))
 
-    if not hparams.skip_checkpoints and (epoch % 10 == 0 or
-                                         epoch == hparams.epochs - 1):
-      utils.save_models(hparams, gan, epoch)
-
 
 def test(validation_ds, gan):
   gen_losses, dis_losses, results = [], [], {}
 
-  for signal, spike in validation_ds:
+  for signal, _ in validation_ds:
     _, gen_loss, dis_loss, _, metrics = gan.validate(signal)
 
     gen_losses.append(gen_loss)
@@ -213,43 +210,25 @@ if __name__ == '__main__':
   parser.add_argument('--dropout', default=0.2, type=float)
   parser.add_argument('--learning_rate', default=0.0001, type=float)
   parser.add_argument('--noise_dim', default=128, type=int)
-  parser.add_argument('--summary_freq', default=200, type=int)
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
-  parser.add_argument('--generator', default='conv1d', type=str)
-  parser.add_argument('--discriminator', default='conv1d', type=str)
-  parser.add_argument('--activation', default='tanh', type=str)
+  parser.add_argument('--model', default='mlp', type=str)
+  parser.add_argument('--activation', default='linear', type=str)
+  parser.add_argument('--batch_norm', action='store_true')
   parser.add_argument('--algorithm', default='gan', type=str)
   parser.add_argument(
       '--n_critic',
       default=5,
       type=int,
       help='number of steps between each generator update')
-  parser.add_argument(
-      '--clear_output_dir',
-      action='store_true',
-      help='delete output directory if exists')
-  parser.add_argument(
-      '--save_generated',
-      action='store_true',
-      help='store generated signals every save_generated_freq')
+  parser.add_argument('--clear_output_dir', action='store_true')
+  parser.add_argument('--save_generated', action='store_true')
   parser.add_argument('--save_generated_freq', default=10, type=int)
-  parser.add_argument(
-      '--plot_weights',
-      action='store_true',
-      help='flag to plot weights and activations in TensorBoard')
-  parser.add_argument(
-      '--skip_checkpoints', action='store_true', help='skip saving checkpoints')
-  parser.add_argument(
-      '--mixed_precision', action='store_true', help='use mixed precision')
+  parser.add_argument('--plot_weights', action='store_true')
+  parser.add_argument('--skip_checkpoints', action='store_true')
+  parser.add_argument('--mixed_precision', action='store_true')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 
   hparams.global_step = 0
-
-  # disabble warnings except verbose == 2
-  if hparams.verbose != 2:
-    warnings.simplefilter(action='ignore', category=FutureWarning)
-    warnings.simplefilter(action='ignore', category=UserWarning)
-    warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
   main(hparams)

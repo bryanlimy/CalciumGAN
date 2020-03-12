@@ -10,11 +10,12 @@ from . import spike_helper
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
+from time import time
+
 
 def cache_validation_set(hparams, validation_ds):
   ''' Cache validation set as pickles for faster spike metrics evaluation '''
-  if hparams.verbose:
-    print('Cache validation dataset to {}'.format(hparams.validation_cache))
+  start = time()
 
   real_signals, real_spikes = [], []
   for signal, spike in validation_ds:
@@ -22,16 +23,26 @@ def cache_validation_set(hparams, validation_ds):
     real_spikes.append(spike.numpy())
 
   real_signals = np.concatenate(real_signals, axis=0)
-  real_spikes = np.concatenate(real_spikes, axis=0)
+  real_spikes = np.concatenate(real_spikes, axis=0).astype(np.int8)
 
   if hparams.normalize:
     real_signals = utils.denormalize(
         real_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
+  # ensure data are stored as NWC
+  assert utils.get_array_format(real_signals.shape, hparams) == 'NWC'
+  assert utils.get_array_format(real_spikes.shape, hparams) == 'NWC'
+
   h5_helper.write(hparams.validation_cache, {
       'signals': real_signals,
       'spikes': real_spikes
   })
+
+  end = time()
+
+  if hparams.verbose:
+    print('Cache validation dataset to {} in {:.02f}s'.format(
+        hparams.validation_cache, end - start))
 
 
 def get_fashion_mnist(hparams):
@@ -69,6 +80,8 @@ def get_dataset_info(hparams):
   hparams.validation_size = info['validation_size']
   hparams.signal_shape = info['signal_shape']
   hparams.spike_shape = info['spike_shape']
+  hparams.num_neurons = info['num_neurons']
+  hparams.sequence_length = info['sequence_length']
   hparams.num_train_shards = info['num_train_shards']
   hparams.num_validation_shards = info['num_validation_shards']
   hparams.buffer_size = info['buffer_size']
@@ -130,7 +143,6 @@ def get_dataset(hparams, summary):
     train_ds, validation_ds = get_fashion_mnist(hparams)
   else:
     train_ds, validation_ds = get_calcium_signals(hparams)
-    hparams.num_neurons = hparams.signal_shape[0]
 
     if hparams.save_generated:
       cache_validation_set(hparams, validation_ds)
@@ -140,7 +152,11 @@ def get_dataset(hparams, summary):
     sample_signals = utils.denormalize(
         sample_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
     summary.plot_traces(
-        'real', signals=sample_signals, spikes=sample_spikes, training=False)
+        'real',
+        signals=sample_signals,
+        spikes=sample_spikes,
+        step=0,
+        training=False)
 
   hparams.train_steps = ceil(hparams.train_size / hparams.batch_size)
   hparams.validation_steps = ceil(hparams.validation_size / hparams.batch_size)

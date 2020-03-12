@@ -1,5 +1,11 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import layers
+
+
+def activation_fn(name, **kwargs):
+  return layers.LeakyReLU() if name == 'leakyrelu' else layers.Activation(
+      name, **kwargs)
 
 
 def count_trainable_params(model):
@@ -9,10 +15,24 @@ def count_trainable_params(model):
 
 
 def calculate_convolution_steps(layer, output, kernel_size, strides, padding):
-  ''' Calculate the amount of steps in the input is needed for Conv1DTranpose 
-  to return a tensor with output number of steps
   '''
-  steps = (1 / strides) * (output + 2 * padding - kernel_size) + 1
+  Calculate the amount of steps in the input is needed for Conv1DTranpose 
+  to return a tensor with output number of steps
+  :param layer: current layer index
+  :param output: size of output
+  :param kernel_size: kernel size
+  :param strides: stride size
+  :param padding: type of padding
+  :return: the steps size to Conv1DTranpose to get output size
+  '''
+  if padding == 'same':
+    steps = output / strides
+  else:
+    steps = (1 / strides) * (output - kernel_size) + 1
+
+  if not steps.is_integer():
+    raise ValueError('Conv1D: step {} is not an integer.'.format(steps))
+
   if layer > 1:
     steps = calculate_convolution_steps(
         layer=layer - 1,
@@ -20,45 +40,43 @@ def calculate_convolution_steps(layer, output, kernel_size, strides, padding):
         kernel_size=kernel_size,
         strides=strides,
         padding=padding)
-  if not steps.is_integer():
-    raise ValueError('Conv1D: step {} is not an integer.'.format(steps))
+
   return steps
 
 
-def calculate_input_config(num_neurons,
+def calculate_input_config(output,
                            noise_dim,
                            num_convolution=0,
                            kernel_size=0,
                            strides=0,
-                           padding=0):
+                           padding='same'):
   if num_convolution == 0:
-    num_units = num_neurons
+    num_units = output
   else:
     num_units = calculate_convolution_steps(
         layer=num_convolution,
-        output=num_neurons,
+        output=output,
         kernel_size=kernel_size,
         strides=strides,
         padding=padding)
   return (int(num_units), noise_dim), int(num_units) * noise_dim
 
 
-class Conv1DTranspose(tf.keras.layers.Layer):
+class Conv1DTranspose(layers.Layer):
 
   def __init__(
       self,
       filters,
       kernel_size,
       strides,
-      padding='valid',
+      padding='same',
       output_padding=None,
-      activation=0,
+      activation='linear',
   ):
     super().__init__()
-    self.activation = tf.keras.layers.Activation(
-        activation) if activation else None
+    self.activation = activation_fn(activation)
 
-    self._conv2dtranspose = tf.keras.layers.Conv2DTranspose(
+    self._conv2dtranspose = layers.Conv2DTranspose(
         filters=filters,
         kernel_size=(kernel_size, 1),
         strides=(strides, 1),

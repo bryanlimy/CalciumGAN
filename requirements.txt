@@ -7,3 +7,4 @@ cvxpy==1.0.25
 jupyterlab
 jupyter_http_over_ws
 seaborn
+memory_profiler

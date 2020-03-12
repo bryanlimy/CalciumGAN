@@ -49,15 +49,14 @@ def swap_neuron_major(hparams, array):
       array, axis1=0, axis2=1) if array.shape[:2] == shape else array
 
 
-def save_fake_signals(hparams, epoch, fake_signals):
-  if hparams.normalize:
-    fake_signals = denormalize(
-        fake_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
-
+def save_fake_signals(hparams, epoch, signals):
   filename = os.path.join(hparams.generated_dir,
                           'epoch{:03d}_signals.h5'.format(epoch))
+  if hparams.normalize:
+    signals = denormalize(
+        signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-  h5_helper.write(filename, {'signals': fake_signals})
+  h5_helper.write(filename, {'signals': signals})
 
   # store generated data information
   info_filename = os.path.join(hparams.generated_dir, 'info.pkl')
@@ -65,9 +64,10 @@ def save_fake_signals(hparams, epoch, fake_signals):
   if os.path.exists(info_filename):
     with open(info_filename, 'rb') as file:
       info = pickle.load(file)
-  info[epoch] = {'global_step': hparams.global_step, 'filename': filename}
-  with open(info_filename, 'wb') as file:
-    pickle.dump(info, file)
+  if epoch not in info:
+    info[epoch] = {'global_step': hparams.global_step, 'filename': filename}
+    with open(info_filename, 'wb') as file:
+      pickle.dump(info, file)
 
 
 def save_models(hparams, gan, epoch):
@@ -84,7 +84,7 @@ def save_models(hparams, gan, epoch):
     }, file)
 
   if hparams.verbose:
-    print('Saved checkpoint to {}\n'.format(filename))
+    print('Saved checkpoint to {}'.format(filename))
 
 
 def load_models(hparams, generator, discriminator):
@@ -100,6 +100,33 @@ def load_models(hparams, generator, discriminator):
       print('Restored checkpoint at {}'.format(filename))
 
 
-def is_neuron_major(array, hparams):
-  ''' return True if the array is neuron-major '''
-  return array.shape[0] == hparams.num_neurons
+def get_array_format(shape, hparams):
+  ''' get the array data format in string
+  N: number of samples
+  W: sequence length
+  C: number of neurons
+  '''
+  assert len(shape) <= 3
+  return ''.join([
+      'W' if s == hparams.sequence_length else
+      'C' if s == hparams.num_neurons else 'N' for s in shape
+  ])
+
+
+def set_array_format(array, data_format, hparams):
+  ''' set array to the given data format '''
+  assert len(array.shape) == len(data_format)
+
+  current_format = get_array_format(array.shape, hparams)
+
+  assert set(current_format) == set(data_format)
+
+  if data_format == current_format:
+    return array
+
+  perm = [current_format.index(s) for s in data_format]
+
+  if tf.is_tensor(array):
+    return tf.transpose(array, perm=perm)
+  else:
+    return np.transpose(array, axes=perm)
