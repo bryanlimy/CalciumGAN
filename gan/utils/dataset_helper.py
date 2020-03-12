@@ -18,7 +18,10 @@ def cache_validation_set(hparams, validation_ds):
     print('Cache validation dataset to {}'.format(hparams.validation_cache))
 
   real_signals, real_spikes = [], []
-  for signal, spike in tqdm(validation_ds, disable=not bool(hparams.verbose)):
+  for signal, spike in tqdm(
+      validation_ds,
+      desc='Cache validation set',
+      disable=not bool(hparams.verbose)):
     real_signals.append(signal.numpy())
     real_spikes.append(spike.numpy())
 
