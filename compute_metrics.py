@@ -231,7 +231,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   pool.close()
 
   summary.scalar(
-      'spike_metrics/neuron_corrcoef',
+      'spike_metrics/sample_corrcoef',
       np.nanmean(results, dtype=np.float32),
       step=epoch,
       training=False)
