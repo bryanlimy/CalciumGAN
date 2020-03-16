@@ -7,38 +7,24 @@ import tensorflow as tf
 
 from . import utils
 from . import h5_helper
-from . import spike_helper
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
-
-from time import time
 
 
 def cache_validation_set(hparams, validation_ds):
   ''' Cache validation set as pickles for faster spike metrics evaluation '''
-  with tf.device('/CPU:0'):
-    real_signals, real_spikes = [], []
-    for signal, spike in tqdm(
-        validation_ds,
-        desc='Cache validation set',
-        disable=not bool(hparams.verbose)):
-      real_signals.append(signal)
-      real_spikes.append(spike)
-
-    real_signals = tf.concat(real_signals, axis=0)
-    real_spikes = tf.cast(tf.concat(real_spikes, axis=0), dtype=tf.int8)
-
+  for signal, spike in tqdm(
+      validation_ds,
+      desc='Cache validation set',
+      disable=not bool(hparams.verbose)):
     if hparams.normalize:
-      real_signals = utils.denormalize(
-          real_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
-
-    # ensure data are stored as NWC
-    assert utils.get_array_format(real_signals.shape, hparams) == 'NWC'
-    assert utils.get_array_format(real_spikes.shape, hparams) == 'NWC'
+      signal = utils.denormalize(
+          signal, x_min=hparams.signals_min, x_max=hparams.signals_max)
+    spike = tf.cast(spike, dtype=tf.int8)
 
     h5_helper.write(hparams.validation_cache, {
-        'signals': real_signals.numpy(),
-        'spikes': real_spikes.numpy()
+        'signals': signal.numpy(),
+        'spikes': spike.numpy()
     })
 
 
