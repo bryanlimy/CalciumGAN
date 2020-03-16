@@ -64,14 +64,15 @@ def get_neo_trains(hparams,
                    data_format=None,
                    num_samples=None):
   assert data_format and (neuron is not None or sample is not None)
-  # get real neuron data
-  real_spikes = h5_helper.get(
-      filename, name='spikes', neuron=neuron, sample=sample)
-  real_spikes = utils.set_array_format(real_spikes, data_format, hparams)
+
+  spikes = h5_helper.get(filename, name='spikes', neuron=neuron, sample=sample)
+  spikes = utils.set_array_format(spikes, data_format, hparams)
+
   if num_samples is not None:
     assert data_format[0] == 'N'
-    real_spikes = real_spikes[:num_samples]
-  return spike_helper.trains_to_neo(real_spikes)
+    spikes = spikes[:num_samples]
+
+  return spike_helper.trains_to_neo(spikes)
 
 
 def neuron_firing_rate(hparams, filename, neuron):
@@ -164,7 +165,76 @@ def covariance_metrics(hparams, summary, filename, epoch):
   pool.close()
 
   summary.scalar(
-      'spike_metrics/covariance', np.mean(results), step=epoch, training=False)
+      'spike_metrics/neuron_covariance',
+      np.mean(results),
+      step=epoch,
+      training=False)
+
+
+def neuron_correlation_coefficient(hparams, filename, neuron, num_samples):
+  if hparams.verbose == 2:
+    print('\t\tComputing correlation coefficient for neuron #{}'.format(neuron))
+
+  real_spikes = get_neo_trains(
+      hparams,
+      hparams.validation_cache,
+      neuron=neuron,
+      data_format='NW',
+      num_samples=num_samples)
+  fake_spikes = get_neo_trains(
+      hparams,
+      filename,
+      neuron=neuron,
+      data_format='NW',
+      num_samples=num_samples)
+
+  corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
+
+  return np.nanmean(corrcoef, dtype=np.float32)
+
+
+def sample_correlation_coefficient(hparams, filename, sample):
+  if hparams.verbose == 2:
+    print('\t\tComputing correlation coefficient for sample #{}'.format(sample))
+
+  real_spikes = get_neo_trains(
+      hparams, hparams.validation_cache, sample=sample, data_format='CW')
+  fake_spikes = get_neo_trains(
+      hparams, filename, sample=sample, data_format='CW')
+
+  corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
+
+  return np.nanmean(corrcoef, dtype=np.float32)
+
+
+def correlation_coefficient_metrics(hparams, summary, filename, epoch):
+  if hparams.verbose:
+    print('\tComputing correlation coefficient')
+
+  # compute neuron-wise covariance with 500 samples
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(
+      neuron_correlation_coefficient,
+      [(hparams, filename, n, 500) for n in range(hparams.num_neurons)])
+  pool.close()
+
+  summary.scalar(
+      'spike_metrics/neuron_corrcoef',
+      np.nanmean(results, dtype=np.float32),
+      step=epoch,
+      training=False)
+
+  # compute sample-wise covariance for the first 50 samples
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(sample_correlation_coefficient,
+                         [(hparams, filename, i) for i in range(50)])
+  pool.close()
+
+  summary.scalar(
+      'spike_metrics/neuron_corrcoef',
+      np.nanmean(results, dtype=np.float32),
+      step=epoch,
+      training=False)
 
 
 def neuron_van_rossum_distance(hparams, filename, neuron, num_samples):
@@ -336,7 +406,9 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
 
   firing_rate_metrics(hparams, summary, filename, epoch)
 
-  covariance_metrics(hparams, summary, filename, epoch)
+  # covariance_metrics(hparams, summary, filename, epoch)
+
+  correlation_coefficient_metrics(hparams, summary, filename, epoch)
 
   van_rossum_metrics(hparams, summary, filename, epoch)
 

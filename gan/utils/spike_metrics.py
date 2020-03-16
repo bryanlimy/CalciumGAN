@@ -12,14 +12,14 @@ def mean_firing_rate(spikes):
   return np.array(result, dtype=np.float32)
 
 
-def correlation_coefficients(spikes1, spikes2, binsize=500 * pq.ms):
+def correlation_coefficients(spikes1, spikes2, binsize=100 * pq.ms):
   binned = elephant.conversion.BinnedSpikeTrain(
       spikes1 + spikes2 if spikes2 is not None else spikes1, binsize=binsize)
   result = elephant.spike_train_correlation.corrcoef(binned)
   return result[len(spikes1):, :len(spikes2)] if spikes2 is not None else result
 
 
-def covariance(spikes1, spikes2, binsize=500 * pq.ms):
+def covariance(spikes1, spikes2, binsize=100 * pq.ms):
   binned = elephant.conversion.BinnedSpikeTrain(
       spikes1 + spikes2 if spikes2 is not None else spikes1, binsize=binsize)
   result = elephant.spike_train_correlation.covariance(binned)
