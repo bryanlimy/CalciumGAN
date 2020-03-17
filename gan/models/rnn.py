@@ -18,11 +18,11 @@ def calculate_input_config(sequence_length, noise_dim, upscale, num_layers):
   return (int(num_step), noise_dim), int(num_step) * noise_dim
 
 
-def generator(hparams, units=64, upscale=2):
+def generator(hparams, units=64, upscale=4):
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
   shape, size = calculate_input_config(
-      hparams.sequence_length, hparams.noise_dim, upscale, num_layers=3)
+      hparams.sequence_length, hparams.noise_dim, upscale, num_layers=2)
 
   outputs = layers.Dense(np.prod(shape))(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
@@ -40,17 +40,6 @@ def generator(hparams, units=64, upscale=2):
   outputs = layers.UpSampling1D(upscale)(outputs)
 
   # Layer 2
-  outputs = layers.GRU(
-      units * 2,
-      activation=hparams.activation,
-      recurrent_initializer='glorot_uniform',
-      dropout=hparams.dropout,
-      return_sequences=True,
-      time_major=False)(outputs)
-
-  outputs = layers.UpSampling1D(upscale)(outputs)
-
-  # Layer 3
   outputs = layers.GRU(
       hparams.num_neurons,
       activation=hparams.activation,
@@ -73,20 +62,14 @@ def discriminator(hparams, units=64):
   inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
   outputs = layers.GRU(
-      units * 3,
+      units * 2,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
       return_sequences=True,
       time_major=False)(inputs)
 
-  outputs = layers.GRU(
-      units * 2,
-      activation=hparams.activation,
-      recurrent_initializer='glorot_uniform',
-      dropout=hparams.dropout,
-      return_sequences=True,
-      time_major=False)(outputs)
+  outputs = layers.AveragePooling1D(pool_size=4)(outputs)
 
   outputs = layers.GRU(
       units,
