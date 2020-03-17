@@ -21,13 +21,20 @@ def normalize(x, x_min, x_max):
   return (x - x_min) / (x_max - x_min)
 
 
-def calculate_num_per_shard(sequence_length, target_size):
+def fft(x):
+  x = np.fft.fft(x.astype(np.complex64), axis=-1, norm='ortho')
+  return x.astype(np.complex64)
+
+
+def calculate_num_per_shard(hparams):
   """ 
   calculate the number of data per shard given sequence_length such that each 
   shard is target_size GB
   """
-  num_per_shard = ceil((120 / sequence_length) * 1100) * 10  # 1GB shard
-  return int(num_per_shard * target_size)
+  num_per_shard = ceil((120 / hparams.sequence_length) * 1100) * 10  # 1GB shard
+  if hparams.fft:
+    num_per_shard *= 2 / 3
+  return int(num_per_shard * hparams.target_shard_size)
 
 
 def get_segments(hparams):
@@ -45,10 +52,6 @@ def get_segments(hparams):
 
   assert raw_signals.shape == raw_spikes.shape
 
-  # set signals and spikes to WC [sequence, num. neurons]
-  raw_signals = np.swapaxes(raw_signals, 0, 1)
-  raw_spikes = np.swapaxes(raw_spikes, 0, 1)
-
   # max and min value of signals
   hparams.signals_min = np.min(raw_signals)
   hparams.signals_max = np.max(raw_signals)
@@ -63,12 +66,22 @@ def get_segments(hparams):
     print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
         np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
 
+  if hparams.fft:
+    print('apply fft')
+    raw_signals = fft(raw_signals)
+    print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
+        np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
+
+  # set signals and spikes to WC [sequence, num. neurons]
+  raw_signals = np.swapaxes(raw_signals, 0, 1)
+  raw_spikes = np.swapaxes(raw_spikes, 0, 1)
+
   hparams.num_neurons = raw_signals.shape[1]
   num_samples = raw_signals.shape[0] - hparams.sequence_length
 
   shape = (num_samples, hparams.sequence_length, hparams.num_neurons)
-  signals = np.zeros(shape, dtype=np.float32)
-  spikes = np.zeros(shape, dtype=np.float32)
+  signals = np.zeros(shape, dtype=raw_signals.dtype)
+  spikes = np.zeros(shape, dtype=raw_spikes.dtype)
 
   for i in tqdm(range(num_samples)):
     signals[i] = raw_signals[i:i + hparams.sequence_length, :]
@@ -160,8 +173,7 @@ def main(hparams):
   hparams.signal_shape = signals.shape[1:]
   hparams.spike_shape = spikes.shape[1:]
 
-  hparams.num_per_shard = calculate_num_per_shard(hparams.sequence_length,
-                                                  hparams.target_shard_size)
+  hparams.num_per_shard = calculate_num_per_shard(hparams)
 
   print('{} segments in each shard with target shard size {}'.format(
       hparams.num_per_shard, hparams.target_shard_size))
@@ -193,6 +205,7 @@ def main(hparams):
         'num_validation_shards': hparams.num_validation_shards,
         'buffer_size': min(hparams.num_per_shard, hparams.train_size),
         'normalize': hparams.normalize,
+        'fft': hparams.fft,
         'signals_min': hparams.signals_min,
         'signals_max': hparams.signals_max
     }
@@ -210,6 +223,7 @@ if __name__ == '__main__':
   parser.add_argument('--output_dir', default='tfrecords', type=str)
   parser.add_argument('--sequence_length', default=1024, type=int)
   parser.add_argument('--normalize', action='store_true')
+  parser.add_argument('--fft', action='store_true')
   parser.add_argument('--replace', action='store_true')
   parser.add_argument('--train_percentage', default=0.7, type=float)
   parser.add_argument(
