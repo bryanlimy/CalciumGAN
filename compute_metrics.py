@@ -107,7 +107,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
     print('\tComputing firing rate')
 
   neurons = hparams.focus_neurons if hparams.focus_neurons else range(
-      hparams.num_neuorns)
+      hparams.neurons)
 
   pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_firing_rate,
@@ -160,7 +160,7 @@ def covariance_metrics(hparams, summary, filename, epoch):
     print('\tComputing covariance')
 
   neurons = hparams.focus_neurons if hparams.focus_neurons else range(
-      hparams.num_neuorns)
+      hparams.num_neurons)
 
   # compute neuron-wise covariance with 500 samples
   pool = Pool(hparams.num_processors)
@@ -216,7 +216,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
     print('\tComputing correlation coefficient')
 
   neurons = hparams.focus_neurons if hparams.focus_neurons else range(
-      hparams.num_neuorns)
+      hparams.num_neurons)
 
   # compute neuron-wise covariance with 500 samples
   pool = Pool(hparams.num_processors)
@@ -354,7 +354,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     print('\tComputing van-rossum distance')
 
   neurons = hparams.focus_neurons if hparams.focus_neurons else range(
-      hparams.num_neuorns)
+      hparams.num_neurons)
 
   # compute neuron-wise van rossum distance error with 500 samples
   pool = Pool(hparams.num_processors)
