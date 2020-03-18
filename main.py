@@ -126,8 +126,8 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 
     start = time()
 
-    train_gen_loss, train_dis_loss = train(
-        hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
+    # train_gen_loss, train_dis_loss = train(
+    #     hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
 
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
@@ -138,6 +138,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
           'fake',
           signals=gan.generate(test_noise, denorm=True),
           step=epoch,
+          indexes=hparams.focus_neuorns,
           training=False)
       if hparams.save_checkpoints:
         utils.save_models(hparams, gan, epoch)
@@ -237,8 +238,13 @@ if __name__ == '__main__':
   parser.add_argument('--mixed_precision', action='store_true')
   parser.add_argument(
       '--profile', action='store_true', help='enable TensorBoard profiling')
+  parser.add_argument('--focus_neurons', action='store_true')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
+
+  # hand picked neurons to plots
+  if hparams.focus_neurons:
+    hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
 
   hparams.global_step = 0
 

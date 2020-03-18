@@ -28,6 +28,28 @@ def cache_validation_set(hparams, validation_ds):
     })
 
 
+def plot_real_signals(hparams, summary, validation_ds):
+  # plot signals and spikes from validation set
+  signals, spikes = next(iter(validation_ds))
+
+  signals = utils.set_array_format(
+      signals[0].numpy(), data_format='CW', hparams=hparams)
+  spikes = utils.set_array_format(
+      spikes[0].numpy(), data_format='CW', hparams=hparams)
+
+  if hparams.normalize:
+    signals = utils.denormalize(
+        signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
+
+  summary.plot_traces(
+      'real',
+      signals=signals,
+      spikes=spikes,
+      indexes=hparams.focus_neurons,
+      step=0,
+      training=False)
+
+
 def get_fashion_mnist(hparams):
   (x_train, _), (x_test, _) = tf.keras.datasets.fashion_mnist.load_data()
 
@@ -130,16 +152,7 @@ def get_dataset(hparams, summary):
     if hparams.save_generated:
       cache_validation_set(hparams, validation_ds)
 
-    # plot signals and spikes from validation set
-    sample_signals, sample_spikes = next(iter(validation_ds))
-    sample_signals = utils.denormalize(
-        sample_signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
-    summary.plot_traces(
-        'real',
-        signals=sample_signals,
-        spikes=sample_spikes,
-        step=0,
-        training=False)
+    plot_real_signals(hparams, summary, validation_ds)
 
   hparams.train_steps = ceil(hparams.train_size / hparams.batch_size)
   hparams.validation_steps = ceil(hparams.validation_size / hparams.batch_size)

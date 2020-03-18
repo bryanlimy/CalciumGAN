@@ -106,10 +106,12 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing firing rate')
 
+  neurons = hparams.focus_neurons if hparams.focus_neurons else range(
+      hparams.num_neuorns)
+
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      neuron_firing_rate,
-      [(hparams, filename, n) for n in range(hparams.num_neurons)])
+  results = pool.starmap(neuron_firing_rate,
+                         [(hparams, filename, n) for n in neurons])
   pool.close()
 
   firing_rate_errors, firing_rate_pairs = [], []
@@ -128,7 +130,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       firing_rate_pairs,
       xlabel='Hz',
       ylabel='Count',
-      title='Neuron #{:03d}',
+      titles=['Neuron #{:03d}'.format(n) for n in neurons],
       step=epoch,
       training=False)
 
@@ -157,11 +159,13 @@ def covariance_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing covariance')
 
+  neurons = hparams.focus_neurons if hparams.focus_neurons else range(
+      hparams.num_neuorns)
+
   # compute neuron-wise covariance with 500 samples
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      neuron_covariance,
-      [(hparams, filename, n, 500) for n in range(hparams.num_neurons)])
+  results = pool.starmap(neuron_covariance,
+                         [(hparams, filename, n, 500) for n in neurons])
   pool.close()
 
   summary.scalar(
@@ -211,11 +215,13 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
 
+  neurons = hparams.focus_neurons if hparams.focus_neurons else range(
+      hparams.num_neuorns)
+
   # compute neuron-wise covariance with 500 samples
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      neuron_correlation_coefficient,
-      [(hparams, filename, n, 500) for n in range(hparams.num_neurons)])
+  results = pool.starmap(neuron_correlation_coefficient,
+                         [(hparams, filename, n, 500) for n in neurons])
   pool.close()
 
   summary.scalar(
@@ -347,11 +353,13 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
 
+  neurons = hparams.focus_neurons if hparams.focus_neurons else range(
+      hparams.num_neuorns)
+
   # compute neuron-wise van rossum distance error with 500 samples
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      neuron_van_rossum_distance,
-      [(hparams, filename, n, 500) for n in range(hparams.num_neurons)])
+  results = pool.starmap(neuron_van_rossum_distance,
+                         [(hparams, filename, n, 500) for n in neurons])
   pool.close()
 
   summary.scalar(
@@ -362,16 +370,16 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
 
   # compute neuron-wise van rossum heat-map for 50 samples
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      neuron_van_rossum_heatmap,
-      [(hparams, filename, i, 50) for i in range(hparams.num_neurons)])
+  results = pool.starmap(neuron_van_rossum_heatmap,
+                         [(hparams, filename, i, 50) for i in neurons])
   pool.close()
 
-  heatmaps, xticklabels, yticklabels = [], [], []
+  heatmaps, xticklabels, yticklabels, titles = [], [], [], []
   for i in range(len(results)):
     heatmaps.append(results[i]['heatmap'])
     xticklabels.append(results[i]['xticklabels'])
     yticklabels.append(results[i]['yticklabels'])
+    titles.append('Neuron #{:03d}'.format(neurons[i]))
 
   summary.plot_heatmaps(
       'van_rossum_neuron_distance_heatmaps',
@@ -380,7 +388,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       ylabel='Real sample no.',
       xticklabels=xticklabels,
       yticklabels=yticklabels,
-      title='Neuron #{:03d}',
+      titles=titles,
       step=epoch,
       training=False)
 
@@ -395,7 +403,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       results,
       xlabel='Distance',
       ylabel='Count',
-      title='Sample #{:03d}',
+      titles=['Sample #{:03d}'.format(i) for i in range(len(results))],
       step=epoch,
       training=False)
 
@@ -440,6 +448,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--num_processors', default=6, type=int)
+  parser.add_argument('--focus_neurons', action='store_true')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 
@@ -447,5 +456,9 @@ if __name__ == '__main__':
     warnings.simplefilter(action='ignore', category=UserWarning)
     warnings.simplefilter(action='ignore', category=RuntimeWarning)
     warnings.simplefilter(action='ignore', category=DeprecationWarning)
+
+  # hand picked neurons to plots
+  if hparams.focus_neurons:
+    hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
 
   main(hparams)
