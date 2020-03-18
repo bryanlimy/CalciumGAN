@@ -23,14 +23,20 @@ def generator(hparams, units=64):
   outputs = layers.Reshape(shape)(outputs)
 
   outputs = layers.Dense(units)(outputs)
+  if not hparams.no_batch_norm:
+    outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   outputs = layers.Dense(units * 2)(outputs)
+  if not hparams.no_batch_norm:
+    outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   outputs = layers.Dense(units * 3)(outputs)
+  if not hparams.no_batch_norm:
+    outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 

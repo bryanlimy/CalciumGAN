@@ -223,7 +223,7 @@ if __name__ == '__main__':
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
   parser.add_argument('--model', default='mlp', type=str)
   parser.add_argument('--activation', default='linear', type=str)
-  parser.add_argument('--batch_norm', action='store_true')
+  parser.add_argument('--no_batch_norm', action='store_true')
   parser.add_argument('--algorithm', default='gan', type=str)
   parser.add_argument(
       '--n_critic',

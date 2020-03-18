@@ -30,35 +30,35 @@ def generator(hparams, filters=32, kernel_size=25, strides=2, padding='same'):
   # Layer 1
   outputs = Conv1DTranspose(
       filters * 5, kernel_size, strides, padding=padding)(outputs)
-  if hparams.batch_norm:
+  if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 2
   outputs = Conv1DTranspose(
       filters * 4, kernel_size, strides, padding=padding)(outputs)
-  if hparams.batch_norm:
+  if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 3
   outputs = Conv1DTranspose(
       filters * 3, kernel_size, strides, padding=padding)(outputs)
-  if hparams.batch_norm:
+  if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 4
   outputs = Conv1DTranspose(
       filters * 2, kernel_size, strides, padding=padding)(outputs)
-  if hparams.batch_norm:
+  if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 5
   outputs = Conv1DTranspose(
       hparams.num_neurons, kernel_size, strides, padding=padding)(outputs)
-  if hparams.batch_norm:
+  if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
