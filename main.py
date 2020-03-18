@@ -126,8 +126,8 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 
     start = time()
 
-    # train_gen_loss, train_dis_loss = train(
-    #     hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
+    train_gen_loss, train_dis_loss = train(
+        hparams, train_ds, gan=gan, summary=summary, epoch=epoch)
 
     val_gen_loss, val_dis_loss = validate(
         hparams, validation_ds, gan=gan, summary=summary, epoch=epoch)
@@ -138,7 +138,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
           'fake',
           signals=gan.generate(test_noise, denorm=True),
           step=epoch,
-          indexes=hparams.focus_neuorns,
+          indexes=hparams.focus_neurons,
           training=False)
       if hparams.save_checkpoints:
         utils.save_models(hparams, gan, epoch)
