@@ -211,6 +211,33 @@ def sample_correlation_coefficient(hparams, filename, sample):
   return np.nanmean(corrcoef, dtype=np.float32)
 
 
+def sample_correlation_coefficient_heatmap(hparams, filename, sample):
+  if hparams.verbose == 2:
+    print('\t\tComputing correlation coefficient heatmap for sample #{}'.format(
+        sample))
+
+  real_spikes = get_neo_trains(
+      hparams, hparams.validation_cache, sample=sample, data_format='CW')
+  real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
+
+  fake_spikes = get_neo_trains(
+      hparams, filename, sample=sample, data_format='CW')
+  fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
+
+  assert real_corrcoef.shape == fake_corrcoef.shape
+
+  # take top right side of the matrix
+  diag_indices = np.triu_indices(len(real_corrcoef), k=1)
+  real_corrcoef = real_corrcoef[diag_indices]
+  fake_corrcoef = fake_corrcoef[diag_indices]
+
+  # remove nan values
+  real_corrcoef = utils.remove_nan(real_corrcoef)
+  fake_corrcoef = utils.remove_nan(fake_corrcoef)
+
+  return (real_corrcoef, fake_corrcoef)
+
+
 def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
@@ -218,27 +245,42 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   neurons = hparams.focus_neurons if hparams.focus_neurons else range(
       hparams.num_neurons)
 
-  # compute neuron-wise covariance with 500 samples
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(neuron_correlation_coefficient,
-                         [(hparams, filename, n, 500) for n in neurons])
-  pool.close()
+  # # compute neuron-wise covariance with 500 samples
+  # pool = Pool(hparams.num_processors)
+  # results = pool.starmap(neuron_correlation_coefficient,
+  #                        [(hparams, filename, n, 500) for n in neurons])
+  # pool.close()
+  #
+  # summary.scalar(
+  #     'spike_metrics/neuron_corrcoef',
+  #     np.nanmean(results, dtype=np.float32),
+  #     step=epoch,
+  #     training=False)
+  #
+  # # compute sample-wise covariance for the first 50 samples
+  # pool = Pool(hparams.num_processors)
+  # results = pool.starmap(sample_correlation_coefficient,
+  #                        [(hparams, filename, i) for i in range(50)])
+  # pool.close()
+  #
+  # summary.scalar(
+  #     'spike_metrics/sample_corrcoef',
+  #     np.nanmean(results, dtype=np.float32),
+  #     step=epoch,
+  #     training=False)
 
-  summary.scalar(
-      'spike_metrics/neuron_corrcoef',
-      np.nanmean(results, dtype=np.float32),
-      step=epoch,
-      training=False)
-
-  # compute sample-wise covariance for the first 50 samples
+  # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(sample_correlation_coefficient,
+  results = pool.starmap(sample_correlation_coefficient_heatmap,
                          [(hparams, filename, i) for i in range(50)])
   pool.close()
 
-  summary.scalar(
-      'spike_metrics/sample_corrcoef',
-      np.nanmean(results, dtype=np.float32),
+  summary.plot_histograms(
+      'correlation_coefficient_sample_histogram',
+      results,
+      xlabel='Correlation',
+      ylabel='Count',
+      titles=['Sample #{:03d}'.format(i) for i in range(len(results))],
       step=epoch,
       training=False)
 
@@ -290,6 +332,26 @@ def sort_heatmap(matrix):
   return heatmap, row_order, column_order
 
 
+def sample_van_rossum_heatmap(hparams, filename, sample):
+  ''' compute van rossum heatmap for sample '''
+  if hparams.verbose == 2:
+    print('\t\tComputing van-rossum heatmap for sample #{}'.format(sample))
+
+  real_spikes = get_neo_trains(
+      hparams, hparams.validation_cache, sample=sample, data_format='CW')
+  fake_spikes = get_neo_trains(
+      hparams, filename, sample=sample, data_format='CW')
+
+  distances = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
+  heatmap, row_order, column_order = sort_heatmap(distances)
+
+  return {
+      'heatmap': heatmap,
+      'xticklabels': row_order,
+      'yticklabels': column_order
+  }
+
+
 def neuron_van_rossum_heatmap(hparams, filename, neuron, num_samples):
   ''' compute van rossum heatmap for neuron with num_samples samples '''
   if hparams.verbose == 2:
@@ -321,7 +383,7 @@ def neuron_van_rossum_heatmap(hparams, filename, neuron, num_samples):
 def sample_van_rossum_histogram(hparams, filename, sample):
   ''' compute van rossum distance for sample '''
   if hparams.verbose == 2:
-    print('\t\tComputing van-rossum distance for sample #{}'.format(sample))
+    print('\t\tComputing van-rossum histograms for sample #{}'.format(sample))
 
   real_spikes = get_neo_trains(
       hparams,
@@ -349,6 +411,35 @@ def sample_van_rossum_histogram(hparams, filename, sample):
   return (real_van_rossum, fake_van_rossum)
 
 
+def neuron_van_rossum_histogram(hparams, filename, neuron, num_samples):
+  ''' compute van rossum distance for neuron '''
+  if hparams.verbose == 2:
+    print('\t\tComputing van-rossum histograms for neuron #{}'.format(neuron))
+
+  real_spikes = get_neo_trains(
+      hparams,
+      hparams.validation_cache,
+      neuron=neuron,
+      data_format='NW',
+      num_samples=num_samples)
+  real_van_rossum = spike_metrics.van_rossum_distance(real_spikes, None)
+
+  fake_spikes = get_neo_trains(
+      hparams,
+      filename,
+      neuron=neuron,
+      data_format='NW',
+      num_samples=num_samples)
+  fake_van_rossum = spike_metrics.van_rossum_distance(fake_spikes, None)
+
+  diag_indices = np.triu_indices(len(real_van_rossum), k=1)
+
+  real_van_rossum = real_van_rossum[diag_indices]
+  fake_van_rossum = fake_van_rossum[diag_indices]
+
+  return (real_van_rossum, fake_van_rossum)
+
+
 def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
@@ -363,8 +454,32 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   pool.close()
 
   summary.scalar(
-      'spike_metrics/van_rossum_distance',
+      'spike_metrics/van_rossum_neuron',
       np.mean(results),
+      step=epoch,
+      training=False)
+
+  # compute sample-wise van rossum heat-map
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(sample_van_rossum_heatmap,
+                         [(hparams, filename, i) for i in range(50)])
+  pool.close()
+
+  heatmaps, xticklabels, yticklabels, titles = [], [], [], []
+  for i in range(len(results)):
+    heatmaps.append(results[i]['heatmap'])
+    xticklabels.append(results[i]['xticklabels'])
+    yticklabels.append(results[i]['yticklabels'])
+    titles.append('Sample #{:03d}'.format(neurons[i]))
+
+  summary.plot_heatmaps(
+      'van_rossum_sample_heatmaps',
+      heatmaps,
+      xlabel='Fake neuron',
+      ylabel='Real neuron',
+      xticklabels=xticklabels,
+      yticklabels=yticklabels,
+      titles=titles,
       step=epoch,
       training=False)
 
@@ -382,28 +497,43 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     titles.append('Neuron #{:03d}'.format(neurons[i]))
 
   summary.plot_heatmaps(
-      'van_rossum_neuron_distance_heatmaps',
+      'van_rossum_neuron_heatmaps',
       heatmaps,
-      xlabel='Fake sample no.',
-      ylabel='Real sample no.',
+      xlabel='Fake sample',
+      ylabel='Real sample',
       xticklabels=xticklabels,
       yticklabels=yticklabels,
       titles=titles,
       step=epoch,
       training=False)
 
-  # compute first 50 samples' sample-wise van rossum distance
+  # compute sample-wise van rossum distance histogram
   pool = Pool(hparams.num_processors)
   results = pool.starmap(sample_van_rossum_histogram,
                          [(hparams, filename, i) for i in range(50)])
   pool.close()
 
   summary.plot_histograms(
-      'van_rossum_distance_histograms',
+      'van_rossum_sample_histograms',
       results,
       xlabel='Distance',
       ylabel='Count',
       titles=['Sample #{:03d}'.format(i) for i in range(len(results))],
+      step=epoch,
+      training=False)
+
+  # compute neuron-wise van rossum distance histogram for 50 samples
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(neuron_van_rossum_histogram,
+                         [(hparams, filename, n, 50) for n in neurons])
+  pool.close()
+
+  summary.plot_histograms(
+      'van_rossum_neuron_histograms',
+      results,
+      xlabel='Distance',
+      ylabel='Count',
+      titles=['Neuron #{:03d}'.format(i) for i in neurons],
       step=epoch,
       training=False)
 
@@ -412,13 +542,13 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
   if not h5_helper.contains(filename, 'spikes'):
     deconvolve_from_file(hparams, filename)
 
-  firing_rate_metrics(hparams, summary, filename, epoch)
+  # firing_rate_metrics(hparams, summary, filename, epoch)
 
   # covariance_metrics(hparams, summary, filename, epoch)
 
   correlation_coefficient_metrics(hparams, summary, filename, epoch)
 
-  van_rossum_metrics(hparams, summary, filename, epoch)
+  # van_rossum_metrics(hparams, summary, filename, epoch)
 
 
 def main(hparams):

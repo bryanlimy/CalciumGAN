@@ -130,3 +130,7 @@ def set_array_format(array, data_format, hparams):
     return tf.transpose(array, perm=perm)
   else:
     return np.transpose(array, axes=perm)
+
+
+def remove_nan(array):
+  return array[np.logical_not(np.isnan(array))]
