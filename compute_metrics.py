@@ -245,29 +245,29 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   neurons = hparams.focus_neurons if hparams.focus_neurons else range(
       hparams.num_neurons)
 
-  # # compute neuron-wise covariance with 500 samples
-  # pool = Pool(hparams.num_processors)
-  # results = pool.starmap(neuron_correlation_coefficient,
-  #                        [(hparams, filename, n, 500) for n in neurons])
-  # pool.close()
-  #
-  # summary.scalar(
-  #     'spike_metrics/neuron_corrcoef',
-  #     np.nanmean(results, dtype=np.float32),
-  #     step=epoch,
-  #     training=False)
-  #
-  # # compute sample-wise covariance for the first 50 samples
-  # pool = Pool(hparams.num_processors)
-  # results = pool.starmap(sample_correlation_coefficient,
-  #                        [(hparams, filename, i) for i in range(50)])
-  # pool.close()
-  #
-  # summary.scalar(
-  #     'spike_metrics/sample_corrcoef',
-  #     np.nanmean(results, dtype=np.float32),
-  #     step=epoch,
-  #     training=False)
+  # compute neuron-wise covariance with 500 samples
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(neuron_correlation_coefficient,
+                         [(hparams, filename, n, 500) for n in neurons])
+  pool.close()
+
+  summary.scalar(
+      'spike_metrics/neuron_corrcoef',
+      np.nanmean(results, dtype=np.float32),
+      step=epoch,
+      training=False)
+
+  # compute sample-wise covariance for the first 50 samples
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(sample_correlation_coefficient,
+                         [(hparams, filename, i) for i in range(50)])
+  pool.close()
+
+  summary.scalar(
+      'spike_metrics/sample_corrcoef',
+      np.nanmean(results, dtype=np.float32),
+      step=epoch,
+      training=False)
 
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
@@ -542,13 +542,13 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
   if not h5_helper.contains(filename, 'spikes'):
     deconvolve_from_file(hparams, filename)
 
-  # firing_rate_metrics(hparams, summary, filename, epoch)
+  firing_rate_metrics(hparams, summary, filename, epoch)
 
   # covariance_metrics(hparams, summary, filename, epoch)
 
   correlation_coefficient_metrics(hparams, summary, filename, epoch)
 
-  # van_rossum_metrics(hparams, summary, filename, epoch)
+  van_rossum_metrics(hparams, summary, filename, epoch)
 
 
 def main(hparams):
