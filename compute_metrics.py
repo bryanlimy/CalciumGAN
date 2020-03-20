@@ -470,7 +470,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     heatmaps.append(results[i]['heatmap'])
     xticklabels.append(results[i]['xticklabels'])
     yticklabels.append(results[i]['yticklabels'])
-    titles.append('Sample #{:03d}'.format(neurons[i]))
+    titles.append('Sample #{:03d}'.format(i))
 
   summary.plot_heatmaps(
       'van_rossum_sample_heatmaps',
