@@ -4,6 +4,7 @@ import pickle
 import argparse
 import warnings
 import numpy as np
+from tqdm import tqdm
 from time import time
 from multiprocessing import Pool
 
@@ -175,46 +176,30 @@ def covariance_metrics(hparams, summary, filename, epoch):
       training=False)
 
 
-def neuron_correlation_coefficient(hparams, filename, neuron, num_samples):
+def correlation_coefficient_error(hparams, filename, sample):
   if hparams.verbose == 2:
-    print('\t\tComputing correlation coefficient for neuron #{}'.format(neuron))
+    print('\t\tComputing correlation coefficient error for sample #{}'.format(
+        sample))
 
-  real_spikes = get_neo_trains(
-      hparams,
-      hparams.validation_cache,
-      neuron=neuron,
-      data_format='NW',
-      num_samples=num_samples)
-  fake_spikes = get_neo_trains(
-      hparams,
-      filename,
-      neuron=neuron,
-      data_format='NW',
-      num_samples=num_samples)
-
-  corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
-
-  return np.nanmean(corrcoef, dtype=np.float32)
-
-
-def sample_correlation_coefficient(hparams, filename, sample):
-  if hparams.verbose == 2:
-    print('\t\tComputing correlation coefficient for sample #{}'.format(sample))
+  diag_indices = np.triu_indices(hparams.num_neurons, k=1)
 
   real_spikes = get_neo_trains(
       hparams, hparams.validation_cache, sample=sample, data_format='CW')
+  real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
+  real_corrcoef = real_corrcoef[diag_indices]
+
   fake_spikes = get_neo_trains(
       hparams, filename, sample=sample, data_format='CW')
+  fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
+  fake_corrcoef = fake_corrcoef[diag_indices]
 
-  corrcoef = spike_metrics.correlation_coefficients(real_spikes, fake_spikes)
-
-  return np.nanmean(corrcoef, dtype=np.float32)
+  return np.nanmean(np.square(real_corrcoef - fake_corrcoef))
 
 
 def correlation_coefficient_sample_histogram(hparams, filename, sample):
   if hparams.verbose == 2:
-    print('\t\tComputing correlation coefficient heatmap for sample #{}'.format(
-        sample))
+    print('\t\tComputing correlation coefficient histogram for sample #{}'.
+          format(sample))
 
   diag_indices = np.triu_indices(hparams.num_neurons, k=1)
 
@@ -238,7 +223,7 @@ def correlation_coefficient_samples_mean_histogram(hparams, filename,
 
   diag_indices = np.triu_indices(hparams.num_neurons, k=1)
 
-  for i in range(num_samples):
+  for i in tqdm(range(num_samples)):
     real_spikes = get_neo_trains(
         hparams, hparams.validation_cache, sample=i, data_format='CW')
     real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
@@ -259,50 +244,38 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
 
+  num_samples = 50
   neurons = hparams.focus_neurons if hparams.focus_neurons else range(
       hparams.num_neurons)
 
-  # # compute neuron-wise covariance with 500 samples
-  # pool = Pool(hparams.num_processors)
-  # results = pool.starmap(neuron_correlation_coefficient,
-  #                        [(hparams, filename, n, 500) for n in neurons])
-  # pool.close()
-  #
-  # summary.scalar(
-  #     'spike_metrics/neuron_corrcoef',
-  #     np.nanmean(results, dtype=np.float32),
-  #     step=epoch,
-  #     training=False)
-  #
-  # # compute sample-wise covariance for the first 50 samples
-  # pool = Pool(hparams.num_processors)
-  # results = pool.starmap(sample_correlation_coefficient,
-  #                        [(hparams, filename, i) for i in range(50)])
-  # pool.close()
-  #
-  # summary.scalar(
-  #     'spike_metrics/sample_corrcoef',
-  #     np.nanmean(results, dtype=np.float32),
-  #     step=epoch,
-  #     training=False)
-  #
-  # compute sample-wise correlation histogram
+  # compute sample-wise covariance for the first 50 samples
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(correlation_coefficient_sample_histogram,
-                         [(hparams, filename, i) for i in range(50)])
+  results = pool.starmap(correlation_coefficient_error,
+                         [(hparams, filename, i) for i in range(num_samples)])
   pool.close()
 
-  summary.plot_histograms(
-      'correlation_coefficient_sample_histogram',
-      results,
-      xlabel='Correlation',
-      ylabel='Count',
-      titles=['Sample #{:03d}'.format(i) for i in range(len(results))],
+  summary.scalar(
+      'spike_metrics/correlation_error',
+      np.nanmean(results, dtype=np.float32),
       step=epoch,
       training=False)
 
+  # compute sample-wise correlation histogram
+  # pool = Pool(hparams.num_processors)
+  # results = pool.starmap(correlation_coefficient_sample_histogram,
+  #                        [(hparams, filename, i) for i in range(num_samples)])
+  # pool.close()
+  #
+  # summary.plot_histograms(
+  #     'correlation_coefficient_sample_histogram',
+  #     results,
+  #     xlabel='Correlation',
+  #     ylabel='Count',
+  #     titles=['Sample #{:03d}'.format(i) for i in range(len(results))],
+  #     step=epoch,
+  #     training=False)
+
   # compute mean sample-wise correlation histogram
-  num_samples = 100
   results = correlation_coefficient_samples_mean_histogram(
       hparams, filename, num_samples)
 
@@ -478,10 +451,10 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   neurons = hparams.focus_neurons if hparams.focus_neurons else range(
       hparams.num_neurons)
 
-  # compute neuron-wise van rossum distance error with 500 samples
+  # compute neuron-wise van rossum distance error with 100 samples
   pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_van_rossum_distance,
-                         [(hparams, filename, n, 500) for n in neurons])
+                         [(hparams, filename, n, 100) for n in neurons])
   pool.close()
 
   summary.scalar(
@@ -613,10 +586,9 @@ if __name__ == '__main__':
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 
-  if hparams.verbose != 2:
-    warnings.simplefilter(action='ignore', category=UserWarning)
-    warnings.simplefilter(action='ignore', category=RuntimeWarning)
-    warnings.simplefilter(action='ignore', category=DeprecationWarning)
+  warnings.simplefilter(action='ignore', category=UserWarning)
+  warnings.simplefilter(action='ignore', category=RuntimeWarning)
+  warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
   # hand picked neurons to plots
   if hparams.focus_neurons:
