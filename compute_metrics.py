@@ -211,31 +211,48 @@ def sample_correlation_coefficient(hparams, filename, sample):
   return np.nanmean(corrcoef, dtype=np.float32)
 
 
-def sample_correlation_coefficient_heatmap(hparams, filename, sample):
+def correlation_coefficient_sample_histogram(hparams, filename, sample):
   if hparams.verbose == 2:
     print('\t\tComputing correlation coefficient heatmap for sample #{}'.format(
         sample))
 
+  diag_indices = np.triu_indices(hparams.num_neurons, k=1)
+
   real_spikes = get_neo_trains(
       hparams, hparams.validation_cache, sample=sample, data_format='CW')
   real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
+  real_corrcoef = utils.remove_nan(real_corrcoef[diag_indices])
 
   fake_spikes = get_neo_trains(
       hparams, filename, sample=sample, data_format='CW')
   fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
-
-  assert real_corrcoef.shape == fake_corrcoef.shape
-
-  # take top right side of the matrix
-  diag_indices = np.triu_indices(len(real_corrcoef), k=1)
-  real_corrcoef = real_corrcoef[diag_indices]
-  fake_corrcoef = fake_corrcoef[diag_indices]
-
-  # remove nan values
-  real_corrcoef = utils.remove_nan(real_corrcoef)
-  fake_corrcoef = utils.remove_nan(fake_corrcoef)
+  fake_corrcoef = utils.remove_nan(fake_corrcoef[diag_indices])
 
   return (real_corrcoef, fake_corrcoef)
+
+
+def correlation_coefficient_samples_mean_histogram(hparams, filename,
+                                                   num_samples):
+  real_corrcoefs = np.zeros((num_samples,), dtype=np.float32)
+  fake_corrcoefs = np.zeros((num_samples,), dtype=np.float32)
+
+  diag_indices = np.triu_indices(hparams.num_neurons, k=1)
+
+  for i in range(num_samples):
+    real_spikes = get_neo_trains(
+        hparams, hparams.validation_cache, sample=i, data_format='CW')
+    real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
+    real_corrcoefs[i] = np.nanmean(real_corrcoef[diag_indices])
+
+    fake_spikes = get_neo_trains(hparams, filename, sample=i, data_format='CW')
+    fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
+    fake_corrcoefs[i] = np.nanmean(fake_corrcoef[diag_indices])
+
+  # remove nan values
+  real_corrcoefs = utils.remove_nan(real_corrcoefs)
+  fake_corrcoefs = utils.remove_nan(fake_corrcoefs)
+
+  return [(real_corrcoefs, fake_corrcoefs)]
 
 
 def correlation_coefficient_metrics(hparams, summary, filename, epoch):
@@ -245,33 +262,33 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   neurons = hparams.focus_neurons if hparams.focus_neurons else range(
       hparams.num_neurons)
 
-  # compute neuron-wise covariance with 500 samples
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(neuron_correlation_coefficient,
-                         [(hparams, filename, n, 500) for n in neurons])
-  pool.close()
-
-  summary.scalar(
-      'spike_metrics/neuron_corrcoef',
-      np.nanmean(results, dtype=np.float32),
-      step=epoch,
-      training=False)
-
-  # compute sample-wise covariance for the first 50 samples
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(sample_correlation_coefficient,
-                         [(hparams, filename, i) for i in range(50)])
-  pool.close()
-
-  summary.scalar(
-      'spike_metrics/sample_corrcoef',
-      np.nanmean(results, dtype=np.float32),
-      step=epoch,
-      training=False)
-
+  # # compute neuron-wise covariance with 500 samples
+  # pool = Pool(hparams.num_processors)
+  # results = pool.starmap(neuron_correlation_coefficient,
+  #                        [(hparams, filename, n, 500) for n in neurons])
+  # pool.close()
+  #
+  # summary.scalar(
+  #     'spike_metrics/neuron_corrcoef',
+  #     np.nanmean(results, dtype=np.float32),
+  #     step=epoch,
+  #     training=False)
+  #
+  # # compute sample-wise covariance for the first 50 samples
+  # pool = Pool(hparams.num_processors)
+  # results = pool.starmap(sample_correlation_coefficient,
+  #                        [(hparams, filename, i) for i in range(50)])
+  # pool.close()
+  #
+  # summary.scalar(
+  #     'spike_metrics/sample_corrcoef',
+  #     np.nanmean(results, dtype=np.float32),
+  #     step=epoch,
+  #     training=False)
+  #
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(sample_correlation_coefficient_heatmap,
+  results = pool.starmap(correlation_coefficient_sample_histogram,
                          [(hparams, filename, i) for i in range(50)])
   pool.close()
 
@@ -281,6 +298,20 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       xlabel='Correlation',
       ylabel='Count',
       titles=['Sample #{:03d}'.format(i) for i in range(len(results))],
+      step=epoch,
+      training=False)
+
+  # compute mean sample-wise correlation histogram
+  num_samples = 100
+  results = correlation_coefficient_samples_mean_histogram(
+      hparams, filename, num_samples)
+
+  summary.plot_histograms(
+      'correlation_coefficient_mean_samples_histogram',
+      results,
+      xlabel='Mean correlation',
+      ylabel='Count',
+      titles=['Mean correlation over {} samples'.format(num_samples)],
       step=epoch,
       training=False)
 
@@ -542,13 +573,13 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
   if not h5_helper.contains(filename, 'spikes'):
     deconvolve_from_file(hparams, filename)
 
-  firing_rate_metrics(hparams, summary, filename, epoch)
+  # firing_rate_metrics(hparams, summary, filename, epoch)
 
   # covariance_metrics(hparams, summary, filename, epoch)
 
   correlation_coefficient_metrics(hparams, summary, filename, epoch)
 
-  van_rossum_metrics(hparams, summary, filename, epoch)
+  # van_rossum_metrics(hparams, summary, filename, epoch)
 
 
 def main(hparams):
