@@ -262,7 +262,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
   results = pool.starmap(correlation_coefficient_sample_histogram,
-                         [(hparams, filename, i) for i in range(10)])
+                         [(hparams, filename, i) for i in range(12)])
   pool.close()
 
   summary.plot_histograms(
@@ -469,7 +469,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   # compute sample-wise van rossum heat-map
   pool = Pool(hparams.num_processors)
   results = pool.starmap(sample_van_rossum_heatmap,
-                         [(hparams, filename, i) for i in range(10)])
+                         [(hparams, filename, i) for i in range(12)])
   pool.close()
 
   heatmaps, xticklabels, yticklabels, titles = [], [], [], []
@@ -493,7 +493,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   # compute neuron-wise van rossum heat-map for 100 samples
   pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_van_rossum_heatmap,
-                         [(hparams, filename, i, 100) for i in neurons])
+                         [(hparams, filename, n, 100) for n in neurons])
   pool.close()
 
   heatmaps, xticklabels, yticklabels, titles = [], [], [], []
@@ -517,7 +517,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   # compute sample-wise van rossum distance histogram
   pool = Pool(hparams.num_processors)
   results = pool.starmap(sample_van_rossum_histogram,
-                         [(hparams, filename, i) for i in range(10)])
+                         [(hparams, filename, i) for i in range(12)])
   pool.close()
 
   summary.plot_histograms(
