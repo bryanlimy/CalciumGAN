@@ -16,7 +16,7 @@ def correlation_coefficients(spikes1, spikes2, binsize=100 * pq.ms):
   spikes = spikes1 + spikes2 if spikes2 is not None else spikes1
   binned = elephant.conversion.BinnedSpikeTrain(spikes, binsize=binsize)
 
-  result = elephant.spike_train_correlation.corrcoef(binned)
+  result = elephant.spike_train_correlation.corrcoef(binned, fast=False)
 
   if spikes2 is not None:
     result = result[len(spikes1):, :len(spikes2)]
@@ -28,7 +28,7 @@ def covariance(spikes1, spikes2, binsize=100 * pq.ms):
   spikes = spikes1 + spikes2 if spikes2 is not None else spikes1
   binned = elephant.conversion.BinnedSpikeTrain(spikes, binsize=binsize)
 
-  result = elephant.spike_train_correlation.covariance(binned)
+  result = elephant.spike_train_correlation.covariance(binned, fast=False)
 
   if spikes2 is not None:
     result = result[len(spikes1):, :len(spikes2)]
