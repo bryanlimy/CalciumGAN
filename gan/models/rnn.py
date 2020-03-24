@@ -41,14 +41,14 @@ def generator(hparams, units=64, upscale=4):
 
   # Layer 2
   outputs = layers.GRU(
-      hparams.num_neurons,
+      hparams.num_channels,
       activation=hparams.activation,
       recurrent_initializer='glorot_uniform',
       dropout=hparams.dropout,
       return_sequences=True,
       time_major=False)(outputs)
 
-  outputs = layers.Dense(hparams.num_neurons)(outputs)
+  outputs = layers.Dense(hparams.num_channels)(outputs)
 
   if hparams.normalize:
     outputs = activation_fn('sigmoid', dtype=tf.float32)(outputs)

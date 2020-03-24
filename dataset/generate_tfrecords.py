@@ -7,6 +7,8 @@ from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
 
+np.random.seed(1234)
+
 
 def split(sequence, n):
   """ divide sequence into n sub-sequence evenly """
@@ -22,8 +24,10 @@ def normalize(x, x_min, x_max):
 
 
 def fft(x):
+  """ Apply FFT on x and represent complex number in a 2D float array"""
   x = np.fft.fft(x.astype(np.complex64), axis=-1, norm='ortho')
-  return x.astype(np.complex64)
+  x = np.stack([np.real(x), np.imag(x)], axis=-1)
+  return np.reshape(x, newshape=(x.shape[0], x.shape[1] * x.shape[2]))
 
 
 def calculate_num_per_shard(hparams):
@@ -66,28 +70,32 @@ def get_segments(hparams):
     print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
         np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
 
-  if hparams.fft:
-    print('apply fft')
-    raw_signals = fft(raw_signals)
-    print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
-        np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
-
   # set signals and spikes to WC [sequence, num. neurons]
   raw_signals = np.swapaxes(raw_signals, 0, 1)
   raw_spikes = np.swapaxes(raw_spikes, 0, 1)
 
   hparams.num_neurons = raw_signals.shape[1]
+  hparams.num_channels = hparams.num_neurons
+
+  if hparams.fft:
+    print('apply fft')
+    raw_signals = fft(raw_signals)
+    print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
+        np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
+    hparams.num_channels = raw_signals.shape[-1]
+
   num_samples = raw_signals.shape[0] - hparams.sequence_length
 
-  shape = (num_samples, hparams.sequence_length, hparams.num_neurons)
-  signals = np.zeros(shape, dtype=raw_signals.dtype)
-  spikes = np.zeros(shape, dtype=raw_spikes.dtype)
+  signals = np.zeros(
+      shape=(num_samples, hparams.sequence_length, hparams.num_channels),
+      dtype=np.float32)
+  spikes = np.zeros(
+      shape=(num_samples, hparams.sequence_length, hparams.num_neurons),
+      dtype=np.float32)
 
   for i in tqdm(range(num_samples)):
     signals[i] = raw_signals[i:i + hparams.sequence_length, :]
     spikes[i] = raw_spikes[i:i + hparams.sequence_length, :]
-
-  assert signals.shape == spikes.shape
 
   return signals, spikes
 
@@ -199,16 +207,18 @@ def main(hparams):
         'validation_size': hparams.validation_size,
         'signal_shape': hparams.signal_shape,
         'spike_shape': hparams.spike_shape,
-        'num_neurons': hparams.num_neurons,
         'sequence_length': hparams.sequence_length,
+        'num_neurons': hparams.num_neurons,
+        'num_channels': hparams.num_channels,
         'num_train_shards': hparams.num_train_shards,
         'num_validation_shards': hparams.num_validation_shards,
         'buffer_size': min(hparams.num_per_shard, hparams.train_size),
         'normalize': hparams.normalize,
-        'fft': hparams.fft,
-        'signals_min': hparams.signals_min,
-        'signals_max': hparams.signals_max
+        'fft': hparams.fft
     }
+    if hparams.normalize:
+      info['signals_min'] = hparams.signals_min
+      info['signals_max'] = hparams.signals_max
     pickle.dump(info, file)
 
   print('saved {} TFRecords to {}'.format(

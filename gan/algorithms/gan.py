@@ -15,11 +15,11 @@ class GAN(object):
     self.discriminator = discriminator
 
     self._summary = summary
-    self._num_neurons = hparams.num_neurons
     self._noise_dim = hparams.noise_dim
-    self._signals_min = hparams.signals_min
-    self._signals_max = hparams.signals_max
     self._normalize = hparams.normalize
+    if hparams.normalize:
+      self._signals_min = hparams.signals_min
+      self._signals_max = hparams.signals_max
 
     self.gen_optimizer = Optimizer(hparams)
     self.dis_optimizer = Optimizer(hparams)
@@ -92,6 +92,6 @@ class GAN(object):
   @tf.function
   def generate(self, noise, denorm=False):
     fake = self.generator(noise, training=False)
-    if denorm and self._normalize:
+    if denorm:
       fake = denormalize(fake, x_min=self._signals_min, x_max=self._signals_max)
     return fake

@@ -40,7 +40,7 @@ def generator(hparams, units=64):
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
-  outputs = layers.Dense(hparams.num_neurons)(outputs)
+  outputs = layers.Dense(hparams.num_channels)(outputs)
   outputs = layers.Reshape(hparams.signal_shape)(outputs)
 
   if hparams.normalize:

@@ -97,7 +97,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
     if hparams.save_generated and (epoch % hparams.save_generated_freq == 0 or
                                    epoch == hparams.epochs - 1):
-      utils.save_fake_signals(hparams, epoch, signals=fake.numpy())
+      utils.save_fake_signals(hparams, epoch, signals=fake)
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
   gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
@@ -134,9 +134,12 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 
     if epoch % 10 == 0 or epoch == hparams.epochs - 1:
       # test generated data and plot in TensorBoard
+      fake_signals = gan.generate(test_noise, denorm=hparams.normalize)
+      if hparams.fft:
+        fake_signals = utils.ifft(fake_signals)
       summary.plot_traces(
           'fake',
-          signals=gan.generate(test_noise, denorm=True),
+          signals=fake_signals,
           step=epoch,
           indexes=hparams.focus_neurons,
           training=False)

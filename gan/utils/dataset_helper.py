@@ -17,14 +17,19 @@ def cache_validation_set(hparams, validation_ds):
       validation_ds,
       desc='Cache validation set',
       disable=not bool(hparams.verbose)):
+
+    signal, spike = signal.numpy(), spike.numpy()
+
     if hparams.normalize:
       signal = utils.denormalize(
           signal, x_min=hparams.signals_min, x_max=hparams.signals_max)
-    spike = tf.cast(spike, dtype=tf.int8)
+
+    if hparams.fft:
+      signal = utils.ifft(signal)
 
     h5_helper.write(hparams.validation_cache, {
-        'signals': signal.numpy(),
-        'spikes': spike.numpy()
+        'signals': signal.astype(np.float32),
+        'spikes': spike.astype(np.int8)
     })
 
 
@@ -32,14 +37,17 @@ def plot_real_signals(hparams, summary, validation_ds):
   # plot signals and spikes from validation set
   signals, spikes = next(iter(validation_ds))
 
-  signals = utils.set_array_format(
-      signals[0].numpy(), data_format='CW', hparams=hparams)
-  spikes = utils.set_array_format(
-      spikes[0].numpy(), data_format='CW', hparams=hparams)
+  signals, spikes = signals[0].numpy(), spikes[0].numpy()
 
   if hparams.normalize:
     signals = utils.denormalize(
         signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
+
+  if hparams.fft:
+    signals = utils.ifft(signals)
+
+  signals = utils.set_array_format(signals, data_format='CW', hparams=hparams)
+  spikes = utils.set_array_format(spikes, data_format='CW', hparams=hparams)
 
   summary.plot_traces(
       'real',
@@ -85,15 +93,18 @@ def get_dataset_info(hparams):
   hparams.validation_size = info['validation_size']
   hparams.signal_shape = info['signal_shape']
   hparams.spike_shape = info['spike_shape']
-  hparams.num_neurons = info['num_neurons']
   hparams.sequence_length = info['sequence_length']
+  hparams.num_neurons = info['num_neurons']
+  hparams.num_channels = info['num_channels']
   hparams.num_train_shards = info['num_train_shards']
   hparams.num_validation_shards = info['num_validation_shards']
   hparams.buffer_size = info['buffer_size']
   hparams.normalize = info['normalize']
+  hparams.fft = info['fft']
 
-  hparams.signals_min = float(info['signals_min'])
-  hparams.signals_max = float(info['signals_max'])
+  if hparams.normalize:
+    hparams.signals_min = float(info['signals_min'])
+    hparams.signals_max = float(info['signals_max'])
 
   if hparams.save_generated:
     hparams.generated_dir = os.path.join(hparams.output_dir, 'generated')
