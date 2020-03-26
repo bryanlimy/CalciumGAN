@@ -34,7 +34,9 @@ def denormalize(x, x_min, x_max):
 def ifft(x):
   if tf.is_tensor(x):
     x = x.numpy()
-  x = x[..., 0::2] + x[..., 1::2] * 1j
+  # x = x[..., 0::2] + x[..., 1::2] * 1j
+  mid = x.shape[-1] // 2
+  x = x[..., :mid] + x[..., mid:] * 1j
   x = np.fft.ifft(x, norm='ortho')
   return np.real(x)
 

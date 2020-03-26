@@ -26,8 +26,11 @@ def normalize(x, x_min, x_max):
 def fft(x):
   """ Apply FFT on x and represent complex number in a 2D float array"""
   x = np.fft.fft(x.astype(np.complex64), axis=-1, norm='ortho')
-  x = np.stack([np.real(x), np.imag(x)], axis=-1)
-  return np.reshape(x, newshape=(x.shape[0], x.shape[1] * x.shape[2]))
+
+  # x = np.stack([np.real(x), np.imag(x)], axis=-1)
+  # return np.reshape(x, newshape=(x.shape[0], x.shape[1] * x.shape[2]))
+
+  return np.concatenate([np.real(x), np.imag(x)], axis=-1)
 
 
 def calculate_num_per_shard(hparams):
