@@ -97,7 +97,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
 
     if hparams.save_generated and (epoch % hparams.save_generated_freq == 0 or
                                    epoch == hparams.epochs - 1):
-      utils.save_fake_signals(hparams, epoch, signals=fake.numpy())
+      utils.save_fake_signals(hparams, epoch, signals=fake)
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
   gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
@@ -134,10 +134,14 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 
     if epoch % 10 == 0 or epoch == hparams.epochs - 1:
       # test generated data and plot in TensorBoard
+      fake_signals = gan.generate(test_noise, denorm=hparams.normalize)
+      if hparams.fft:
+        fake_signals = utils.ifft(fake_signals)
       summary.plot_traces(
           'fake',
-          signals=gan.generate(test_noise, denorm=True),
+          signals=fake_signals,
           step=epoch,
+          indexes=hparams.focus_neurons,
           training=False)
       if hparams.save_checkpoints:
         utils.save_models(hparams, gan, epoch)
@@ -222,7 +226,7 @@ if __name__ == '__main__':
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
   parser.add_argument('--model', default='mlp', type=str)
   parser.add_argument('--activation', default='linear', type=str)
-  parser.add_argument('--batch_norm', action='store_true')
+  parser.add_argument('--no_batch_norm', action='store_true')
   parser.add_argument('--algorithm', default='gan', type=str)
   parser.add_argument(
       '--n_critic',
@@ -237,8 +241,13 @@ if __name__ == '__main__':
   parser.add_argument('--mixed_precision', action='store_true')
   parser.add_argument(
       '--profile', action='store_true', help='enable TensorBoard profiling')
+  parser.add_argument('--focus_neurons', action='store_true')
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
+
+  # hand picked neurons to plots
+  if hparams.focus_neurons:
+    hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
 
   hparams.global_step = 0
 

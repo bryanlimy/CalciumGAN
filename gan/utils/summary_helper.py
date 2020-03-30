@@ -65,13 +65,15 @@ class Summary(object):
     axis.get_xaxis().tick_bottom()
     axis.get_yaxis().tick_left()
 
-  def _plot_trace(self, signal, spike):
+  def _plot_trace(self, signal, spike, neuron=None):
     plt.figure(figsize=(20, 4))
     # plot signal
     plt.subplot(211)
     plt.plot(signal, label='signal', zorder=-12, color=self._real_color)
     plt.legend(ncol=3, frameon=False, loc=(.02, .85))
     self._simple_axis(plt.gca())
+    if neuron is not None:
+      plt.title('Neuron #{:03d}'.format(neuron), loc='center')
     plt.tight_layout()
     # plot spike train
     plt.subplot(212)
@@ -113,7 +115,13 @@ class Summary(object):
   def profiler_export(self):
     tf.summary.trace_export(name='models', profiler_outdir=self._profiler_dir)
 
-  def plot_traces(self, tag, signals, spikes=None, step=None, training=True):
+  def plot_traces(self,
+                  tag,
+                  signals,
+                  spikes=None,
+                  indexes=None,
+                  step=None,
+                  training=True):
     images = []
 
     if tf.is_tensor(signals):
@@ -136,8 +144,11 @@ class Summary(object):
     spikes = utils.set_array_format(
         spikes, data_format='CW', hparams=self._hparams)
 
-    for i in range(min(15, len(signals))):
-      image = self._plot_trace(signals[i], spikes[i])
+    if not indexes:
+      indexes = range(len(signals))
+
+    for i in indexes:
+      image = self._plot_trace(signals[i], spikes[i], neuron=i)
       images.append(image)
 
     self.image(tag, values=tf.stack(images), step=step, training=training)
@@ -147,7 +158,7 @@ class Summary(object):
                       data,
                       xlabel=None,
                       ylabel=None,
-                      title=None,
+                      titles=None,
                       step=None,
                       training=False):
     assert type(data) == list and type(data[0]) == tuple
@@ -161,8 +172,8 @@ class Summary(object):
           alpha=0.8)
       plt.xlabel(xlabel)
       plt.ylabel(ylabel)
-      if title is not None:
-        plt.title(title.format(i))
+      if titles is not None:
+        plt.title(titles[i])
       plt.legend()
       images.append(self._plot_to_image())
       plt.close()
@@ -175,7 +186,7 @@ class Summary(object):
                     ylabel=None,
                     xticklabels='auto',
                     yticklabels='auto',
-                    title=None,
+                    titles=None,
                     step=None,
                     training=False):
     assert type(matrix) == list and type(matrix[0]) == np.ndarray
@@ -190,8 +201,8 @@ class Summary(object):
           ax=ax)
       if xlabel is not None and ylabel is not None:
         ax.set(xlabel=xlabel, ylabel=ylabel)
-      if title is not None:
-        ax.set_title(title.format(i))
+      if titles is not None:
+        ax.set_title(titles[i])
       image = self._plot_to_image()
       plt.close()
       images.append(image)

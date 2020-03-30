@@ -31,6 +31,16 @@ def denormalize(x, x_min, x_max):
   return x * (x_max - x_min) + x_min
 
 
+def ifft(x):
+  if tf.is_tensor(x):
+    x = x.numpy()
+  # x = x[..., 0::2] + x[..., 1::2] * 1j
+  mid = x.shape[-1] // 2
+  x = x[..., :mid] + x[..., mid:] * 1j
+  x = np.fft.ifft(x, norm='ortho')
+  return np.real(x)
+
+
 def get_current_git_hash():
   ''' return the current Git hash '''
   return subprocess.check_output(['git', 'describe',
@@ -50,13 +60,20 @@ def swap_neuron_major(hparams, array):
 
 
 def save_fake_signals(hparams, epoch, signals):
-  filename = os.path.join(hparams.generated_dir,
-                          'epoch{:03d}_signals.h5'.format(epoch))
+  if tf.is_tensor(signals):
+    signals = signals.numpy()
+
   if hparams.normalize:
     signals = denormalize(
         signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-  h5_helper.write(filename, {'signals': signals})
+  if hparams.fft:
+    signals = ifft(signals)
+
+  filename = os.path.join(hparams.generated_dir,
+                          'epoch{:03d}_signals.h5'.format(epoch))
+
+  h5_helper.write(filename, {'signals': signals.astype(np.float32)})
 
   # store generated data information
   info_filename = os.path.join(hparams.generated_dir, 'info.pkl')
@@ -104,7 +121,7 @@ def get_array_format(shape, hparams):
   ''' get the array data format in string
   N: number of samples
   W: sequence length
-  C: number of neurons
+  C: number of channels
   '''
   assert len(shape) <= 3
   return ''.join([
@@ -130,3 +147,7 @@ def set_array_format(array, data_format, hparams):
     return tf.transpose(array, perm=perm)
   else:
     return np.transpose(array, axes=perm)
+
+
+def remove_nan(array):
+  return array[np.logical_not(np.isnan(array))]

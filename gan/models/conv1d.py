@@ -30,25 +30,25 @@ def generator(hparams, filters=32, kernel_size=4, strides=2, padding='same'):
   # Layer 1
   outputs = Conv1DTranspose(
       filters, kernel_size, strides, padding=padding)(outputs)
-  if hparams.batch_norm:
+  if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 2
   outputs = Conv1DTranspose(
       filters * 2, kernel_size, strides, padding=padding)(outputs)
-  if hparams.batch_norm:
+  if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 3
   outputs = Conv1DTranspose(
-      hparams.num_neurons, kernel_size, strides, padding=padding)(outputs)
-  if hparams.batch_norm:
+      hparams.num_channels, kernel_size, strides, padding=padding)(outputs)
+  if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
-  outputs = layers.Dense(hparams.num_neurons)(outputs)
+  outputs = layers.Dense(hparams.num_channels)(outputs)
 
   if hparams.normalize:
     outputs = activation_fn('sigmoid', dtype=tf.float32)(outputs)
