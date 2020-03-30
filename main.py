@@ -186,11 +186,6 @@ def main(hparams, return_metrics=False):
 
   generator, discriminator = get_models(hparams, summary)
 
-  if hparams.verbose:
-    generator.summary()
-    print('')
-    discriminator.summary()
-
   utils.store_hparams(hparams)
 
   utils.load_models(hparams, generator, discriminator)

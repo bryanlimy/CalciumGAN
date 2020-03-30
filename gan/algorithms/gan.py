@@ -15,7 +15,7 @@ class GAN(object):
     self.discriminator = discriminator
 
     self._summary = summary
-    self._noise_dim = hparams.noise_dim
+    self.noise_shape = hparams.noise_shape
     self._normalize = hparams.normalize
     if hparams.normalize:
       self._signals_min = hparams.signals_min
@@ -27,7 +27,7 @@ class GAN(object):
     self._cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
   def get_noise(self, batch_size):
-    return tf.random.normal((batch_size, self._noise_dim))
+    return tf.random.normal((batch_size,) + self.noise_shape)
 
   def metrics(self, real, fake):
     if self._normalize:

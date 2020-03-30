@@ -13,24 +13,25 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 def cache_validation_set(hparams, validation_ds):
   ''' Cache validation set as pickles for faster spike metrics evaluation '''
-  for signal, spike in tqdm(
-      validation_ds,
-      desc='Cache validation set',
-      disable=not bool(hparams.verbose)):
+  with tf.device('/CPU:0'):
+    for signal, spike in tqdm(
+        validation_ds,
+        desc='Cache validation set',
+        disable=not bool(hparams.verbose)):
 
-    signal, spike = signal.numpy(), spike.numpy()
+      signal, spike = signal.numpy(), spike.numpy()
 
-    if hparams.normalize:
-      signal = utils.denormalize(
-          signal, x_min=hparams.signals_min, x_max=hparams.signals_max)
+      if hparams.normalize:
+        signal = utils.denormalize(
+            signal, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-    if hparams.fft:
-      signal = utils.ifft(signal)
+      if hparams.fft:
+        signal = utils.ifft(signal)
 
-    h5_helper.write(hparams.validation_cache, {
-        'signals': signal.astype(np.float32),
-        'spikes': spike.astype(np.int8)
-    })
+      h5_helper.write(hparams.validation_cache, {
+          'signals': signal.astype(np.float32),
+          'spikes': spike.astype(np.int8)
+      })
 
 
 def plot_real_signals(hparams, summary, validation_ds):
@@ -153,7 +154,7 @@ def get_calcium_signals(hparams):
 
 
 def get_dataset(hparams, summary):
-  hparams.noise_shape = (hparams.noise_dim,)
+  # hparams.noise_shape = (hparams.noise_dim,)
 
   if hparams.input_dir == 'fashion_mnist':
     train_ds, validation_ds = get_fashion_mnist(hparams)
