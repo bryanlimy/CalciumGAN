@@ -8,7 +8,8 @@ import tensorflow as tf
 from . import utils
 from . import h5_helper
 
-AUTOTUNE = tf.data.experimental.AUTOTUNE
+# AUTOTUNE = tf.data.experimental.AUTOTUNE
+AUTOTUNE = 2
 
 
 def cache_validation_set(hparams, validation_ds):
@@ -75,7 +76,7 @@ def get_fashion_mnist(hparams):
   train_ds = tf.data.Dataset.from_tensor_slices(x_train)
   train_ds = train_ds.shuffle(buffer_size=2048)
   train_ds = train_ds.batch(hparams.batch_size)
-  train_ds = train_ds.prefetch(tf.data.experimental.AUTOTUNE)
+  train_ds = train_ds.prefetch(AUTOTUNE)
 
   eval_ds = tf.data.Dataset.from_tensor_slices(x_test)
   eval_ds = eval_ds.batch(hparams.batch_size)
