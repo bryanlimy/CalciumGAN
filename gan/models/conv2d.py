@@ -34,10 +34,6 @@ def generator(hparams,
 
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  # outputs = layers.Dense(np.prod(shape))(inputs)
-  # outputs = activation_fn(hparams.activation)(outputs)
-  # outputs = layers.Reshape(shape)(outputs)
-
   outputs = layers.Dense(filters)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
