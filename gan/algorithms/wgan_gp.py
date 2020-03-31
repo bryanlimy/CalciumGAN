@@ -12,8 +12,8 @@ class WGAN_GP(GAN):
   def __init__(self, hparams, generator, discriminator, summary):
     super().__init__(hparams, generator, discriminator, summary)
 
-    self._lambda = hparams.gradient_penalty
-    self._n_critic = hparams.n_critic
+    self.penalty = hparams.gradient_penalty
+    self.n_critic = hparams.n_critic
 
   def generator_loss(self, fake_output):
     return -tf.reduce_mean(fake_output)
@@ -34,15 +34,17 @@ class WGAN_GP(GAN):
 
     return gen_loss, metrics
 
-  def interpolation(self, real, fake):
+  @staticmethod
+  def interpolation(real, fake):
     alpha = tf.random.uniform((real.shape[0], 1, 1), minval=0.0, maxval=1.0)
     return (alpha * real) + ((1 - alpha) * fake)
 
-  @tf.function
   def gradient_penalty(self, real, fake, training=True):
     interpolated = self.interpolation(real, fake)
-    interpolated_output = self.discriminator(interpolated, training=training)
-    gradient = tf.gradients(interpolated_output, interpolated)[0]
+    with tf.GradientTape() as tape:
+      tape.watch(interpolated)
+      interpolated_output = self.discriminator(interpolated, training=training)
+    gradient = tape.gradient(interpolated_output, interpolated)
     norm = tf.norm(tf.reshape(gradient, shape=(gradient.shape[0], -1)), axis=1)
     return tf.reduce_mean(tf.square(norm - 1.0))
 
@@ -52,10 +54,10 @@ class WGAN_GP(GAN):
                          real=None,
                          fake=None,
                          training=True):
-    real_loss = -tf.reduce_mean(real_output)
+    real_loss = tf.reduce_mean(real_output)
     fake_loss = tf.reduce_mean(fake_output)
     gradient_penalty = self.gradient_penalty(real, fake, training=training)
-    loss = real_loss + fake_loss + self._lambda * gradient_penalty
+    loss = fake_loss - real_loss + self.penalty * gradient_penalty
     return loss, gradient_penalty
 
   def _train_discriminator(self, inputs):
@@ -79,7 +81,7 @@ class WGAN_GP(GAN):
   @tf.function
   def train(self, inputs):
     dis_losses, gradient_penalties = [], []
-    for i in range(self._n_critic):
+    for i in range(self.n_critic):
       dis_loss, gradient_penalty = self._train_discriminator(inputs)
       dis_losses.append(dis_loss)
       gradient_penalties.append(gradient_penalty)
