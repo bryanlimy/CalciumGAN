@@ -36,9 +36,6 @@ class Summary(object):
     self._real_color = 'dodgerblue'
     self._fake_color = 'orangered'
 
-  def _get_global_step(self):
-    return self._hparams.global_step
-
   def _get_writer(self, training):
     return self.train_writer if training else self.val_writer
 
@@ -91,21 +88,18 @@ class Summary(object):
     plt.close()
     return image
 
-  def scalar(self, tag, value, step=None, training=True):
+  def scalar(self, tag, value, step=0, training=True):
     writer = self._get_writer(training)
-    step = self._get_global_step() if step is None else step
     with writer.as_default():
       tf.summary.scalar(tag, value, step=step)
 
-  def histogram(self, tag, values, step=None, training=True):
+  def histogram(self, tag, values, step=0, training=True):
     writer = self._get_writer(training)
-    step = self._get_global_step() if step is None else step
     with writer.as_default():
       tf.summary.histogram(tag, values, step=step)
 
-  def image(self, tag, values, step=None, training=True):
+  def image(self, tag, values, step=0, training=True):
     writer = self._get_writer(training)
-    step = self._get_global_step() if step is None else step
     with writer.as_default():
       tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
 
@@ -120,7 +114,7 @@ class Summary(object):
                   signals,
                   spikes=None,
                   indexes=None,
-                  step=None,
+                  step=0,
                   training=True):
     images = []
 
@@ -159,7 +153,7 @@ class Summary(object):
                       xlabel=None,
                       ylabel=None,
                       titles=None,
-                      step=None,
+                      step=0,
                       training=False):
     assert type(data) == list and type(data[0]) == tuple
     images = []
@@ -187,7 +181,7 @@ class Summary(object):
                     xticklabels='auto',
                     yticklabels='auto',
                     titles=None,
-                    step=None,
+                    step=0,
                     training=False):
     assert type(matrix) == list and type(matrix[0]) == np.ndarray
     images = []
@@ -208,7 +202,7 @@ class Summary(object):
       images.append(image)
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
-  def variable_summary(self, variable, name=None, step=None, training=True):
+  def variable_summary(self, variable, name=None, step=0, training=True):
     if name is None:
       name = variable.name
     mean = tf.reduce_mean(variable)
@@ -228,7 +222,7 @@ class Summary(object):
         training=training)
     self.histogram(name, variable, step=step, training=training)
 
-  def plot_weights(self, gan, step=None, training=True):
+  def plot_weights(self, gan, step=0, training=True):
     for i, var in enumerate(gan.generator.trainable_variables):
       self.variable_summary(
           var,
@@ -251,17 +245,26 @@ class Summary(object):
           metrics=None,
           elapse=None,
           gan=None,
+          step=0,
           training=True):
-    self.scalar('loss/generator', gen_loss, training=training)
-    self.scalar('loss/discriminator', dis_loss, training=training)
+    self.scalar('loss/generator', gen_loss, step=step, training=training)
+    self.scalar('loss/discriminator', dis_loss, step=step, training=training)
     if gradient_penalty is not None:
-      self.scalar('loss/gradient_penalty', gradient_penalty, training=training)
+      self.scalar(
+          'loss/gradient_penalty',
+          gradient_penalty,
+          step=step,
+          training=training)
     if metrics is not None:
       for tag, value in metrics.items():
-        self.scalar(tag, value, training=training)
+        self.scalar(tag, value, step=step, training=training)
     if elapse is not None:
-      self.scalar('elapse', elapse, training=training)
+      self.scalar('elapse', elapse, step=step, training=training)
     if gan is not None and self._plot_weights:
-      self.plot_weights(gan, training=training)
+      self.plot_weights(gan, step=step, training=training)
     if not training and self._policy is not None:
-      self.scalar('model/loss_scale', self._get_loss_scale(), training=training)
+      self.scalar(
+          'model/loss_scale',
+          self._get_loss_scale(),
+          step=step,
+          training=training)

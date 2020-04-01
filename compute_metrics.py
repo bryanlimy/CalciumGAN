@@ -21,15 +21,6 @@ def check_path_exists(path):
     exit()
 
 
-def load_hparams(hparams):
-  filename = os.path.join(hparams.output_dir, 'hparams.json')
-  with open(filename, 'r') as file:
-    content = json.load(file)
-  for key, value in content.items():
-    if not hasattr(hparams, key):
-      setattr(hparams, key, value)
-
-
 def load_info(hparams):
   filename = os.path.join(hparams.generated_dir, 'info.pkl')
   with open(filename, 'rb') as file:
@@ -561,7 +552,7 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
 def main(hparams):
   check_path_exists(hparams.output_dir)
 
-  load_hparams(hparams)
+  utils.load_hparams(hparams)
   info = load_info(hparams)
   summary = Summary(hparams)
 

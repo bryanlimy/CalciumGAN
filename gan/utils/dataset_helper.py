@@ -13,6 +13,9 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 def cache_validation_set(hparams, validation_ds):
   ''' Cache validation set as pickles for faster spike metrics evaluation '''
+  if os.path.exists(hparams.validation_cache):
+    return
+
   with tf.device('/CPU:0'):
     for signal, spike in tqdm(
         validation_ds,

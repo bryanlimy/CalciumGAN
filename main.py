@@ -30,7 +30,7 @@ def set_precision_policy(hparams):
 
 
 def train(hparams, train_ds, gan, summary, epoch):
-  gen_losses, dis_losses = [], []
+  gen_losses, dis_losses, gradient_penalties = [], [], []
   batch_count = 0
 
   start = time()
@@ -50,27 +50,28 @@ def train(hparams, train_ds, gan, summary, epoch):
     if hparams.profile and batch_count == 6 and epoch == 1:
       summary.profiler_export()
 
-    # log training progress every 200 steps
-    if hparams.global_step % 200 == 0:
-      summary.log(
-          gen_loss,
-          dis_loss,
-          gradient_penalty,
-          metrics=metrics,
-          gan=gan,
-          training=True)
-
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
+    if gradient_penalty is not None:
+      gradient_penalties.append(gradient_penalty)
 
     hparams.global_step += 1
     batch_count += 1
 
   end = time()
 
-  summary.scalar('elapse', end - start, training=True)
+  gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
 
-  return np.mean(gen_losses), np.mean(dis_losses)
+  summary.log(
+      gen_loss,
+      dis_loss,
+      np.mean(gradient_penalties) if gradient_penalties else None,
+      elapse=end - start,
+      gan=gan,
+      step=epoch,
+      training=True)
+
+  return gen_loss, dis_loss
 
 
 def validate(hparams, validation_ds, gan, summary, epoch):
@@ -100,7 +101,6 @@ def validate(hparams, validation_ds, gan, summary, epoch):
       utils.save_fake_signals(hparams, epoch, signals=fake)
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
-  gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
   results = {key: np.mean(item) for key, item in results.items()}
 
   end = time()
@@ -108,9 +108,10 @@ def validate(hparams, validation_ds, gan, summary, epoch):
   summary.log(
       gen_loss,
       dis_loss,
-      gradient_penalty,
+      np.mean(gradient_penalties) if gradient_penalties else None,
       metrics=results,
       elapse=end - start,
+      step=epoch,
       training=False)
 
   return gen_loss, dis_loss
@@ -120,7 +121,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
   # noise to test generator and plot to TensorBoard
   test_noise = gan.get_noise(batch_size=1)
 
-  for epoch in range(hparams.epochs):
+  for epoch in range(hparams.start_epoch, hparams.epochs):
     if hparams.verbose:
       print('Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs))
 
@@ -186,11 +187,11 @@ def main(hparams, return_metrics=False):
 
   generator, discriminator = get_models(hparams, summary)
 
-  utils.store_hparams(hparams)
-
-  utils.load_models(hparams, generator, discriminator)
+  utils.save_hparams(hparams)
 
   gan = get_algorithm(hparams, generator, discriminator, summary)
+
+  utils.load_models(hparams, gan)
 
   start = time()
 
