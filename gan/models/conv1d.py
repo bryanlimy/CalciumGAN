@@ -83,8 +83,6 @@ def generator(hparams, filters=32, kernel_size=4, strides=2, padding='same'):
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
-  outputs = layers.Dense(hparams.num_channels)(outputs)
-
   if hparams.normalize:
     outputs = activation_fn('sigmoid', dtype=tf.float32)(outputs)
   else:
@@ -113,8 +111,7 @@ def discriminator(hparams, filters=32, kernel_size=4, strides=2,
 
   # Layer 3
   outputs = layers.Conv1D(
-      filters, kernel_size=kernel_size, strides=strides,
-      padding=padding)(outputs)
+      1, kernel_size=kernel_size, strides=strides, padding=padding)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
