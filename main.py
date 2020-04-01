@@ -144,7 +144,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
           step=epoch,
           indexes=hparams.focus_neurons,
           training=False)
-      if hparams.save_checkpoints:
+      if not hparams.skip_checkpoints:
         utils.save_models(hparams, gan, epoch)
 
     end = time()
@@ -233,7 +233,7 @@ if __name__ == '__main__':
   parser.add_argument('--save_generated', action='store_true')
   parser.add_argument('--save_generated_freq', default=10, type=int)
   parser.add_argument('--plot_weights', action='store_true')
-  parser.add_argument('--save_checkpoints', action='store_true')
+  parser.add_argument('--skip_checkpoints', action='store_true')
   parser.add_argument('--mixed_precision', action='store_true')
   parser.add_argument(
       '--profile', action='store_true', help='enable TensorBoard profiling')
