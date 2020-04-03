@@ -8,7 +8,7 @@ import tensorflow as tf
 from . import utils
 from . import h5_helper
 
-AUTOTUNE = tf.data.experimental.AUTOTUNE
+AUTOTUNE = 1
 
 
 def cache_validation_set(hparams, validation_ds):
