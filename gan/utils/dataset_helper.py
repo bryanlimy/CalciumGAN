@@ -157,7 +157,7 @@ def get_calcium_signals(hparams):
 
 
 def get_dataset(hparams, summary):
-  # hparams.noise_shape = (hparams.noise_dim,)
+  hparams.noise_shape = (hparams.noise_dim,)
 
   if hparams.input_dir == 'fashion_mnist':
     train_ds, validation_ds = get_fashion_mnist(hparams)

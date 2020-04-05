@@ -12,55 +12,26 @@ def get_conv1d(hparams):
   return generator(hparams), discriminator(hparams)
 
 
-def calculate_convolution_width(layer, output, kernel_size, strides, padding):
-  if padding == 'same':
-    w = output / strides
-  else:
-    w = (1 / strides) * (output - kernel_size) + 1
-
+def calculate_noise_shape(output_shape, noise_dim, num_convolutions, strides):
+  w = output_shape[0] / (strides**num_convolutions)
   if not w.is_integer():
-    raise ValueError('Conv1D: step {} is not an integer.'.format(w))
-
-  if layer > 1:
-    w = calculate_convolution_width(
-        layer=layer - 1,
-        output=w,
-        kernel_size=kernel_size,
-        strides=strides,
-        padding=padding)
-  return int(w)
+    raise ValueError('Conv1D: w {} is not an integer.'.format(w))
+  return (int(w), noise_dim)
 
 
-def calculate_input_config(output,
-                           noise_dim,
-                           num_convolution,
-                           kernel_size,
-                           strides,
-                           padding='same'):
-  w = calculate_convolution_width(
-      layer=num_convolution,
-      output=output,
-      kernel_size=kernel_size,
-      strides=strides,
-      padding=padding)
-  return (w, noise_dim)
-
-
-def generator(hparams, filters=32, kernel_size=4, strides=2, padding='same'):
-  shape = calculate_input_config(
-      output=hparams.sequence_length,
+def generator(hparams, filters=32, kernel_size=25, strides=2, padding='same'):
+  shape = calculate_noise_shape(
+      output_shape=hparams.signal_shape,
       noise_dim=hparams.noise_dim,
-      num_convolution=3,
-      kernel_size=kernel_size,
-      strides=strides,
-      padding=padding)
-
-  hparams.noise_shape = shape
+      num_convolutions=3,
+      strides=strides)
+  noise_size = int(np.prod(shape))
 
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  outputs = layers.Dense(filters)(inputs)
+  outputs = layers.Dense(noise_size)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
+  outputs = layers.Reshape(shape)(outputs)
 
   # Layer 1
   outputs = Conv1DTranspose(
@@ -91,7 +62,10 @@ def generator(hparams, filters=32, kernel_size=4, strides=2, padding='same'):
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
 
-def discriminator(hparams, filters=32, kernel_size=4, strides=2,
+def discriminator(hparams,
+                  filters=32,
+                  kernel_size=25,
+                  strides=2,
                   padding='same'):
   inputs = tf.keras.Input(hparams.signal_shape, name='signals')
 

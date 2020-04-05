@@ -12,30 +12,30 @@ def get_conv2d(hparams):
   return generator(hparams), discriminator(hparams)
 
 
-def calculate_input_config(output, noise_dim, num_convolution, strides):
-  w = output[0] / (strides[0]**num_convolution)
+def calculate_noise_shape(output_shape, noise_dim, num_convolutions, strides):
+  w = output_shape[0] / (strides[0]**num_convolutions)
   if not w.is_integer():
     raise ValueError('Conv1D: w {} is not an integer.'.format(w))
-  return (int(w), output[1], noise_dim)
+  return (int(w), output_shape[1], noise_dim)
 
 
 def generator(hparams,
               filters=32,
-              kernel_size=(4, 2),
-              strides=(2, 1),
+              kernel_size=(25, 25),
+              strides=(4, 1),
               padding='same'):
-  shape = calculate_input_config(
-      output=(hparams.sequence_length, hparams.num_neurons, 1),
+  shape = calculate_noise_shape(
+      output_shape=hparams.signal_shape,
       noise_dim=hparams.noise_dim,
-      num_convolution=3,
+      num_convolutions=3,
       strides=strides)
-
-  hparams.noise_shape = shape
+  noise_size = int(np.prod(shape))
 
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  outputs = layers.Dense(filters)(inputs)
+  outputs = layers.Dense(noise_size)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
+  outputs = layers.Reshape(shape)(outputs)
 
   # Layer 1
   outputs = layers.Conv2DTranspose(
@@ -84,8 +84,8 @@ def generator(hparams,
 
 def discriminator(hparams,
                   filters=32,
-                  kernel_size=(4, 2),
-                  strides=(2, 1),
+                  kernel_size=(25, 25),
+                  strides=(4, 1),
                   padding='same'):
   inputs = tf.keras.Input(hparams.signal_shape, name='signals')
 
