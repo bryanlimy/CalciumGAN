@@ -141,7 +141,7 @@ def get_calcium_signals(hparams):
   train_ds = train_files.interleave(
       tf.data.TFRecordDataset, num_parallel_calls=1)
   train_ds = train_ds.map(_parse_example, num_parallel_calls=2)
-  train_ds = train_ds.cache(os.path.join(hparams.output_dir, 'cache'))
+  train_ds = train_ds.cache()
   train_ds = train_ds.shuffle(hparams.buffer_size)
   train_ds = train_ds.batch(hparams.batch_size)
   train_ds = train_ds.prefetch(4)
