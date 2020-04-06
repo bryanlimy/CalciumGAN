@@ -16,12 +16,12 @@ def calculate_noise_shape(output_shape, noise_dim, num_convolutions, strides):
   w = output_shape[0] / (strides[0]**num_convolutions)
   if not w.is_integer():
     raise ValueError('Conv1D: w {} is not an integer.'.format(w))
-  return (int(w), output_shape[1], noise_dim)
+  return (int(w), output_shape[1] // 2, noise_dim)
 
 
 def generator(hparams,
               filters=32,
-              kernel_size=(25, 25),
+              kernel_size=(16, 16),
               strides=(4, 1),
               padding='same'):
   shape = calculate_noise_shape(
@@ -41,7 +41,7 @@ def generator(hparams,
   outputs = layers.Conv2DTranspose(
       filters,
       kernel_size=kernel_size,
-      strides=strides,
+      strides=(4, 1),
       padding=padding,
   )(outputs)
   if not hparams.no_batch_norm:
@@ -52,7 +52,7 @@ def generator(hparams,
   outputs = layers.Conv2DTranspose(
       filters,
       kernel_size=kernel_size,
-      strides=strides,
+      strides=(4, 2),
       padding=padding,
   )(outputs)
   if not hparams.no_batch_norm:
@@ -63,7 +63,7 @@ def generator(hparams,
   outputs = layers.Conv2DTranspose(
       1,
       kernel_size=kernel_size,
-      strides=strides,
+      strides=(4, 1),
       padding=padding,
   )(outputs)
   if not hparams.no_batch_norm:
@@ -84,7 +84,7 @@ def generator(hparams,
 
 def discriminator(hparams,
                   filters=32,
-                  kernel_size=(25, 25),
+                  kernel_size=(16, 16),
                   strides=(4, 1),
                   padding='same'):
   inputs = tf.keras.Input(hparams.signal_shape, name='signals')
