@@ -1,13 +1,14 @@
 #!/bin/sh
 
 current_dir="$(pwd)"
-
+macOS=false
 
 check_requirements() {
   case "$(uname -s)" in
     Darwin)
       echo 'Installing on macOS.'
       export CFLAGS='-stdlib=libc++'
+      macOS=true
       ;;
     Linux)
       echo 'Install on Linux.'
@@ -21,7 +22,11 @@ check_requirements() {
 
 install_python_packages() {
   echo '\nInstall tensorflow'
-  python3 -m pip install tensorflow==2.1.0
+  if [ "$macOS" = "true" ]; then
+    python3 -m pip install tensorflow==2.1.0
+  else
+    conda install -c anaconda tensorflow-gpu==2.1.0
+  fi
   echo '\nInstall Python packages'
   python3 -m pip install -r requirements.txt
 }
