@@ -25,7 +25,7 @@ install_python_packages() {
   if [ "$macOS" = "true" ]; then
     python3 -m pip install tensorflow==2.1.0
   else
-    conda install -c anaconda tensorflow-gpu==2.1.0
+    conda install -c anaconda tensorflow-gpu==2.1.0 -y
   fi
   echo '\nInstall Python packages'
   python3 -m pip install -r requirements.txt
