@@ -19,7 +19,7 @@ def calculate_noise_shape(output_shape, noise_dim, num_convolutions, strides):
   return (int(w), noise_dim)
 
 
-def generator(hparams, filters=32, kernel_size=25, strides=2, padding='same'):
+def generator(hparams, filters=32, kernel_size=16, strides=2, padding='same'):
   shape = calculate_noise_shape(
       output_shape=hparams.signal_shape,
       noise_dim=hparams.noise_dim,
@@ -54,6 +54,8 @@ def generator(hparams, filters=32, kernel_size=25, strides=2, padding='same'):
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
+  outputs = layers.Dense(hparams.num_channels)(outputs)
+
   if hparams.normalize:
     outputs = activation_fn('sigmoid', dtype=tf.float32)(outputs)
   else:
@@ -64,7 +66,7 @@ def generator(hparams, filters=32, kernel_size=25, strides=2, padding='same'):
 
 def discriminator(hparams,
                   filters=32,
-                  kernel_size=25,
+                  kernel_size=16,
                   strides=2,
                   padding='same'):
   inputs = tf.keras.Input(hparams.signal_shape, name='signals')
@@ -85,7 +87,8 @@ def discriminator(hparams,
 
   # Layer 3
   outputs = layers.Conv1D(
-      1, kernel_size=kernel_size, strides=strides, padding=padding)(outputs)
+      filters, kernel_size=kernel_size, strides=strides,
+      padding=padding)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
