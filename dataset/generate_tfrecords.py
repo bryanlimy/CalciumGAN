@@ -1,9 +1,12 @@
 import os
+
+# use CPU only
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 import pickle
 import argparse
 import numpy as np
 from math import ceil
-from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
 
@@ -47,6 +50,8 @@ def calculate_num_per_shard(hparams):
 def get_segments(hparams):
   print('processing file {}...'.format(hparams.input))
 
+  assert hparams.stride >= 1
+
   with open(hparams.input, 'rb') as file:
     data = pickle.load(file)
 
@@ -87,18 +92,18 @@ def get_segments(hparams):
         np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
     hparams.num_channels = raw_signals.shape[-1]
 
-  num_samples = raw_signals.shape[0] - hparams.sequence_length
+  print('segmentation with stride {}'.format(hparams.stride))
 
-  signals = np.zeros(
-      shape=(num_samples, hparams.sequence_length, hparams.num_channels),
-      dtype=np.float32)
-  spikes = np.zeros(
-      shape=(num_samples, hparams.sequence_length, hparams.num_neurons),
-      dtype=np.float32)
+  signals, spikes = [], []
 
-  for i in tqdm(range(num_samples)):
-    signals[i] = raw_signals[i:i + hparams.sequence_length, :]
-    spikes[i] = raw_spikes[i:i + hparams.sequence_length, :]
+  i = 0
+  while i + hparams.sequence_length < raw_signals.shape[0]:
+    signals.append(raw_signals[i:i + hparams.sequence_length, :])
+    spikes.append(raw_spikes[i:i + hparams.sequence_length, :])
+    i += hparams.stride
+
+  signals = np.array(signals, dtype=np.float32)
+  spikes = np.array(spikes, dtype=np.float32)
 
   return signals, spikes
 
@@ -217,6 +222,7 @@ def main(hparams):
         'num_validation_shards': hparams.num_validation_shards,
         'buffer_size': min(hparams.num_per_shard, hparams.train_size),
         'normalize': hparams.normalize,
+        'stride': hparams.stride,
         'fft': hparams.fft
     }
     if hparams.normalize:
@@ -235,13 +241,14 @@ if __name__ == '__main__':
       '--input', default='raw_data/ST260_Day4_signals4Bryan.pkl', type=str)
   parser.add_argument('--output_dir', default='tfrecords', type=str)
   parser.add_argument('--sequence_length', default=1024, type=int)
+  parser.add_argument('--stride', default=1, type=int)
   parser.add_argument('--normalize', action='store_true')
   parser.add_argument('--fft', action='store_true')
   parser.add_argument('--replace', action='store_true')
   parser.add_argument('--train_percentage', default=0.7, type=float)
   parser.add_argument(
       '--target_shard_size',
-      default=1,
+      default=0.25,
       type=float,
       help='target size in GB for each TFRecord file.')
   hparams = parser.parse_args()
