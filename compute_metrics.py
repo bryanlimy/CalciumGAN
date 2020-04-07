@@ -46,6 +46,49 @@ def deconvolve_from_file(hparams, filename):
   h5_helper.write(filename, {'spikes': fake_spikes})
 
 
+def raster_plots(hparams, summary, filename, epoch):
+  real_spikes = h5_helper.get(hparams.validation_cache, name='spikes')
+  real_spikes = utils.set_array_format(real_spikes, 'NCW', hparams)
+  fake_spikes = h5_helper.get(filename, name='spikes')
+  fake_spikes = utils.set_array_format(fake_spikes, 'NCW', hparams)
+
+  summary.spikes_raster_plot(
+      'raster_plot_sample/real',
+      real_spikes[0],
+      xlabel='Time (ms)',
+      ylabel='# neurons',
+      title='Sample 001',
+      step=epoch,
+      training=False)
+
+  summary.spikes_raster_plot(
+      'raster_plot_sample/fake',
+      fake_spikes[0],
+      xlabel='Time (ms)',
+      ylabel='# neurons',
+      title='Sample 001',
+      step=epoch,
+      training=False)
+
+  summary.spikes_raster_plot(
+      'raster_plot_neuron/real',
+      real_spikes[:100, 5, :],
+      xlabel='Time (ms)',
+      ylabel='# sample',
+      title='Neuron #005',
+      step=epoch,
+      training=False)
+
+  summary.spikes_raster_plot(
+      'raster_plot_neuron/fake',
+      fake_spikes[:100, 5, :],
+      xlabel='Time (ms)',
+      ylabel='# sample',
+      title='Neuron #005',
+      step=epoch,
+      training=False)
+
+
 def get_neo_trains(hparams,
                    filename,
                    neuron=None,
@@ -525,6 +568,8 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
   if not h5_helper.contains(filename, 'spikes'):
     deconvolve_from_file(hparams, filename)
 
+  raster_plots(hparams, summary, filename, epoch)
+
   firing_rate_metrics(hparams, summary, filename, epoch)
 
   # covariance_metrics(hparams, summary, filename, epoch)
@@ -576,6 +621,7 @@ if __name__ == '__main__':
   parser.add_argument('--num_processors', default=6, type=int)
   parser.add_argument('--all_neurons', action='store_true')
   parser.add_argument('--all_epochs', action='store_true')
+  parser.add_argument('--dpi', default=100, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 

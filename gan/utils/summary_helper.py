@@ -7,9 +7,12 @@ import tensorflow as tf
 import matplotlib
 if platform.system() == 'Darwin':
   matplotlib.use('TkAgg')
+
 import matplotlib.pyplot as plt
 plt.style.use('seaborn-deep')
+
 import seaborn as sns
+sns.set(style="white", color_codes=True)
 
 from . import utils, spike_helper
 
@@ -34,6 +37,8 @@ class Summary(object):
     self._policy = policy
     self._plot_weights = hparams.plot_weights
 
+    self._dpi = hparams.dpi
+
     # color for matplotlib
     self._real_color = 'dodgerblue'
     self._fake_color = 'orangered'
@@ -44,15 +49,14 @@ class Summary(object):
   def _get_loss_scale(self):
     return self._policy.loss_scale._current_loss_scale if self._policy else None
 
-  @staticmethod
-  def _plot_to_image():
+  def _plot_to_image(self):
     """
     Converts the matplotlib plot specified by 'figure' to a PNG image and
     returns it. The supplied figure is closed and inaccessible after this call.
     """
     plt.tight_layout()
     buf = io.BytesIO()
-    plt.savefig(buf, dpi=80, format='png')
+    plt.savefig(buf, dpi=self._dpi, format='png')
     buf.seek(0)
     return tf.image.decode_png(buf.getvalue(), channels=4)
 
@@ -239,6 +243,31 @@ class Summary(object):
           step=step,
           training=training,
       )
+
+  def spikes_raster_plot(self,
+                         tag,
+                         spikes,
+                         xlabel=None,
+                         ylabel=None,
+                         title=None,
+                         step=0,
+                         training=True):
+    if len(spikes.shape) == 3:
+      spikes = spikes[0]
+
+    y, x = np.nonzero(spikes)
+
+    grid = sns.jointplot(x, y, ratio=10, marker='|')
+    if xlabel is not None and ylabel is not None:
+      grid.set_axis_labels(xlabel, ylabel, fontsize=14)
+    if title is not None:
+      grid.fig.suptitle(title)
+    grid.fig.set_figwidth(18)
+    grid.fig.set_figheight(10)
+    image = self._plot_to_image()
+
+    self.image(
+        tag, values=tf.expand_dims(image, axis=0), step=step, training=training)
 
   def log(self,
           gen_loss,
