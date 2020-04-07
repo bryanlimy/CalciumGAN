@@ -19,7 +19,7 @@ def calculate_noise_shape(output_shape, noise_dim, num_convolutions, strides):
   return (int(w), noise_dim)
 
 
-def generator(hparams, filters=32, kernel_size=25, strides=2, padding='same'):
+def generator(hparams, filters=32, kernel_size=16, strides=2, padding='same'):
   shape = calculate_noise_shape(
       output_shape=hparams.signal_shape,
       noise_dim=hparams.noise_dim,
@@ -111,7 +111,7 @@ class PhaseShuffle(layers.Layer):
 
 def discriminator(hparams,
                   filters=32,
-                  kernel_size=25,
+                  kernel_size=16,
                   strides=2,
                   padding='same',
                   shuffle=2):
