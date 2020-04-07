@@ -23,7 +23,7 @@ def generator(hparams, filters=32, kernel_size=16, strides=2, padding='same'):
   shape = calculate_noise_shape(
       output_shape=hparams.signal_shape,
       noise_dim=hparams.noise_dim,
-      num_convolutions=3,
+      num_convolutions=5,
       strides=strides)
   noise_shape = int(np.prod(shape))
 

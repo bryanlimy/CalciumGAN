@@ -265,9 +265,10 @@ class Summary(object):
     grid.fig.set_figwidth(18)
     grid.fig.set_figheight(10)
     image = self._plot_to_image()
+    plt.close()
+    images = tf.expand_dims(image, axis=0)
 
-    self.image(
-        tag, values=tf.expand_dims(image, axis=0), step=step, training=training)
+    self.image(tag, values=images, step=step, training=training)
 
   def log(self,
           gen_loss,
