@@ -8,17 +8,14 @@ from tqdm import tqdm
 from time import time
 from multiprocessing import Pool
 
+# use CPU only
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 from gan.utils import utils
 from gan.utils import h5_helper
 from gan.utils import spike_metrics
 from gan.utils import spike_helper
 from gan.utils.summary_helper import Summary
-
-
-def check_path_exists(path):
-  if not os.path.exists(path):
-    print('{} not found'.format(path))
-    exit()
 
 
 def load_info(hparams):
@@ -550,7 +547,9 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
 
 
 def main(hparams):
-  check_path_exists(hparams.output_dir)
+  if not os.path.exists(hparams.output_dir):
+    print('{} not found'.format(hparams.output_dir))
+    exit()
 
   utils.load_hparams(hparams)
   info = load_info(hparams)
