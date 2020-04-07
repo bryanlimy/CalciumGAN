@@ -137,16 +137,16 @@ def get_calcium_signals(hparams):
 
   train_files = tf.data.Dataset.list_files(hparams.train_files)
   train_ds = train_files.interleave(
-      tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
-  train_ds = train_ds.map(_parse_example, num_parallel_calls=AUTOTUNE)
+      tf.data.TFRecordDataset, num_parallel_calls=1)
+  train_ds = train_ds.map(_parse_example, num_parallel_calls=2)
   train_ds = train_ds.shuffle(hparams.buffer_size)
   train_ds = train_ds.batch(hparams.batch_size)
-  train_ds = train_ds.prefetch(AUTOTUNE)
+  train_ds = train_ds.prefetch(4)
 
   validation_files = tf.data.Dataset.list_files(hparams.validation_files)
   validation_ds = validation_files.interleave(
-      tf.data.TFRecordDataset, num_parallel_calls=AUTOTUNE)
-  validation_ds = validation_ds.map(_parse_example, num_parallel_calls=AUTOTUNE)
+      tf.data.TFRecordDataset, num_parallel_calls=1)
+  validation_ds = validation_ds.map(_parse_example, num_parallel_calls=2)
   validation_ds = validation_ds.batch(hparams.batch_size)
 
   return train_ds, validation_ds

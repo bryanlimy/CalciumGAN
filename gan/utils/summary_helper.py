@@ -1,12 +1,16 @@
 import os
 import io
+import platform
 import numpy as np
 import tensorflow as tf
 
 import matplotlib
-matplotlib.use('TkAgg')
+if platform.system() == 'Darwin':
+  matplotlib.use('TkAgg')
+  
 import matplotlib.pyplot as plt
 plt.style.use('seaborn-deep')
+
 import seaborn as sns
 
 from . import utils, spike_helper
