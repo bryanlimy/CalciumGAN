@@ -77,6 +77,10 @@ def train(hparams, train_ds, gan, summary, epoch):
 def validate(hparams, validation_ds, gan, summary, epoch):
   gen_losses, dis_losses, gradient_penalties, results = [], [], [], {}
 
+  save_generated = (hparams.save_generated == 'all' and
+                    (epoch % 10 == 0 or epoch == hparams.epochs - 1)) or (
+                        hparams.save_generated == 'last' and
+                        epoch == hparams.epochs - 1)
   start = time()
 
   for signal, _ in tqdm(
@@ -96,8 +100,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    if hparams.save_generated and (epoch % hparams.save_generated_freq == 0 or
-                                   epoch == hparams.epochs - 1):
+    if save_generated:
       utils.save_fake_signals(hparams, epoch, signals=fake)
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
@@ -230,8 +233,8 @@ if __name__ == '__main__':
       type=int,
       help='number of steps between each generator update')
   parser.add_argument('--clear_output_dir', action='store_true')
-  parser.add_argument('--save_generated', action='store_true')
-  parser.add_argument('--save_generated_freq', default=10, type=int)
+  parser.add_argument(
+      '--save_generated', default="", choices=["", "last", "all"], type=str)
   parser.add_argument('--plot_weights', action='store_true')
   parser.add_argument('--skip_checkpoints', action='store_true')
   parser.add_argument('--mixed_precision', action='store_true')
