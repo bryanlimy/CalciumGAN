@@ -70,14 +70,14 @@ def generator(hparams,
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
-  outputs = layers.Dense(1)(outputs)
+  outputs = tf.squeeze(outputs, axis=-1)
+
+  outputs = layers.Dense(hparams.num_channels)(outputs)
 
   if hparams.normalize:
     outputs = activation_fn('sigmoid', dtype=tf.float32)(outputs)
   else:
     outputs = activation_fn('linear', dtype=tf.float32)(outputs)
-
-  outputs = tf.squeeze(outputs, axis=-1)
 
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
