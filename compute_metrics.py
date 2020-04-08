@@ -74,7 +74,7 @@ def raster_plots(hparams, summary, filename, epoch):
       'raster_plot_neuron/real',
       real_spikes[:100, 5, :],
       xlabel='Time (ms)',
-      ylabel='# sample',
+      ylabel='Trail',
       title='Neuron #005',
       step=epoch,
       training=False)
@@ -83,7 +83,7 @@ def raster_plots(hparams, summary, filename, epoch):
       'raster_plot_neuron/fake',
       fake_spikes[:100, 5, :],
       xlabel='Time (ms)',
-      ylabel='# sample',
+      ylabel='Trail',
       title='Neuron #005',
       step=epoch,
       training=False)
