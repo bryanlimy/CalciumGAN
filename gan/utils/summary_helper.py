@@ -163,20 +163,50 @@ class Summary(object):
                       training=False):
     assert type(data) == list and type(data[0]) == tuple
     images = []
-    for i in range(len(data)):
-      plt.hist(
-          data[i],
+
+    f, axes = plt.subplots(3, 3, figsize=(15, 15))
+    i, row, col = 0, 0, 0
+    while i < 9:
+      real, fake = data[i]
+
+      hist_kws = {
+          "alpha": 0.6,
+          "range": [min(min(real), min(fake)),
+                    max(max(real), max(fake))]
+      }
+
+      ax = sns.distplot(
+          real,
           bins=20,
-          label=['real', 'fake'],
-          color=[self._real_color, self._fake_color],
-          alpha=0.8)
-      plt.xlabel(xlabel)
-      plt.ylabel(ylabel)
-      if titles is not None:
-        plt.title(titles[i])
-      plt.legend()
-      images.append(self._plot_to_image())
-      plt.close()
+          kde=False,
+          hist_kws=hist_kws,
+          color=self._real_color,
+          label="Real",
+          ax=axes[row, col])
+      ax = sns.distplot(
+          fake,
+          bins=20,
+          kde=False,
+          hist_kws=hist_kws,
+          color=self._fake_color,
+          label="Fake",
+          ax=axes[row, col])
+
+      ax.legend()
+
+      if xlabel and ylabel and titles:
+        ax.set(xlabel=xlabel, ylabel=ylabel, title=titles[i])
+
+      col += 1
+      if col == 3:
+        row += 1
+        col = 0
+      i += 1
+
+    plt.tight_layout()
+    images.append(self._plot_to_image())
+    plt.close()
+
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
   def plot_heatmaps(self,
@@ -262,8 +292,8 @@ class Summary(object):
       grid.set_axis_labels(xlabel, ylabel, fontsize=14)
     if title is not None:
       grid.fig.suptitle(title)
-    grid.fig.set_figwidth(18)
-    grid.fig.set_figheight(10)
+    grid.fig.set_figwidth(16)
+    grid.fig.set_figheight(8)
     image = self._plot_to_image()
     plt.close()
     images = tf.expand_dims(image, axis=0)

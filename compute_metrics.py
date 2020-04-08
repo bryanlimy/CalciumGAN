@@ -192,10 +192,10 @@ def covariance_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing covariance')
 
-  # compute neuron-wise covariance with 500 samples
+  # compute neuron-wise covariance with 200 samples
   pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_covariance,
-                         [(hparams, filename, n, 500) for n in hparams.neurons])
+                         [(hparams, filename, n, 200) for n in hparams.neurons])
   pool.close()
 
   summary.scalar(
@@ -269,10 +269,10 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
 
-  # compute sample-wise covariance for the first 500 samples
+  # compute sample-wise covariance for the first 200 samples
   pool = Pool(hparams.num_processors)
   results = pool.starmap(correlation_coefficient_error,
-                         [(hparams, filename, i) for i in range(500)])
+                         [(hparams, filename, i) for i in range(200)])
   pool.close()
 
   summary.scalar(
@@ -299,7 +299,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   # compute mean sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
   results = pool.starmap(correlation_coefficient_samples_mean_histogram,
-                         [(hparams, filename, i) for i in range(500)])
+                         [(hparams, filename, i) for i in range(200)])
   pool.close()
 
   results = np.array(results, dtype=np.float32)
@@ -473,10 +473,10 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
 
-  # compute neuron-wise van rossum distance error with 500 samples
+  # compute neuron-wise van rossum distance error with 200 samples
   pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_van_rossum_distance,
-                         [(hparams, filename, n, 500) for n in hparams.neurons])
+                         [(hparams, filename, n, 200) for n in hparams.neurons])
   pool.close()
 
   summary.scalar(
@@ -548,10 +548,10 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       step=epoch,
       training=False)
 
-  # compute neuron-wise van rossum distance histogram for 500 samples
+  # compute neuron-wise van rossum distance histogram for 200 samples
   pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_van_rossum_histogram,
-                         [(hparams, filename, n, 500) for n in hparams.neurons])
+                         [(hparams, filename, n, 200) for n in hparams.neurons])
   pool.close()
 
   summary.plot_histograms(
