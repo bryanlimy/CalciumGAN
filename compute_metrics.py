@@ -158,7 +158,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       step=epoch,
       training=False)
 
-  summary.plot_histograms(
+  summary.plot_histograms_grid(
       'firing_rate_histograms',
       firing_rate_pairs,
       xlabel='Hz',
@@ -284,10 +284,10 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
   results = pool.starmap(correlation_coefficient_sample_histogram,
-                         [(hparams, filename, i) for i in range(12)])
+                         [(hparams, filename, i) for i in range(9)])
   pool.close()
 
-  summary.plot_histograms(
+  summary.plot_histograms_grid(
       'correlation_coefficient_sample_histogram',
       results,
       xlabel='Correlation',
@@ -304,12 +304,12 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
 
   results = np.array(results, dtype=np.float32)
 
-  summary.plot_histograms(
+  summary.plot_histogram(
       'correlation_coefficient_mean_samples_histogram',
-      [(results[:, 0], results[:, 1])],
+      (results[:, 0], results[:, 1]),
       xlabel='Mean correlation',
       ylabel='Count',
-      titles=['Mean correlation over {} samples'.format(len(results))],
+      title='Mean correlation over {} samples'.format(len(results)),
       step=epoch,
       training=False)
 
@@ -536,10 +536,10 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   # compute sample-wise van rossum distance histogram
   pool = Pool(hparams.num_processors)
   results = pool.starmap(sample_van_rossum_histogram,
-                         [(hparams, filename, i) for i in range(12)])
+                         [(hparams, filename, i) for i in range(9)])
   pool.close()
 
-  summary.plot_histograms(
+  summary.plot_histograms_grid(
       'van_rossum_sample_histograms',
       results,
       xlabel='Distance',
@@ -554,7 +554,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
                          [(hparams, filename, n, 200) for n in hparams.neurons])
   pool.close()
 
-  summary.plot_histograms(
+  summary.plot_histograms_grid(
       'van_rossum_neuron_histograms',
       results,
       xlabel='Distance',

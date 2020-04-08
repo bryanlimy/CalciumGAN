@@ -153,14 +153,58 @@ class Summary(object):
 
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
-  def plot_histograms(self,
-                      tag,
-                      data,
-                      xlabel=None,
-                      ylabel=None,
-                      titles=None,
-                      step=0,
-                      training=False):
+  def plot_histogram(self,
+                     tag,
+                     data,
+                     xlabel=None,
+                     ylabel=None,
+                     title=None,
+                     step=0,
+                     training=False):
+    assert type(data) == tuple
+    images = []
+
+    hist_kws = {
+        "alpha": 0.6,
+        "range":
+        [min(min(data[0]), min(data[1])),
+         max(max(data[0]), max(data[0]))]
+    }
+
+    ax = sns.distplot(
+        data[0],
+        bins=20,
+        kde=False,
+        hist_kws=hist_kws,
+        color=self._real_color,
+        label="Real")
+    ax = sns.distplot(
+        data[1],
+        bins=20,
+        kde=False,
+        hist_kws=hist_kws,
+        color=self._fake_color,
+        label="Fake")
+
+    ax.legend()
+
+    if xlabel and ylabel and title:
+      ax.set(xlabel=xlabel, ylabel=ylabel, title=title)
+
+    plt.tight_layout()
+    images.append(self._plot_to_image())
+    plt.close()
+
+    self.image(tag, values=tf.stack(images), step=step, training=training)
+
+  def plot_histograms_grid(self,
+                           tag,
+                           data,
+                           xlabel=None,
+                           ylabel=None,
+                           titles=None,
+                           step=0,
+                           training=False):
     assert type(data) == list and type(data[0]) == tuple
     images = []
 
