@@ -241,7 +241,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--profile', action='store_true', help='enable TensorBoard profiling')
   parser.add_argument('--focus_neurons', action='store_true')
-  parser.add_argument('--dpi', default=80, type=int)
+  parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 

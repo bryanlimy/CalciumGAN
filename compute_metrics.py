@@ -621,7 +621,7 @@ if __name__ == '__main__':
   parser.add_argument('--num_processors', default=6, type=int)
   parser.add_argument('--all_neurons', action='store_true')
   parser.add_argument('--all_epochs', action='store_true')
-  parser.add_argument('--dpi', default=100, type=int)
+  parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 
