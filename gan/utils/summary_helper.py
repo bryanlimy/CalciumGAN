@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 plt.style.use('seaborn-deep')
 
 import seaborn as sns
-sns.set(style="white", color_codes=True)
 
 from . import utils, spike_helper
 
@@ -69,26 +68,23 @@ class Summary(object):
     axis.get_yaxis().tick_left()
 
   def _plot_trace(self, signal, spike, neuron=None):
+    assert len(signal) == len(spike)
+
     plt.figure(figsize=(20, 4))
-    # plot signal
-    plt.subplot(211)
-    plt.plot(signal, label='signal', zorder=-12, color=self._real_color)
-    plt.legend(ncol=3, frameon=False, loc=(.02, .85))
-    self._simple_axis(plt.gca())
+    plt.plot(signal, label='signal', alpha=0.6, color='dodgerblue')
+
+    x = np.nonzero(spike)[0]
+    y = np.zeros(x.shape)
+    plt.scatter(x, y, s=200, marker='|', label='spike', color='orangered')
+    plt.legend(ncol=3, frameon=False, loc=(.04, .85))
+    plt.xlabel('Time (ms)')
     if neuron is not None:
-      plt.title('Neuron #{:03d}'.format(neuron), loc='center')
-    plt.tight_layout()
-    # plot spike train
-    plt.subplot(212)
-    plt.bar(
-        range(len(spike)),
-        spike,
-        width=0.6,
-        label='spike',
-        color=self._fake_color)
-    plt.ylim(0, 1.3)
-    plt.legend(ncol=3, frameon=False, loc=(.02, .85))
-    self._simple_axis(plt.gca())
+      plt.title('Neuron #{:03d}'.format(neuron))
+    axis = plt.gca()
+    axis.spines['top'].set_visible(False)
+    axis.spines['right'].set_visible(False)
+    axis.get_xaxis().tick_bottom()
+    axis.get_yaxis().tick_left()
     plt.tight_layout()
     image = self._plot_to_image()
     plt.close()
