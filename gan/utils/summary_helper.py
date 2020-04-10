@@ -2,6 +2,7 @@ import os
 import io
 import platform
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
 import matplotlib
@@ -39,8 +40,8 @@ class Summary(object):
     self._dpi = hparams.dpi
 
     # color for matplotlib
-    self._real_color = 'dodgerblue'
-    self._fake_color = 'orangered'
+    self.real_color = 'dodgerblue'
+    self.fake_color = 'orangered'
 
   def _get_writer(self, training):
     return self.train_writer if training else self.val_writer
@@ -172,14 +173,14 @@ class Summary(object):
         bins=20,
         kde=False,
         hist_kws=hist_kws,
-        color=self._real_color,
+        color=self.real_color,
         label="Real")
     ax = sns.distplot(
         data[1],
         bins=20,
         kde=False,
         hist_kws=hist_kws,
-        color=self._fake_color,
+        color=self.fake_color,
         label="Fake")
 
     ax.legend()
@@ -220,7 +221,7 @@ class Summary(object):
           bins=20,
           kde=False,
           hist_kws=hist_kws,
-          color=self._real_color,
+          color=self.real_color,
           label="Real",
           ax=axes[row, col])
       ax = sns.distplot(
@@ -228,7 +229,7 @@ class Summary(object):
           bins=20,
           kde=False,
           hist_kws=hist_kws,
-          color=self._fake_color,
+          color=self.fake_color,
           label="Fake",
           ax=axes[row, col])
 
@@ -314,26 +315,79 @@ class Summary(object):
           training=training,
       )
 
-  def spikes_raster_plot(self,
-                         tag,
-                         spikes,
-                         xlabel=None,
-                         ylabel=None,
-                         title=None,
-                         step=0,
-                         training=True):
-    if len(spikes.shape) == 3:
-      spikes = spikes[0]
+  def raster_plot(self,
+                  tag,
+                  real_spikes,
+                  fake_spikes,
+                  xlabel=None,
+                  ylabel=None,
+                  title=None,
+                  step=0,
+                  training=True):
 
-    y, x = np.nonzero(spikes)
+    real_x, real_y = np.nonzero(real_spikes)
+    fake_x, fake_y = np.nonzero(fake_spikes)
 
-    grid = sns.jointplot(x, y, ratio=10, marker='|')
-    if xlabel is not None and ylabel is not None:
-      grid.set_axis_labels(xlabel, ylabel, fontsize=14)
-    if title is not None:
-      grid.fig.suptitle(title)
-    grid.fig.set_figwidth(16)
-    grid.fig.set_figheight(8)
+    df = pd.DataFrame({
+        'x': np.concatenate([real_y, fake_y]),
+        'y': np.concatenate([real_x, fake_x]),
+        'real_data': [True] * len(real_x) + [False] * len(fake_x)
+    })
+
+    g = sns.JointGrid(x='x', y='y', data=df)
+    plt.gcf().set_size_inches(16, 10)
+
+    real = df.loc[df.real_data == True]
+    fake = df.loc[df.real_data == False]
+
+    sns.scatterplot(
+        real.x,
+        real.y,
+        marker='|',
+        color=self.real_color,
+        alpha=0.8,
+        ax=g.ax_joint)
+    ax = sns.scatterplot(
+        fake.x,
+        fake.y,
+        marker='|',
+        color=self.fake_color,
+        alpha=0.8,
+        ax=g.ax_joint)
+    ax.set(xlabel=xlabel, ylabel=ylabel)
+
+    sns.distplot(
+        real.x, kde=False, color=self.real_color, ax=g.ax_marg_x, bins=40)
+    ax = sns.distplot(
+        fake.x, kde=False, color=self.fake_color, ax=g.ax_marg_x, bins=40)
+    ax.set_xlabel('')
+
+    sns.distplot(
+        real.y,
+        kde=False,
+        color=self.real_color,
+        ax=g.ax_marg_y,
+        bins=40,
+        vertical=True)
+    ax = sns.distplot(
+        fake.y,
+        kde=False,
+        color=self.fake_color,
+        ax=g.ax_marg_y,
+        bins=40,
+        vertical=True)
+    ax.set_ylabel('')
+
+    g.ax_joint.legend(
+        labels=['real', 'fake'],
+        ncol=2,
+        frameon=False,
+        prop={
+            'weight': 'regular',
+            'size': 12
+        },
+        loc='upper right')
+
     image = self._plot_to_image()
     plt.close()
     images = tf.expand_dims(image, axis=0)

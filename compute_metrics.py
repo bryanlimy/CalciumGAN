@@ -52,36 +52,20 @@ def raster_plots(hparams, summary, filename, epoch):
   fake_spikes = h5_helper.get(filename, name='spikes')
   fake_spikes = utils.set_array_format(fake_spikes, 'NCW', hparams)
 
-  summary.spikes_raster_plot(
+  summary.raster_plot(
       'raster_plot_sample/real',
-      real_spikes[0],
+      real_spikes=real_spikes[0],
+      fake_spikes=fake_spikes[0],
       xlabel='Time (ms)',
       ylabel='# neurons',
       title='Sample 001',
       step=epoch,
       training=False)
 
-  summary.spikes_raster_plot(
-      'raster_plot_sample/fake',
-      fake_spikes[0],
-      xlabel='Time (ms)',
-      ylabel='# neurons',
-      title='Sample 001',
-      step=epoch,
-      training=False)
-
-  summary.spikes_raster_plot(
-      'raster_plot_neuron/real',
-      real_spikes[:100, 5, :],
-      xlabel='Time (ms)',
-      ylabel='Trail',
-      title='Neuron #005',
-      step=epoch,
-      training=False)
-
-  summary.spikes_raster_plot(
-      'raster_plot_neuron/fake',
-      fake_spikes[:100, 5, :],
+  summary.raster_plot(
+      'raster_plot_neuron',
+      real_spikes=real_spikes[:100, 5, :],
+      fake_spikes=fake_spikes[:100, 5, :],
       xlabel='Time (ms)',
       ylabel='Trail',
       title='Neuron #005',
