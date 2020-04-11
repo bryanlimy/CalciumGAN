@@ -193,6 +193,14 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       step=epoch,
       training=False)
 
+  # get firing rate for all neurons
+  pool = Pool(hparams.num_processors)
+  results = pool.starmap(
+      firing_rate_neuron,
+      [(hparams, filename, n) for n in range(hparams.num_neurons)])
+  pool.close()
+
+  firing_rate_pairs = [result['firing_rate_pair'] for result in results]
   kl = firing_rate_kl(firing_rate_pairs)
 
   summary.plot_distribution(
