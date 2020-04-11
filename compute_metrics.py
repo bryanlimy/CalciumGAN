@@ -200,7 +200,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       kl,
       xlabel='KL divergence',
       ylabel='Count',
-      title='KL divergence historgram of {} neurons'.format(
+      title='KL divergence histogram of {} neurons'.format(
           len(firing_rate_pairs)),
       step=epoch,
       training=False)
@@ -514,7 +514,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     heatmaps.append(results[i]['heatmap'])
     xticklabels.append(results[i]['xticklabels'])
     yticklabels.append(results[i]['yticklabels'])
-    titles.append('trial #{:03d}'.format(i))
+    titles.append('Trial #{:03d}'.format(i))
 
   summary.plot_heatmaps(
       'van_rossum_trial_heatmaps',
@@ -562,7 +562,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       results,
       xlabel='Distance',
       ylabel='Count',
-      titles=['trial #{:03d}'.format(i) for i in range(len(results))],
+      titles=['Trial #{:03d}'.format(i) for i in range(len(results))],
       step=epoch,
       training=False)
 
