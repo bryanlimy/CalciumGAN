@@ -154,6 +154,32 @@ class Summary(object):
 
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
+  def plot_distribution(self,
+                        tag,
+                        data,
+                        xlabel='',
+                        ylabel='',
+                        title='',
+                        bins=30,
+                        step=0,
+                        training=False):
+    images = []
+
+    plt.figure(figsize=(15, 8))
+    ax = sns.distplot(
+        data,
+        kde=False,
+        hist_kws={"rwidth": 0.85},
+        color="dodgerblue",
+        bins=bins)
+    ax.set(xlabel=xlabel, ylabel=ylabel, title=title)
+
+    plt.tight_layout()
+    images.append(self._plot_to_image())
+    plt.close()
+
+    self.image(tag, values=tf.stack(images), step=step, training=training)
+
   def plot_histogram(self,
                      tag,
                      data,

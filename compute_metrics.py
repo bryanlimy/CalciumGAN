@@ -4,6 +4,7 @@ import pickle
 import argparse
 import warnings
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from time import time
 from multiprocessing import Pool
@@ -53,12 +54,12 @@ def raster_plots(hparams, summary, filename, epoch):
   fake_spikes = utils.set_array_format(fake_spikes, 'NCW', hparams)
 
   summary.raster_plot(
-      'raster_plot_trail',
+      'raster_plot_trial',
       real_spikes=real_spikes[0],
       fake_spikes=fake_spikes[0],
       xlabel='Time (ms)',
       ylabel='Neuron',
-      title='Trail #001',
+      title='Trial #001',
       step=epoch,
       training=False)
 
@@ -67,7 +68,7 @@ def raster_plots(hparams, summary, filename, epoch):
       real_spikes=real_spikes[:100, 5, :],
       fake_spikes=fake_spikes[:100, 5, :],
       xlabel='Time (ms)',
-      ylabel='Trail',
+      ylabel='Trial',
       title='Neuron #005',
       step=epoch,
       training=False)
@@ -76,17 +77,17 @@ def raster_plots(hparams, summary, filename, epoch):
 def get_neo_trains(hparams,
                    filename,
                    neuron=None,
-                   trail=None,
+                   trial=None,
                    data_format=None,
-                   num_trails=None):
-  assert data_format and (neuron is not None or trail is not None)
+                   num_trials=None):
+  assert data_format and (neuron is not None or trial is not None)
 
-  spikes = h5_helper.get(filename, name='spikes', neuron=neuron, trail=trail)
+  spikes = h5_helper.get(filename, name='spikes', neuron=neuron, trial=trial)
   spikes = utils.set_array_format(spikes, data_format, hparams)
 
-  if num_trails is not None:
+  if num_trials is not None:
     assert data_format[0] == 'N'
-    spikes = spikes[:num_trails]
+    spikes = spikes[:num_trials]
 
   return spike_helper.trains_to_neo(spikes)
 
@@ -95,7 +96,7 @@ def mse(x, y):
   return np.nanmean(np.square(x - y), dtype=np.float32)
 
 
-def neuron_firing_rate(hparams, filename, neuron):
+def firing_rate_neuron(hparams, filename, neuron):
   if hparams.verbose == 2:
     print('\tComputing firing rate for neuron #{}'.format(neuron))
 
@@ -122,12 +123,53 @@ def neuron_firing_rate(hparams, filename, neuron):
   }
 
 
+def firing_rate_kl(firing_rate_pairs):
+
+  def kl_divergence(p, q):
+    return np.sum(
+        np.where(
+            np.logical_or(np.equal(p, 0), np.equal(q, 0)),
+            0,
+            p * np.log(p / q),
+        ))
+
+  kl = []
+  for i in range(len(firing_rate_pairs)):
+    real_firing_rate, fake_firing_rate = firing_rate_pairs[i]
+    assert real_firing_rate.shape == fake_firing_rate.shape
+
+    df = pd.DataFrame({
+        'firing_rate':
+        np.concatenate([real_firing_rate, fake_firing_rate]),
+        'real_data':
+        [True] * len(real_firing_rate) + [False] * len(fake_firing_rate)
+    })
+
+    num_bins = 30
+    df['bins'] = pd.cut(
+        df.firing_rate, bins=num_bins, labels=np.arange(num_bins))
+
+    real_pdf = np.array([
+        len(df[(df.bins == i) & (df.real_data == True)])
+        for i in range(num_bins)
+    ],
+                        dtype=np.float32) / len(real_firing_rate)
+    fake_pdf = np.array([
+        len(df[(df.bins == i) & (df.real_data == False)])
+        for i in range(num_bins)
+    ],
+                        dtype=np.float32) / len(fake_firing_rate)
+
+    kl.append(kl_divergence(real_pdf, fake_pdf))
+  return kl
+
+
 def firing_rate_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing firing rate')
 
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(neuron_firing_rate,
+  results = pool.starmap(firing_rate_neuron,
                          [(hparams, filename, n) for n in hparams.neurons])
   pool.close()
 
@@ -151,8 +193,20 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       step=epoch,
       training=False)
 
+  kl = firing_rate_kl(firing_rate_pairs)
 
-def neuron_covariance(hparams, filename, neuron, num_trails):
+  summary.plot_distribution(
+      'firing_rate_kl_histogram',
+      kl,
+      xlabel='KL divergence',
+      ylabel='Count',
+      title='KL divergence historgram of {} neurons'.format(
+          len(firing_rate_pairs)),
+      step=epoch,
+      training=False)
+
+
+def neuron_covariance(hparams, filename, neuron, num_trials):
   if hparams.verbose == 2:
     print('\t\tComputing covariance for neuron #{}'.format(neuron))
 
@@ -161,9 +215,9 @@ def neuron_covariance(hparams, filename, neuron, num_trails):
       hparams.validation_cache,
       neuron=neuron,
       data_format='NW',
-      num_trails=num_trails)
+      num_trials=num_trials)
   fake_spikes = get_neo_trains(
-      hparams, filename, neuron=neuron, data_format='NW', num_trails=num_trails)
+      hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
 
   return np.mean(spike_metrics.covariance(real_spikes, fake_spikes))
 
@@ -172,7 +226,7 @@ def covariance_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing covariance')
 
-  # compute neuron-wise covariance with 200 trails
+  # compute neuron-wise covariance with 200 trials
   pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_covariance,
                          [(hparams, filename, n, 200) for n in hparams.neurons])
@@ -185,57 +239,57 @@ def covariance_metrics(hparams, summary, filename, epoch):
       training=False)
 
 
-def correlation_coefficient_error(hparams, filename, trail):
+def correlation_coefficient_error(hparams, filename, trial):
   if hparams.verbose == 2:
-    print('\t\tComputing correlation coefficient error for trail #{}'.format(
-        trail))
+    print('\t\tComputing correlation coefficient error for trial #{}'.format(
+        trial))
 
   diag_indices = np.triu_indices(hparams.num_neurons, k=1)
 
   real_spikes = get_neo_trains(
-      hparams, hparams.validation_cache, trail=trail, data_format='CW')
+      hparams, hparams.validation_cache, trial=trial, data_format='CW')
   real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
   real_corrcoef = real_corrcoef[diag_indices]
 
-  fake_spikes = get_neo_trains(hparams, filename, trail=trail, data_format='CW')
+  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
   fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
   fake_corrcoef = fake_corrcoef[diag_indices]
 
   return mse(real_corrcoef, fake_corrcoef)
 
 
-def correlation_coefficient_trail_histogram(hparams, filename, trail):
+def correlation_coefficient_trial_histogram(hparams, filename, trial):
   if hparams.verbose == 2:
     print('\t\tComputing correlation coefficient histogram for sample #{}'.
-          format(trail))
+          format(trial))
 
   diag_indices = np.triu_indices(hparams.num_neurons, k=1)
 
   real_spikes = get_neo_trains(
-      hparams, hparams.validation_cache, trail=trail, data_format='CW')
+      hparams, hparams.validation_cache, trial=trial, data_format='CW')
   real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
   real_corrcoef = utils.remove_nan(real_corrcoef[diag_indices])
 
-  fake_spikes = get_neo_trains(hparams, filename, trail=trail, data_format='CW')
+  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
   fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
   fake_corrcoef = utils.remove_nan(fake_corrcoef[diag_indices])
 
   return (real_corrcoef, fake_corrcoef)
 
 
-def correlation_coefficient_trails_mean_histogram(hparams, filename, trail):
+def correlation_coefficient_trials_mean_histogram(hparams, filename, trial):
   if hparams.verbose == 2:
-    print('\t\tComputing mean correlation coefficient histogram for trail #{}'.
-          format(trail))
+    print('\t\tComputing mean correlation coefficient histogram for trial #{}'.
+          format(trial))
 
   diag_indices = np.triu_indices(hparams.num_neurons, k=1)
 
   real_spikes = get_neo_trains(
-      hparams, hparams.validation_cache, trail=trail, data_format='CW')
+      hparams, hparams.validation_cache, trial=trial, data_format='CW')
   real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
   real_corrcoef = np.nanmean(real_corrcoef[diag_indices], dtype=np.float32)
 
-  fake_spikes = get_neo_trains(hparams, filename, trail=trail, data_format='CW')
+  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
   fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
   fake_corrcoef = np.nanmean(fake_corrcoef[diag_indices], dtype=np.float32)
 
@@ -246,7 +300,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
 
-  # compute trail-wise covariance for the first 200 trails
+  # compute trial-wise covariance for the first 200 trials
   pool = Pool(hparams.num_processors)
   results = pool.starmap(correlation_coefficient_error,
                          [(hparams, filename, i) for i in range(200)])
@@ -260,39 +314,39 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
 
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(correlation_coefficient_trail_histogram,
+  results = pool.starmap(correlation_coefficient_trial_histogram,
                          [(hparams, filename, i) for i in range(9)])
   pool.close()
 
   summary.plot_histograms_grid(
-      'correlation_coefficient_trail_histogram',
+      'correlation_coefficient_trial_histogram',
       results,
       xlabel='Correlation',
       ylabel='Count',
-      titles=['Trail #{:03d}'.format(i) for i in range(len(results))],
+      titles=['trial #{:03d}'.format(i) for i in range(len(results))],
       step=epoch,
       training=False)
 
-  # compute mean trail-wise correlation histogram
+  # compute mean trial-wise correlation histogram
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(correlation_coefficient_trails_mean_histogram,
+  results = pool.starmap(correlation_coefficient_trials_mean_histogram,
                          [(hparams, filename, i) for i in range(200)])
   pool.close()
 
   results = np.array(results, dtype=np.float32)
 
   summary.plot_histogram(
-      'correlation_coefficient_mean_trails_histogram',
+      'correlation_coefficient_mean_trials_histogram',
       (results[:, 0], results[:, 1]),
       xlabel='Mean correlation',
       ylabel='Count',
-      title='Mean correlation over {} trails'.format(len(results)),
+      title='Mean correlation over {} trials'.format(len(results)),
       step=epoch,
       training=False)
 
 
-def neuron_van_rossum_distance(hparams, filename, neuron, num_trails):
-  ''' compute van rossum distance for neuron with num_trails'''
+def neuron_van_rossum_distance(hparams, filename, neuron, num_trials):
+  ''' compute van rossum distance for neuron with num_trials'''
   if hparams.verbose == 2:
     print('\t\tComputing van-rossum distance for neuron #{}'.format(neuron))
 
@@ -301,16 +355,16 @@ def neuron_van_rossum_distance(hparams, filename, neuron, num_trails):
       hparams.validation_cache,
       neuron=neuron,
       data_format='NW',
-      num_trails=num_trails)
+      num_trials=num_trials)
   fake_spikes = get_neo_trains(
-      hparams, filename, neuron=neuron, data_format='NW', num_trails=num_trails)
+      hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
 
   return np.mean(spike_metrics.van_rossum_distance(real_spikes, fake_spikes))
 
 
 def sort_heatmap(matrix):
   ''' sort the given matrix where the top left corner is the minimum'''
-  num_trails = len(matrix)
+  num_trials = len(matrix)
 
   # create a copy of distances matrix for modification
   matrix_copy = np.copy(matrix)
@@ -321,11 +375,11 @@ def sort_heatmap(matrix):
   min_index = np.unravel_index(np.argmin(matrix), matrix.shape)
 
   # row and column order for the sorted matrix
-  row_order = np.full((num_trails,), fill_value=-1, dtype=np.int)
+  row_order = np.full((num_trials,), fill_value=-1, dtype=np.int)
   row_order[0] = min_index[0]
   column_order = np.argsort(matrix[min_index[0]])
 
-  for i in range(num_trails):
+  for i in range(num_trials):
     if i != 0:
       row_order[i] = np.argsort(matrix_copy[:, column_order[i]])[0]
     heatmap[i] = matrix[row_order[i]][column_order]
@@ -334,14 +388,14 @@ def sort_heatmap(matrix):
   return heatmap, row_order, column_order
 
 
-def van_rossum_trail_heatmap(hparams, filename, trail):
-  ''' compute van rossum heatmap for trail '''
+def van_rossum_trial_heatmap(hparams, filename, trial):
+  ''' compute van rossum heatmap for trial '''
   if hparams.verbose == 2:
-    print('\t\tComputing van-rossum heatmap for trail #{}'.format(trail))
+    print('\t\tComputing van-rossum heatmap for trial #{}'.format(trial))
 
   real_spikes = get_neo_trains(
-      hparams, hparams.validation_cache, trail=trail, data_format='CW')
-  fake_spikes = get_neo_trains(hparams, filename, trail=trail, data_format='CW')
+      hparams, hparams.validation_cache, trial=trial, data_format='CW')
+  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
 
   distances = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
   heatmap, row_order, column_order = sort_heatmap(distances)
@@ -353,8 +407,8 @@ def van_rossum_trail_heatmap(hparams, filename, trail):
   }
 
 
-def van_rossum_neuron_heatmap(hparams, filename, neuron, num_trails):
-  ''' compute van rossum heatmap for neuron with num_trails '''
+def van_rossum_neuron_heatmap(hparams, filename, neuron, num_trials):
+  ''' compute van rossum heatmap for neuron with num_trials '''
   if hparams.verbose == 2:
     print('\t\tComputing van-rossum heatmap for neuron #{}'.format(neuron))
 
@@ -363,9 +417,9 @@ def van_rossum_neuron_heatmap(hparams, filename, neuron, num_trails):
       hparams.validation_cache,
       neuron=neuron,
       data_format='NW',
-      num_trails=num_trails)
+      num_trials=num_trials)
   fake_spikes = get_neo_trains(
-      hparams, filename, neuron=neuron, data_format='NW', num_trails=num_trails)
+      hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
 
   distances = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
   heatmap, row_order, column_order = sort_heatmap(distances)
@@ -377,15 +431,15 @@ def van_rossum_neuron_heatmap(hparams, filename, neuron, num_trails):
   }
 
 
-def van_rossum_trail_histogram(hparams, filename, trail):
-  ''' compute van rossum distance for trail '''
+def van_rossum_trial_histogram(hparams, filename, trial):
+  ''' compute van rossum distance for trial '''
   if hparams.verbose == 2:
-    print('\t\tComputing van-rossum histograms for trail #{}'.format(trail))
+    print('\t\tComputing van-rossum histograms for trial #{}'.format(trial))
 
   real_spikes = get_neo_trains(
       hparams,
       hparams.validation_cache,
-      trail=trail,
+      trial=trial,
       data_format='CW',
   )
   real_van_rossum = spike_metrics.van_rossum_distance(real_spikes, None)
@@ -393,7 +447,7 @@ def van_rossum_trail_histogram(hparams, filename, trail):
   fake_spikes = get_neo_trains(
       hparams,
       filename,
-      trail=trail,
+      trial=trial,
       data_format='CW',
   )
   fake_van_rossum = spike_metrics.van_rossum_distance(fake_spikes, None)
@@ -408,7 +462,7 @@ def van_rossum_trail_histogram(hparams, filename, trail):
   return (real_van_rossum, fake_van_rossum)
 
 
-def van_rossum_neuron_histogram(hparams, filename, neuron, num_trails):
+def van_rossum_neuron_histogram(hparams, filename, neuron, num_trials):
   ''' compute van rossum distance for neuron '''
   if hparams.verbose == 2:
     print('\t\tComputing van-rossum histograms for neuron #{}'.format(neuron))
@@ -418,11 +472,11 @@ def van_rossum_neuron_histogram(hparams, filename, neuron, num_trails):
       hparams.validation_cache,
       neuron=neuron,
       data_format='NW',
-      num_trails=num_trails)
+      num_trials=num_trials)
   real_van_rossum = spike_metrics.van_rossum_distance(real_spikes, None)
 
   fake_spikes = get_neo_trains(
-      hparams, filename, neuron=neuron, data_format='NW', num_trails=num_trails)
+      hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
   fake_van_rossum = spike_metrics.van_rossum_distance(fake_spikes, None)
 
   diag_indices = np.triu_indices(len(real_van_rossum), k=1)
@@ -437,7 +491,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
 
-  # compute neuron-wise van rossum distance error with 200 trails
+  # compute neuron-wise van rossum distance error with 200 trials
   pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_van_rossum_distance,
                          [(hparams, filename, n, 200) for n in hparams.neurons])
@@ -449,9 +503,9 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       step=epoch,
       training=False)
 
-  # compute trail-wise van rossum heat-map
+  # compute trial-wise van rossum heat-map
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(van_rossum_trail_heatmap,
+  results = pool.starmap(van_rossum_trial_heatmap,
                          [(hparams, filename, i) for i in range(12)])
   pool.close()
 
@@ -460,10 +514,10 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     heatmaps.append(results[i]['heatmap'])
     xticklabels.append(results[i]['xticklabels'])
     yticklabels.append(results[i]['yticklabels'])
-    titles.append('Trail #{:03d}'.format(i))
+    titles.append('trial #{:03d}'.format(i))
 
   summary.plot_heatmaps(
-      'van_rossum_trail_heatmaps',
+      'van_rossum_trial_heatmaps',
       heatmaps,
       xlabel='Fake neurons',
       ylabel='Real neurons',
@@ -473,7 +527,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       step=epoch,
       training=False)
 
-  # compute neuron-wise van rossum heat-map for 50 trails
+  # compute neuron-wise van rossum heat-map for 50 trials
   pool = Pool(hparams.num_processors)
   results = pool.starmap(van_rossum_neuron_heatmap,
                          [(hparams, filename, n, 50) for n in hparams.neurons])
@@ -489,17 +543,17 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   summary.plot_heatmaps(
       'van_rossum_neuron_heatmaps',
       heatmaps,
-      xlabel='Fake trails',
-      ylabel='Real trails',
+      xlabel='Fake trials',
+      ylabel='Real trials',
       xticklabels=xticklabels,
       yticklabels=yticklabels,
       titles=titles,
       step=epoch,
       training=False)
 
-  # compute trail-wise van rossum distance histogram
+  # compute trial-wise van rossum distance histogram
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(van_rossum_trail_histogram,
+  results = pool.starmap(van_rossum_trial_histogram,
                          [(hparams, filename, i) for i in range(9)])
   pool.close()
 
@@ -508,11 +562,11 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       results,
       xlabel='Distance',
       ylabel='Count',
-      titles=['Trail #{:03d}'.format(i) for i in range(len(results))],
+      titles=['trial #{:03d}'.format(i) for i in range(len(results))],
       step=epoch,
       training=False)
 
-  # compute neuron-wise van rossum distance histogram for 200 trails
+  # compute neuron-wise van rossum distance histogram for 200 trials
   pool = Pool(hparams.num_processors)
   results = pool.starmap(van_rossum_neuron_histogram,
                          [(hparams, filename, n, 200) for n in hparams.neurons])

@@ -36,22 +36,22 @@ def overwrite(filename, name, value):
     file.create_dataset(name, shape=value.shape, dtype=value.dtype, data=value)
 
 
-def get(filename, name, neuron=None, trail=None):
+def get(filename, name, neuron=None, trial=None):
   """
   Return the dataset with the given name
   NOTE: Dataset must be stored in NWC format
   neuron: index of the specific neuron to be returned
-  trail: index of the specific trail to be returned
+  trial: index of the specific trial to be returned
   """
-  assert not (neuron is not None and trail is not None)
+  assert not (neuron is not None and trial is not None)
   with h5py.File(filename, mode='r') as file:
     if name not in file.keys():
       raise KeyError('{} cannot be found'.format(name))
     ds = file[name]
     if neuron is not None:
       return ds[:, :, neuron]
-    elif trail is not None:
-      return ds[trail, :, :]
+    elif trial is not None:
+      return ds[trial, :, :]
     else:
       return ds[:]
 

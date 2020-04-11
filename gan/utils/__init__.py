@@ -1,5 +1,5 @@
 __all__ = [
-    'dataset_helper', 'h5_helper.py', 'signals_metrics', 'spike_helper',
+    'dataset_helper', 'h5_helper', 'signals_metrics', 'spike_helper',
     'spike_metrics', 'summary_helper', 'utils'
 ]
 
