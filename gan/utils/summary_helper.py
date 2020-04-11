@@ -367,7 +367,8 @@ class Summary(object):
     })
 
     g = sns.JointGrid(x='x', y='y', data=df)
-    plt.gcf().set_size_inches(16, 10)
+    plt.gcf().set_size_inches(24, 14)
+    plt.gcf().set_facecolor("white")
 
     real = df.loc[df.real_data == True]
     fake = df.loc[df.real_data == False]
@@ -377,14 +378,14 @@ class Summary(object):
         real.y,
         marker='|',
         color=self.real_color,
-        alpha=0.8,
+        alpha=0.9,
         ax=g.ax_joint)
     ax = sns.scatterplot(
         fake.x,
         fake.y,
         marker='|',
         color=self.fake_color,
-        alpha=0.8,
+        alpha=0.9,
         ax=g.ax_joint)
     ax.set(xlabel=xlabel, ylabel=ylabel)
 
@@ -404,7 +405,7 @@ class Summary(object):
         color=self.fake_color,
         ax=g.ax_marg_x,
         bins=40)
-    ax.set_xlabel('')
+    ax.set(xlabel='', ylabel='', title=title)
 
     sns.distplot(
         real.y,
