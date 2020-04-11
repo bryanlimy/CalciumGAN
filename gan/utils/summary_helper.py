@@ -211,14 +211,15 @@ class Summary(object):
       real, fake = data[i]
 
       hist_kws = {
+          "rwidth": 0.85,
           "alpha": 0.6,
           "range": [min(min(real), min(fake)),
                     max(max(real), max(fake))]
       }
 
-      ax = sns.distplot(
+      sns.distplot(
           real,
-          bins=20,
+          bins=30,
           kde=False,
           hist_kws=hist_kws,
           color=self.real_color,
@@ -226,7 +227,7 @@ class Summary(object):
           ax=axes[row, col])
       ax = sns.distplot(
           fake,
-          bins=20,
+          bins=30,
           kde=False,
           hist_kws=hist_kws,
           color=self.fake_color,

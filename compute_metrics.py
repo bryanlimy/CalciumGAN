@@ -53,12 +53,12 @@ def raster_plots(hparams, summary, filename, epoch):
   fake_spikes = utils.set_array_format(fake_spikes, 'NCW', hparams)
 
   summary.raster_plot(
-      'raster_plot_sample/real',
+      'raster_plot_trail',
       real_spikes=real_spikes[0],
       fake_spikes=fake_spikes[0],
       xlabel='Time (ms)',
       ylabel='# neurons',
-      title='Sample 001',
+      title='Trail #001',
       step=epoch,
       training=False)
 
@@ -146,7 +146,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       'firing_rate_histograms',
       firing_rate_pairs,
       xlabel='Hz',
-      ylabel='Count',
+      ylabel='Density',
       titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons],
       step=epoch,
       training=False)
@@ -276,7 +276,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       results,
       xlabel='Correlation',
       ylabel='Count',
-      titles=['Sample #{:03d}'.format(i) for i in range(len(results))],
+      titles=['Trail #{:03d}'.format(i) for i in range(len(results))],
       step=epoch,
       training=False)
 
@@ -293,7 +293,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       (results[:, 0], results[:, 1]),
       xlabel='Mean correlation',
       ylabel='Count',
-      title='Mean correlation over {} samples'.format(len(results)),
+      title='Mean correlation over {} trails'.format(len(results)),
       step=epoch,
       training=False)
 
@@ -348,7 +348,7 @@ def sort_heatmap(matrix):
 def sample_van_rossum_heatmap(hparams, filename, sample):
   ''' compute van rossum heatmap for sample '''
   if hparams.verbose == 2:
-    print('\t\tComputing van-rossum heatmap for sample #{}'.format(sample))
+    print('\t\tComputing van-rossum heatmap for trail #{}'.format(sample))
 
   real_spikes = get_neo_trains(
       hparams, hparams.validation_cache, sample=sample, data_format='CW')
@@ -396,7 +396,7 @@ def neuron_van_rossum_heatmap(hparams, filename, neuron, num_samples):
 def sample_van_rossum_histogram(hparams, filename, sample):
   ''' compute van rossum distance for sample '''
   if hparams.verbose == 2:
-    print('\t\tComputing van-rossum histograms for sample #{}'.format(sample))
+    print('\t\tComputing van-rossum histograms for trail #{}'.format(sample))
 
   real_spikes = get_neo_trains(
       hparams,
@@ -483,7 +483,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     titles.append('Sample #{:03d}'.format(i))
 
   summary.plot_heatmaps(
-      'van_rossum_sample_heatmaps',
+      'van_rossum_trail_heatmaps',
       heatmaps,
       xlabel='Fake neuron',
       ylabel='Real neuron',
@@ -509,8 +509,8 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   summary.plot_heatmaps(
       'van_rossum_neuron_heatmaps',
       heatmaps,
-      xlabel='Fake sample',
-      ylabel='Real sample',
+      xlabel='Fake trail',
+      ylabel='Real trail',
       xticklabels=xticklabels,
       yticklabels=yticklabels,
       titles=titles,
