@@ -53,8 +53,8 @@ def plot_real_signals(hparams, summary, validation_ds):
 
   summary.plot_traces(
       'real',
-      signals=signals,
-      spikes=spikes,
+      signals,
+      spikes,
       indexes=hparams.focus_neurons,
       step=0,
       training=False)

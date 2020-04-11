@@ -112,41 +112,45 @@ class Summary(object):
   def profiler_export(self):
     tf.summary.trace_export(name='models', profiler_outdir=self._profiler_dir)
 
-  def plot_traces(self,
-                  tag,
-                  signals,
-                  spikes=None,
-                  indexes=None,
-                  step=0,
-                  training=True):
+  def plot_traces(self, tag, signals, spikes, indexes, step=0, training=True):
+    assert len(signals.shape) == 2 and len(spikes.shape) == 2
+
     images = []
 
     if tf.is_tensor(signals):
       signals = signals.numpy()
-    if len(signals.shape) > 2:
-      signals = signals[0]
-
-    signals = utils.set_array_format(
-        signals, data_format='CW', hparams=self._hparams)
-
-    # deconvolve signals if spikes aren't provided
-    if spikes is None:
-      spikes = spike_helper.deconvolve_signals(signals)
-
     if tf.is_tensor(spikes):
       spikes = spikes.numpy()
-    if len(spikes.shape) > 2:
-      spikes = spikes[0]
 
-    spikes = utils.set_array_format(
-        spikes, data_format='CW', hparams=self._hparams)
+    # calculate the number of rows needed in subplots
+    num_rows, rem = divmod(len(indexes), 3)
+    if rem > 0:
+      num_rows += 1
 
-    if not indexes:
-      indexes = range(len(signals))
+    fig = plt.figure(figsize=(32, 4 * num_rows))
+    fig.patch.set_facecolor('white')
 
-    for i in indexes:
-      image = self._plot_trace(signals[i], spikes[i], neuron=i)
-      images.append(image)
+    for i, neuron in enumerate(indexes):
+      plt.subplot(num_rows, 3, i + 1)
+      # plot signal
+      plt.plot(signals[neuron], label='signal', alpha=0.6, color='dodgerblue')
+      # plot spike
+      x = np.nonzero(spikes[neuron])[0]
+      y = np.zeros(x.shape)
+      plt.scatter(x, y, s=200, marker='|', label='spike', color='orangered')
+
+      plt.legend(ncol=3, frameon=False, loc=(.04, .85))
+      plt.title('Neuron #{:03d}'.format(neuron))
+      plt.xlabel('Time (ms)')
+      axis = plt.gca()
+      axis.spines['top'].set_visible(False)
+      axis.spines['right'].set_visible(False)
+      axis.get_xaxis().tick_bottom()
+      axis.get_yaxis().tick_left()
+
+    plt.tight_layout()
+    images.append(self._plot_to_image())
+    plt.close()
 
     self.image(tag, values=tf.stack(images), step=step, training=training)
 
@@ -162,22 +166,23 @@ class Summary(object):
     images = []
 
     hist_kws = {
+        "rwidth": 0.85,
         "alpha": 0.6,
         "range":
         [min(min(data[0]), min(data[1])),
          max(max(data[0]), max(data[0]))]
     }
 
-    ax = sns.distplot(
+    sns.distplot(
         data[0],
-        bins=20,
+        bins=30,
         kde=False,
         hist_kws=hist_kws,
         color=self.real_color,
         label="Real")
     ax = sns.distplot(
         data[1],
-        bins=20,
+        bins=30,
         kde=False,
         hist_kws=hist_kws,
         color=self.fake_color,
@@ -357,15 +362,28 @@ class Summary(object):
         ax=g.ax_joint)
     ax.set(xlabel=xlabel, ylabel=ylabel)
 
+    hist_kws = {"rwidth": 0.85, "alpha": 0.6}
+
     sns.distplot(
-        real.x, kde=False, color=self.real_color, ax=g.ax_marg_x, bins=40)
+        real.x,
+        kde=False,
+        hist_kws=hist_kws,
+        color=self.real_color,
+        ax=g.ax_marg_x,
+        bins=40)
     ax = sns.distplot(
-        fake.x, kde=False, color=self.fake_color, ax=g.ax_marg_x, bins=40)
+        fake.x,
+        kde=False,
+        hist_kws=hist_kws,
+        color=self.fake_color,
+        ax=g.ax_marg_x,
+        bins=40)
     ax.set_xlabel('')
 
     sns.distplot(
         real.y,
         kde=False,
+        hist_kws=hist_kws,
         color=self.real_color,
         ax=g.ax_marg_y,
         bins=40,
@@ -373,6 +391,7 @@ class Summary(object):
     ax = sns.distplot(
         fake.y,
         kde=False,
+        hist_kws=hist_kws,
         color=self.fake_color,
         ax=g.ax_marg_y,
         bins=40,

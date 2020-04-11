@@ -12,6 +12,7 @@ np.random.seed(1234)
 tf.random.set_seed(1234)
 
 from gan.utils import utils
+from gan.utils import spike_helper
 from gan.models.registry import get_models
 from gan.utils.summary_helper import Summary
 from gan.utils.dataset_helper import get_dataset
@@ -141,11 +142,15 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
       fake_signals = gan.generate(test_noise, denorm=hparams.normalize)
       if hparams.fft:
         fake_signals = utils.ifft(fake_signals)
+      fake_signals = utils.set_array_format(
+          fake_signals[0], data_format='CW', hparams=hparams)
+      fake_spikes = spike_helper.deconvolve_signals(fake_signals)
       summary.plot_traces(
           'fake',
-          signals=fake_signals,
-          step=epoch,
+          fake_signals,
+          fake_spikes,
           indexes=hparams.focus_neurons,
+          step=epoch,
           training=False)
       if not hparams.skip_checkpoints:
         utils.save_models(hparams, gan, epoch)
