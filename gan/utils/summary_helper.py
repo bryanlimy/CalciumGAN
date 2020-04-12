@@ -167,7 +167,8 @@ class Summary(object):
                         training=False):
     images = []
 
-    plt.figure(figsize=(15, 8))
+    fig = plt.figure(figsize=(15, 10))
+    fig.patch.set_facecolor('white')
     ax = sns.distplot(
         data,
         kde=False,
@@ -192,6 +193,9 @@ class Summary(object):
                      training=False):
     assert type(data) == tuple
     images = []
+
+    fig = plt.figure(figsize=(15, 10))
+    fig.patch.set_facecolor('white')
 
     hist_kws = {
         "rwidth": 0.85,
