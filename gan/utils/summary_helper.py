@@ -102,6 +102,8 @@ class Summary(object):
       tf.summary.histogram(tag, values, step=step)
 
   def image(self, tag, values, step=0, training=True):
+    if type(values) == list:
+      values = tf.stack(values)
     writer = self._get_writer(training)
     with writer.as_default():
       tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
@@ -152,7 +154,7 @@ class Summary(object):
     images.append(self._plot_to_image())
     plt.close()
 
-    self.image(tag, values=tf.stack(images), step=step, training=training)
+    self.image(tag, values=images, step=step, training=training)
 
   def plot_distribution(self,
                         tag,
@@ -178,7 +180,7 @@ class Summary(object):
     images.append(self._plot_to_image())
     plt.close()
 
-    self.image(tag, values=tf.stack(images), step=step, training=training)
+    self.image(tag, values=images, step=step, training=training)
 
   def plot_histogram(self,
                      tag,
@@ -223,7 +225,7 @@ class Summary(object):
     images.append(self._plot_to_image())
     plt.close()
 
-    self.image(tag, values=tf.stack(images), step=step, training=training)
+    self.image(tag, values=images, step=step, training=training)
 
   def plot_histograms_grid(self,
                            tag,
@@ -280,36 +282,43 @@ class Summary(object):
     images.append(self._plot_to_image())
     plt.close()
 
-    self.image(tag, values=tf.stack(images), step=step, training=training)
+    self.image(tag, values=images, step=step, training=training)
 
-  def plot_heatmaps(self,
-                    tag,
-                    matrix,
-                    xlabel=None,
-                    ylabel=None,
-                    xticklabels='auto',
-                    yticklabels='auto',
-                    titles=None,
-                    step=0,
-                    training=False):
+  def plot_heatmaps_grid(self,
+                         tag,
+                         matrix,
+                         xlabel='',
+                         ylabel='',
+                         xticklabels='auto',
+                         yticklabels='auto',
+                         titles=None,
+                         step=0,
+                         training=False):
     assert type(matrix) == list and type(matrix[0]) == np.ndarray
     images = []
+
+    num_rows, rem = divmod(len(matrix), 3)
+    if rem > 0:
+      num_rows += 1
+
+    fig = plt.figure(figsize=(8 * num_rows, 8 * num_rows))
+    fig.patch.set_facecolor('white')
+
     for i in range(len(matrix)):
-      f, ax = plt.subplots(figsize=(8, 8))
+      plt.subplot(num_rows, 3, i + 1)
       ax = sns.heatmap(
           matrix[i],
           cmap='YlOrRd',
           xticklabels=xticklabels[i] if type(xticklabels) == list else 'auto',
           yticklabels=yticklabels[i] if type(xticklabels) == list else 'auto',
-          ax=ax)
-      if xlabel is not None and ylabel is not None:
-        ax.set(xlabel=xlabel, ylabel=ylabel)
-      if titles is not None:
-        ax.set_title(titles[i])
-      image = self._plot_to_image()
-      plt.close()
-      images.append(image)
-    self.image(tag, values=tf.stack(images), step=step, training=training)
+      )
+      ax.set(xlabel=xlabel, ylabel=ylabel, title=titles[i])
+
+    plt.tight_layout()
+    images.append(self._plot_to_image())
+    plt.close()
+
+    self.image(tag, values=images, step=step, training=training)
 
   def variable_summary(self, variable, name=None, step=0, training=True):
     if name is None:
@@ -356,6 +365,7 @@ class Summary(object):
                   title=None,
                   step=0,
                   training=True):
+    images = []
 
     real_x, real_y = np.nonzero(real_spikes)
     fake_x, fake_y = np.nonzero(fake_spikes)
@@ -435,9 +445,9 @@ class Summary(object):
         },
         loc='upper right')
 
-    image = self._plot_to_image()
+    plt.tight_layout()
+    images.append(self._plot_to_image())
     plt.close()
-    images = tf.expand_dims(image, axis=0)
 
     self.image(tag, values=images, step=step, training=training)
 

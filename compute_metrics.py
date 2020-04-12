@@ -524,7 +524,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     yticklabels.append(results[i]['yticklabels'])
     titles.append('Trial #{:03d}'.format(i))
 
-  summary.plot_heatmaps(
+  summary.plot_heatmaps_grid(
       'van_rossum_trial_heatmaps',
       heatmaps,
       xlabel='Fake neurons',
@@ -548,7 +548,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     yticklabels.append(results[i]['yticklabels'])
     titles.append('Neuron #{:03d}'.format(hparams.neurons[i]))
 
-  summary.plot_heatmaps(
+  summary.plot_heatmaps_grid(
       'van_rossum_neuron_heatmaps',
       heatmaps,
       xlabel='Fake trials',
@@ -566,7 +566,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   pool.close()
 
   summary.plot_histograms_grid(
-      'van_rossum_sample_histograms',
+      'van_rossum_trial_histograms',
       results,
       xlabel='Distance',
       ylabel='Count',
