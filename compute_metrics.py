@@ -331,7 +331,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       results,
       xlabel='Correlation',
       ylabel='Count',
-      titles=['trial #{:03d}'.format(i) for i in range(len(results))],
+      titles=['Trial #{:03d}'.format(i) for i in range(len(results))],
       step=epoch,
       training=False)
 
