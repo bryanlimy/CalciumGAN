@@ -23,20 +23,29 @@ class Summary(object):
   evaluation
   """
 
-  def __init__(self, hparams, policy=None):
+  def __init__(self, hparams, policy=None, spike_metrics=False):
     self._hparams = hparams
-    self._train_dir = hparams.output_dir
-    self._validation_dir = os.path.join(
-        os.path.join(hparams.output_dir, 'validation'))
-    self._profiler_dir = os.path.join(
-        os.path.join(hparams.output_dir, 'profiler'))
+    self.spike_metrics = spike_metrics
 
-    self.train_writer = tf.summary.create_file_writer(self._train_dir)
-    self.val_writer = tf.summary.create_file_writer(self._validation_dir)
+    if not spike_metrics:
+      self._train_dir = hparams.output_dir
+      self._validation_dir = os.path.join(
+          os.path.join(hparams.output_dir, 'validation'))
 
-    self._policy = policy
-    self._plot_weights = hparams.plot_weights
+      self._profiler_dir = os.path.join(
+          os.path.join(hparams.output_dir, 'profiler'))
 
+      self.train_writer = tf.summary.create_file_writer(self._train_dir)
+      self.val_writer = tf.summary.create_file_writer(self._validation_dir)
+
+      self._policy = policy
+      self._plot_weights = hparams.plot_weights
+    else:
+      # for spike metrics
+      self._metrics_dir = os.path.join(hparams.output_dir, 'metrics')
+      self.metrics_writer = tf.summary.create_file_writer(self._metrics_dir)
+
+    # output image dpi
     self._dpi = hparams.dpi
 
     # color for matplotlib
@@ -44,7 +53,10 @@ class Summary(object):
     self.fake_color = 'orangered'
 
   def _get_writer(self, training):
-    return self.train_writer if training else self.val_writer
+    if self.spike_metrics:
+      return self.metrics_writer
+    else:
+      return self.train_writer if training else self.val_writer
 
   def _get_loss_scale(self):
     return self._policy.loss_scale._current_loss_scale if self._policy else None

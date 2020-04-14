@@ -62,8 +62,7 @@ def raster_plots(hparams, summary, filename, epoch):
       xlabel='Time (ms)',
       ylabel='Neuron',
       title='Trial #001',
-      step=epoch,
-      training=False)
+      step=epoch)
 
   summary.raster_plot(
       'raster_plot_neuron',
@@ -72,8 +71,32 @@ def raster_plots(hparams, summary, filename, epoch):
       xlabel='Time (ms)',
       ylabel='Trial',
       title='Neuron #005',
-      step=epoch,
-      training=False)
+      step=epoch)
+
+
+def plot_signals(hparams, summary, filename, epoch):
+  real_signals = h5_helper.get(
+      hparams.validation_cache, name='signals', trial=0)
+  real_spikes = h5_helper.get(hparams.validation_cache, name='spikes', trial=0)
+
+  real_signals = utils.set_array_format(
+      real_signals, data_format='CW', hparams=hparams)
+  real_spikes = utils.set_array_format(
+      real_spikes, data_format='CW', hparams=hparams)
+
+  summary.plot_traces(
+      'real', real_signals, real_spikes, indexes=hparams.neurons, step=epoch)
+
+  fake_signals = h5_helper.get(filename, name='signals', trial=0)
+  fake_spikes = h5_helper.get(filename, name='spikes', trial=0)
+
+  fake_signals = utils.set_array_format(
+      fake_signals, data_format='CW', hparams=hparams)
+  fake_spikes = utils.set_array_format(
+      fake_spikes, data_format='CW', hparams=hparams)
+
+  summary.plot_traces(
+      'fake', fake_signals, fake_spikes, indexes=hparams.neurons, step=epoch)
 
 
 def get_neo_trains(hparams,
@@ -183,8 +206,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
   summary.scalar(
       'spike_metrics/firing_rate_error',
       np.mean(firing_rate_errors),
-      step=epoch,
-      training=False)
+      step=epoch)
 
   summary.plot_histograms_grid(
       'firing_rate_histograms',
@@ -192,8 +214,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       xlabel='Hz',
       ylabel='Count',
       titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons],
-      step=epoch,
-      training=False)
+      step=epoch)
 
   # get firing rate for all neurons
   pool = Pool(hparams.num_processors)
@@ -212,8 +233,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       ylabel='Count',
       title='KL divergence histogram of {} neurons'.format(
           len(firing_rate_pairs)),
-      step=epoch,
-      training=False)
+      step=epoch)
 
 
 def neuron_covariance(hparams, filename, neuron, num_trials):
@@ -243,10 +263,7 @@ def covariance_metrics(hparams, summary, filename, epoch):
   pool.close()
 
   summary.scalar(
-      'spike_metrics/neuron_covariance',
-      np.mean(results),
-      step=epoch,
-      training=False)
+      'spike_metrics/neuron_covariance', np.mean(results), step=epoch)
 
 
 def correlation_coefficient_error(hparams, filename, trial):
@@ -319,8 +336,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   summary.scalar(
       'spike_metrics/correlation_error',
       np.nanmean(results, dtype=np.float32),
-      step=epoch,
-      training=False)
+      step=epoch)
 
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
@@ -334,8 +350,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       xlabel='Correlation',
       ylabel='Count',
       titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
-      step=epoch,
-      training=False)
+      step=epoch)
 
   # compute mean trial-wise correlation histogram
   pool = Pool(hparams.num_processors)
@@ -351,8 +366,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       xlabel='Mean correlation',
       ylabel='Count',
       title='Mean correlation over {} trials'.format(len(results)),
-      step=epoch,
-      training=False)
+      step=epoch)
 
 
 def neuron_van_rossum_distance(hparams, filename, neuron, num_trials):
@@ -508,10 +522,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   pool.close()
 
   summary.scalar(
-      'spike_metrics/van_rossum_neuron',
-      np.mean(results),
-      step=epoch,
-      training=False)
+      'spike_metrics/van_rossum_neuron', np.mean(results), step=epoch)
 
   # # compute trial-wise van rossum heat-map
   # pool = Pool(hparams.num_processors)
@@ -534,8 +545,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   #     xticklabels=xticklabels,
   #     yticklabels=yticklabels,
   #     titles=titles,
-  #     step=epoch,
-  #     training=False)
+  #     step=epoch)
 
   # compute neuron-wise van rossum heat-map for 50 trials
   pool = Pool(hparams.num_processors)
@@ -558,8 +568,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       xticklabels=xticklabels,
       yticklabels=yticklabels,
       titles=titles,
-      step=epoch,
-      training=False)
+      step=epoch)
 
   # compute trial-wise van rossum distance histogram
   pool = Pool(hparams.num_processors)
@@ -573,8 +582,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       xlabel='Distance',
       ylabel='Count',
       titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
-      step=epoch,
-      training=False)
+      step=epoch)
 
   # compute neuron-wise van rossum distance histogram for 200 trials
   pool = Pool(hparams.num_processors)
@@ -588,13 +596,14 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       xlabel='Distance',
       ylabel='Count',
       titles=['Neuron #{:03d}'.format(i) for i in hparams.neurons],
-      step=epoch,
-      training=False)
+      step=epoch)
 
 
 def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
   if not h5_helper.contains(filename, 'spikes'):
     deconvolve_from_file(hparams, filename)
+
+  plot_signals(hparams, summary, filename, epoch)
 
   raster_plots(hparams, summary, filename, epoch)
 
@@ -615,15 +624,16 @@ def main(hparams):
   utils.load_hparams(hparams)
   info = load_info(hparams)
 
-  hparams.neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13
-                    ] if hparams.specific_neurons else list(
-                        np.random.choice(hparams.num_neurons, 6))
-
   hparams.num_samples = h5_helper.get_dataset_length(hparams.validation_cache,
                                                      'signals')
-  hparams.trials = list(np.random.choice(hparams.num_samples, 3))
 
-  summary = Summary(hparams)
+  # randomly select neurons and trials to plot
+  hparams.neurons = list(
+      np.random.choice(hparams.num_neurons, hparams.num_neurons_plot))
+  hparams.trials = list(
+      np.random.choice(hparams.num_samples, hparams.num_trials_plot))
+
+  summary = Summary(hparams, spike_metrics=True)
 
   epochs = sorted(list(info.keys()))
 
@@ -639,8 +649,7 @@ def main(hparams):
         hparams, summary, filename=info[epoch]['filename'], epoch=epoch)
     end = time()
 
-    summary.scalar(
-        'elapse/spike_metrics', end - start, step=epoch, training=False)
+    summary.scalar('elapse/spike_metrics', end - start, step=epoch)
 
     print('{} took {:.02f} mins'.format(info[epoch]['filename'],
                                         (end - start) / 60))
@@ -650,8 +659,9 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--num_processors', default=6, type=int)
-  parser.add_argument('--specific_neurons', action='store_true')
   parser.add_argument('--all_epochs', action='store_true')
+  parser.add_argument('--num_neurons_plot', default=6, type=int)
+  parser.add_argument('--num_trials_plot', default=6, type=int)
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
