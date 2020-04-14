@@ -323,7 +323,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
   results = pool.starmap(correlation_coefficient_trial_histogram,
-                         [(hparams, filename, i) for i in range(9)])
+                         [(hparams, filename, i) for i in hparams.trials])
   pool.close()
 
   summary.plot_histograms_grid(
@@ -331,7 +331,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       results,
       xlabel='Correlation',
       ylabel='Count',
-      titles=['Trial #{:03d}'.format(i) for i in range(len(results))],
+      titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
       step=epoch,
       training=False)
 
@@ -511,29 +511,29 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       step=epoch,
       training=False)
 
-  # compute trial-wise van rossum heat-map
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(van_rossum_trial_heatmap,
-                         [(hparams, filename, i) for i in range(12)])
-  pool.close()
-
-  heatmaps, xticklabels, yticklabels, titles = [], [], [], []
-  for i in range(len(results)):
-    heatmaps.append(results[i]['heatmap'])
-    xticklabels.append(results[i]['xticklabels'])
-    yticklabels.append(results[i]['yticklabels'])
-    titles.append('Trial #{:03d}'.format(i))
-
-  summary.plot_heatmaps_grid(
-      'van_rossum_trial_heatmaps',
-      heatmaps,
-      xlabel='Fake neurons',
-      ylabel='Real neurons',
-      xticklabels=xticklabels,
-      yticklabels=yticklabels,
-      titles=titles,
-      step=epoch,
-      training=False)
+  # # compute trial-wise van rossum heat-map
+  # pool = Pool(hparams.num_processors)
+  # results = pool.starmap(van_rossum_trial_heatmap,
+  #                        [(hparams, filename, i) for i in range(6)])
+  # pool.close()
+  #
+  # heatmaps, xticklabels, yticklabels, titles = [], [], [], []
+  # for i in range(len(results)):
+  #   heatmaps.append(results[i]['heatmap'])
+  #   xticklabels.append(results[i]['xticklabels'])
+  #   yticklabels.append(results[i]['yticklabels'])
+  #   titles.append('Trial #{:03d}'.format(i))
+  #
+  # summary.plot_heatmaps_grid(
+  #     'van_rossum_trial_heatmaps',
+  #     heatmaps,
+  #     xlabel='Fake neurons',
+  #     ylabel='Real neurons',
+  #     xticklabels=xticklabels,
+  #     yticklabels=yticklabels,
+  #     titles=titles,
+  #     step=epoch,
+  #     training=False)
 
   # compute neuron-wise van rossum heat-map for 50 trials
   pool = Pool(hparams.num_processors)
@@ -562,7 +562,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   # compute trial-wise van rossum distance histogram
   pool = Pool(hparams.num_processors)
   results = pool.starmap(van_rossum_trial_histogram,
-                         [(hparams, filename, i) for i in range(9)])
+                         [(hparams, filename, i) for i in hparams.trials])
   pool.close()
 
   summary.plot_histograms_grid(
@@ -570,7 +570,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       results,
       xlabel='Distance',
       ylabel='Count',
-      titles=['Trial #{:03d}'.format(i) for i in range(len(results))],
+      titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
       step=epoch,
       training=False)
 
@@ -613,10 +613,13 @@ def main(hparams):
   utils.load_hparams(hparams)
   info = load_info(hparams)
 
-  if hparams.all_neurons:
-    hparams.neurons = list(range(hparams.num_neurons))
-  else:
-    hparams.neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
+  hparams.neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13
+                    ] if hparams.specific_neurons else list(
+                        np.random.choice(hparams.num_neurons, 6))
+
+  hparams.num_samples = h5_helper.get_dataset_length(hparams.validation_cache,
+                                                     'signals')
+  hparams.trials = list(np.random.choice(hparams.num_samples, 3))
 
   summary = Summary(hparams)
 
@@ -645,7 +648,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--num_processors', default=6, type=int)
-  parser.add_argument('--all_neurons', action='store_true')
+  parser.add_argument('--specific_neurons', action='store_true')
   parser.add_argument('--all_epochs', action='store_true')
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)

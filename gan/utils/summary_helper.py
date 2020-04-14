@@ -234,17 +234,24 @@ class Summary(object):
   def plot_histograms_grid(self,
                            tag,
                            data,
-                           xlabel=None,
-                           ylabel=None,
-                           titles=None,
+                           xlabel,
+                           ylabel,
+                           titles,
                            step=0,
                            training=False):
     assert type(data) == list and type(data[0]) == tuple
     images = []
 
-    f, axes = plt.subplots(3, 3, figsize=(15, 15))
-    i, row, col = 0, 0, 0
-    while i < 9:
+    num_rows, rem = divmod(len(data), 3)
+    if rem > 0:
+      num_rows += 1
+
+    fig = plt.figure(figsize=(32, 8 * num_rows))
+    fig.patch.set_facecolor('white')
+
+    for i in range(len(data)):
+      plt.subplot(num_rows, 3, i + 1)
+
       real, fake = data[i]
 
       hist_kws = {
@@ -260,27 +267,17 @@ class Summary(object):
           kde=False,
           hist_kws=hist_kws,
           color=self.real_color,
-          label="Real",
-          ax=axes[row, col])
+          label="Real")
       ax = sns.distplot(
           fake,
           bins=30,
           kde=False,
           hist_kws=hist_kws,
           color=self.fake_color,
-          label="Fake",
-          ax=axes[row, col])
+          label="Fake")
 
       ax.legend()
-
-      if xlabel and ylabel and titles:
-        ax.set(xlabel=xlabel, ylabel=ylabel, title=titles[i])
-
-      col += 1
-      if col == 3:
-        row += 1
-        col = 0
-      i += 1
+      ax.set(xlabel=xlabel, ylabel=ylabel, title=titles[i])
 
     plt.tight_layout()
     images.append(self._plot_to_image())
@@ -305,7 +302,7 @@ class Summary(object):
     if rem > 0:
       num_rows += 1
 
-    fig = plt.figure(figsize=(8 * num_rows, 8 * num_rows))
+    fig = plt.figure(figsize=(30, 10 * num_rows))
     fig.patch.set_facecolor('white')
 
     for i in range(len(matrix)):
