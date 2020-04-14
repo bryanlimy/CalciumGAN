@@ -10,7 +10,6 @@ from time import time
 from multiprocessing import Pool
 
 np.random.seed(1234)
-tf.random.set_seed(1234)
 
 # use CPU only
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
