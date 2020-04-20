@@ -615,7 +615,12 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
       step=epoch)
 
-  kl = firing_rate_kl(results)
+  # compute trial-wise van rossum distance KL divergence
+  pool = Pool(hparams.num_processors)
+  van_rossum_pairs = pool.starmap(van_rossum_trial_histogram,
+                                  [(hparams, filename, i) for i in range(200)])
+  pool.close()
+  kl = firing_rate_kl(van_rossum_pairs)
 
   summary.plot_distribution(
       'van_rossum_trial_kl_histogram',
