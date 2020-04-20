@@ -7,19 +7,23 @@ from tensorflow.keras import layers
 from .utils import activation_fn, Conv1DTranspose
 
 
-@register('wavegan')
+@register('wavegan_2d')
 def get_wavegan(hparams):
   return generator(hparams), discriminator(hparams)
 
 
 def calculate_noise_shape(output_shape, noise_dim, num_convolutions, strides):
-  w = output_shape[0] / (strides**num_convolutions)
+  w = output_shape[0] / (strides[0]**num_convolutions)
   if not w.is_integer():
-    raise ValueError('Conv1D: w {} is not an integer.'.format(w))
-  return (int(w), noise_dim)
+    raise ValueError('Conv2D: w {} is not an integer.'.format(w))
+  return (int(w), output_shape[1] // 2, noise_dim)
 
 
-def generator(hparams, filters=32, kernel_size=16, strides=2, padding='same'):
+def generator(hparams,
+              filters=32,
+              kernel_size=(16, 16),
+              strides=(4, 1),
+              padding='same'):
   shape = calculate_noise_shape(
       output_shape=hparams.signal_shape,
       noise_dim=hparams.noise_dim,
@@ -34,39 +38,61 @@ def generator(hparams, filters=32, kernel_size=16, strides=2, padding='same'):
   outputs = layers.Reshape(shape)(outputs)
 
   # Layer 1
-  outputs = Conv1DTranspose(
-      filters * 5, kernel_size, strides, padding=padding)(outputs)
+  outputs = layers.Conv2DTranspose(
+      filters,
+      kernel_size=kernel_size,
+      strides=(4, 1),
+      padding=padding,
+  )(outputs)
   if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 2
-  outputs = Conv1DTranspose(
-      filters * 4, kernel_size, strides, padding=padding)(outputs)
+  outputs = layers.Conv2DTranspose(
+      filters,
+      kernel_size=kernel_size,
+      strides=(4, 1),
+      padding=padding,
+  )(outputs)
   if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 3
-  outputs = Conv1DTranspose(
-      filters * 3, kernel_size, strides, padding=padding)(outputs)
+  outputs = layers.Conv2DTranspose(
+      filters,
+      kernel_size=kernel_size,
+      strides=(4, 2),
+      padding=padding,
+  )(outputs)
   if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 4
-  outputs = Conv1DTranspose(
-      filters * 2, kernel_size, strides, padding=padding)(outputs)
+  outputs = layers.Conv2DTranspose(
+      filters,
+      kernel_size=kernel_size,
+      strides=(4, 1),
+      padding=padding,
+  )(outputs)
   if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 5
-  outputs = Conv1DTranspose(
-      hparams.num_channels, kernel_size, strides, padding=padding)(outputs)
+  outputs = layers.Conv2DTranspose(
+      1,
+      kernel_size=kernel_size,
+      strides=(4, 1),
+      padding=padding,
+  )(outputs)
   if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
+
+  outputs = tf.squeeze(outputs, axis=-1)
 
   outputs = layers.Dense(hparams.num_channels)(outputs)
 
@@ -93,62 +119,88 @@ class PhaseShuffle(layers.Layer):
     if self.shuffle == 0:
       return inputs
 
-    phase = tf.random.uniform([],
-                              minval=-self.shuffle,
-                              maxval=self.shuffle + 1,
-                              dtype=tf.int32)
-    left_pad = tf.maximum(phase, 0)
-    right_pad = tf.maximum(-phase, 0)
+    w_phase = tf.random.uniform([],
+                                minval=-self.shuffle,
+                                maxval=self.shuffle + 1,
+                                dtype=tf.int32)
+    w_left_pad = tf.maximum(w_phase, 0)
+    w_right_pad = tf.maximum(-w_phase, 0)
+
+    c_phase = tf.random.uniform([],
+                                minval=-self.shuffle,
+                                maxval=self.shuffle + 1,
+                                dtype=tf.int32)
+    c_left_pad = tf.maximum(c_phase, 0)
+    c_right_pad = tf.maximum(-c_phase, 0)
 
     outputs = tf.pad(
         inputs,
-        paddings=[[0, 0], [left_pad, right_pad], [0, 0]],
+        paddings=[[0, 0], [w_left_pad, w_right_pad], [c_left_pad, c_right_pad],
+                  [0, 0]],
         mode=self.mode)
 
-    outputs = outputs[:, right_pad:right_pad + self.shape[1]]
+    outputs = outputs[:, w_right_pad:w_right_pad +
+                      self.shape[1], c_right_pad:c_right_pad + self.shape[2], :]
     return tf.ensure_shape(outputs, shape=self.shape)
 
 
 def discriminator(hparams,
                   filters=32,
-                  kernel_size=16,
-                  strides=2,
+                  kernel_size=(16, 16),
+                  strides=(4, 1),
                   padding='same',
                   shuffle=2):
   inputs = tf.keras.Input(hparams.signal_shape, name='signals')
 
+  outputs = tf.expand_dims(inputs, axis=-1)
+
   # Layer 1
-  outputs = layers.Conv1D(
-      filters, kernel_size=kernel_size, strides=strides,
-      padding=padding)(inputs)
+  outputs = layers.Conv2D(
+      filters,
+      kernel_size=kernel_size,
+      strides=strides,
+      padding=padding,
+  )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = PhaseShuffle(outputs.shape, shuffle=shuffle)(outputs)
 
   # Layer 2
-  outputs = layers.Conv1D(
-      filters * 2, kernel_size=kernel_size, strides=strides,
-      padding=padding)(outputs)
+  outputs = layers.Conv2D(
+      filters,
+      kernel_size=kernel_size,
+      strides=strides,
+      padding=padding,
+  )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = PhaseShuffle(outputs.shape, shuffle=shuffle)(outputs)
 
   # Layer 3
-  outputs = layers.Conv1D(
-      filters * 3, kernel_size=kernel_size, strides=strides,
-      padding=padding)(outputs)
+  outputs = layers.Conv2D(
+      filters,
+      kernel_size=kernel_size,
+      strides=strides,
+      padding=padding,
+  )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = PhaseShuffle(outputs.shape, shuffle=shuffle)(outputs)
 
   # Layer 4
-  outputs = layers.Conv1D(
-      filters * 4, kernel_size=kernel_size, strides=strides,
-      padding=padding)(outputs)
+  outputs = layers.Conv2D(
+      filters,
+      kernel_size=kernel_size,
+      strides=strides,
+      padding=padding,
+  )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = PhaseShuffle(outputs.shape, shuffle=shuffle)(outputs)
 
   # Layer 5
-  outputs = layers.Conv1D(
-      filters * 5, kernel_size=kernel_size, strides=strides,
-      padding=padding)(outputs)
+  outputs = layers.Conv2D(
+      filters,
+      kernel_size=kernel_size,
+      strides=strides,
+      padding=padding,
+  )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   outputs = layers.Flatten()(outputs)

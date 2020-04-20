@@ -8,29 +8,31 @@ import tensorflow as tf
 from . import utils
 from . import h5_helper
 
-AUTOTUNE = tf.data.experimental.AUTOTUNE
-
 
 def cache_validation_set(hparams, validation_ds):
   ''' Cache validation set as pickles for faster spike metrics evaluation '''
-  for signal, spike in tqdm(
-      validation_ds,
-      desc='Cache validation set',
-      disable=not bool(hparams.verbose)):
+  if os.path.exists(hparams.validation_cache):
+    return
 
-    signal, spike = signal.numpy(), spike.numpy()
+  with tf.device('/CPU:0'):
+    for signal, spike in tqdm(
+        validation_ds,
+        desc='Cache validation set',
+        disable=not bool(hparams.verbose)):
 
-    if hparams.normalize:
-      signal = utils.denormalize(
-          signal, x_min=hparams.signals_min, x_max=hparams.signals_max)
+      signal, spike = signal.numpy(), spike.numpy()
 
-    if hparams.fft:
-      signal = utils.ifft(signal)
+      if hparams.normalize:
+        signal = utils.denormalize(
+            signal, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
-    h5_helper.write(hparams.validation_cache, {
-        'signals': signal.astype(np.float32),
-        'spikes': spike.astype(np.int8)
-    })
+      if hparams.fft:
+        signal = utils.ifft(signal)
+
+      h5_helper.write(hparams.validation_cache, {
+          'signals': signal.astype(np.float32),
+          'spikes': spike.astype(np.int8)
+      })
 
 
 def plot_real_signals(hparams, summary, validation_ds):
@@ -51,8 +53,8 @@ def plot_real_signals(hparams, summary, validation_ds):
 
   summary.plot_traces(
       'real',
-      signals=signals,
-      spikes=spikes,
+      signals,
+      spikes,
       indexes=hparams.focus_neurons,
       step=0,
       training=False)
@@ -74,7 +76,7 @@ def get_fashion_mnist(hparams):
   train_ds = tf.data.Dataset.from_tensor_slices(x_train)
   train_ds = train_ds.shuffle(buffer_size=2048)
   train_ds = train_ds.batch(hparams.batch_size)
-  train_ds = train_ds.prefetch(tf.data.experimental.AUTOTUNE)
+  train_ds = train_ds.prefetch(2)
 
   eval_ds = tf.data.Dataset.from_tensor_slices(x_test)
   eval_ds = eval_ds.batch(hparams.batch_size)
@@ -139,6 +141,7 @@ def get_calcium_signals(hparams):
   train_ds = train_files.interleave(
       tf.data.TFRecordDataset, num_parallel_calls=1)
   train_ds = train_ds.map(_parse_example, num_parallel_calls=2)
+  train_ds = train_ds.cache()
   train_ds = train_ds.shuffle(hparams.buffer_size)
   train_ds = train_ds.batch(hparams.batch_size)
   train_ds = train_ds.prefetch(4)

@@ -12,19 +12,20 @@ def get_rnn(hparams):
   return generator(hparams), discriminator(hparams)
 
 
-def calculate_input_config(sequence_length, noise_dim, upscale, num_layers):
-  num_step = sequence_length / (upscale**(num_layers - 1))
-  assert num_step.is_integer()
-  return (int(num_step), noise_dim), int(num_step) * noise_dim
+def calculate_input_config(output_shape, noise_dim, upscale, num_layers):
+  w = output_shape[0] / (upscale**(num_layers - 1))
+  assert w.is_integer()
+  return (int(w), noise_dim)
 
 
 def generator(hparams, units=64, upscale=4):
+  shape = calculate_input_config(
+      hparams.signal_shape, hparams.noise_dim, upscale, num_layers=2)
+  noise_size = int(np.prod(shape))
+
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  shape, size = calculate_input_config(
-      hparams.sequence_length, hparams.noise_dim, upscale, num_layers=2)
-
-  outputs = layers.Dense(np.prod(shape))(inputs)
+  outputs = layers.Dense(noise_size)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Reshape(shape)(outputs)
 
@@ -58,7 +59,7 @@ def generator(hparams, units=64, upscale=4):
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
 
-def discriminator(hparams, units=64):
+def discriminator(hparams, units=64, pool_size=4):
   inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
   outputs = layers.GRU(
@@ -69,7 +70,7 @@ def discriminator(hparams, units=64):
       return_sequences=True,
       time_major=False)(inputs)
 
-  outputs = layers.AveragePooling1D(pool_size=4)(outputs)
+  outputs = layers.AveragePooling1D(pool_size=pool_size)(outputs)
 
   outputs = layers.GRU(
       units,

@@ -7,13 +7,28 @@ from tensorflow.keras import layers
 from .utils import activation_fn
 
 
-@register('mlp')
-def get_models(hparams):
+@register('conv2d')
+def get_conv2d(hparams):
   return generator(hparams), discriminator(hparams)
 
 
-def generator(hparams, units=64):
-  shape = (hparams.sequence_length, hparams.noise_dim)
+def calculate_noise_shape(output_shape, noise_dim, num_convolutions, strides):
+  w = output_shape[0] / (strides[0]**num_convolutions)
+  if not w.is_integer():
+    raise ValueError('Conv2D: w {} is not an integer.'.format(w))
+  return (int(w), output_shape[1] // 2, noise_dim)
+
+
+def generator(hparams,
+              filters=32,
+              kernel_size=(16, 16),
+              strides=(4, 1),
+              padding='same'):
+  shape = calculate_noise_shape(
+      output_shape=hparams.signal_shape,
+      noise_dim=hparams.noise_dim,
+      num_convolutions=3,
+      strides=strides)
   noise_size = int(np.prod(shape))
 
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
@@ -23,25 +38,39 @@ def generator(hparams, units=64):
   outputs = layers.Reshape(shape)(outputs)
 
   # Layer 1
-  outputs = layers.Dense(units)(outputs)
+  outputs = layers.Conv2DTranspose(
+      filters,
+      kernel_size=kernel_size,
+      strides=(4, 1),
+      padding=padding,
+  )(outputs)
   if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 2
-  outputs = layers.Dense(units * 2)(outputs)
+  outputs = layers.Conv2DTranspose(
+      filters,
+      kernel_size=kernel_size,
+      strides=(4, 2),
+      padding=padding,
+  )(outputs)
   if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 3
-  outputs = layers.Dense(units * 3)(outputs)
+  outputs = layers.Conv2DTranspose(
+      1,
+      kernel_size=kernel_size,
+      strides=(4, 1),
+      padding=padding,
+  )(outputs)
   if not hparams.no_batch_norm:
     outputs = layers.BatchNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = layers.Dropout(hparams.dropout)(outputs)
+
+  outputs = tf.squeeze(outputs, axis=-1)
 
   outputs = layers.Dense(hparams.num_channels)(outputs)
 
@@ -53,26 +82,42 @@ def generator(hparams, units=64):
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
 
-def discriminator(hparams, units=64):
-  inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
+def discriminator(hparams,
+                  filters=32,
+                  kernel_size=(16, 16),
+                  strides=(4, 1),
+                  padding='same'):
+  inputs = tf.keras.Input(hparams.signal_shape, name='signals')
+
+  outputs = tf.expand_dims(inputs, axis=-1)
 
   # Layer 1
-  outputs = layers.Dense(units * 4)(inputs)
+  outputs = layers.Conv2D(
+      filters,
+      kernel_size=kernel_size,
+      strides=strides,
+      padding=padding,
+  )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 2
-  outputs = layers.Dense(units * 3)(outputs)
+  outputs = layers.Conv2D(
+      filters,
+      kernel_size=kernel_size,
+      strides=strides,
+      padding=padding,
+  )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 3
-  outputs = layers.Dense(units * 2)(outputs)
-  outputs = activation_fn(hparams.activation)(outputs)
-  outputs = layers.Dropout(hparams.dropout)(outputs)
-
-  # Layer 4
-  outputs = layers.Dense(units)(outputs)
+  outputs = layers.Conv2D(
+      filters,
+      kernel_size=kernel_size,
+      strides=strides,
+      padding=padding,
+  )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 

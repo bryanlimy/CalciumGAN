@@ -12,6 +12,14 @@ class Optimizer(object):
           optimizer, loss_scale='dynamic')
     self.optimizer = optimizer
 
+  @property
+  def iterations(self):
+    return self.optimizer.iterations
+
+  @iterations.setter
+  def iterations(self, value):
+    self.optimizer.iterations = value
+
   def get_scaled_loss(self, loss):
     return self.optimizer.get_scaled_loss(
         loss) if self._mixed_precision else loss

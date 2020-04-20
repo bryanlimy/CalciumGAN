@@ -25,4 +25,9 @@ def get_models(hparams, summary):
   summary.scalar('model/trainable_parameters/discriminator',
                  count_trainable_params(discriminator))
 
+  if hparams.verbose:
+    generator.summary()
+    print('')
+    discriminator.summary()
+
   return generator, discriminator

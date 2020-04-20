@@ -47,10 +47,19 @@ def get_current_git_hash():
                                   '--always']).strip().decode()
 
 
-def store_hparams(hparams):
+def save_hparams(hparams):
   hparams.git_hash = get_current_git_hash()
   with open(os.path.join(hparams.output_dir, 'hparams.json'), 'w') as file:
     json.dump(hparams.__dict__, file)
+
+
+def load_hparams(hparams):
+  filename = os.path.join(hparams.output_dir, 'hparams.json')
+  with open(filename, 'r') as file:
+    content = json.load(file)
+  for key, value in content.items():
+    if not hasattr(hparams, key):
+      setattr(hparams, key, value)
 
 
 def swap_neuron_major(hparams, array):
@@ -88,33 +97,42 @@ def save_fake_signals(hparams, epoch, signals):
 
 
 def save_models(hparams, gan, epoch):
-  ckpt_dir = os.path.join(hparams.output_dir, 'checkpoints')
-  if not os.path.exists(ckpt_dir):
-    os.makedirs(ckpt_dir)
-  filename = os.path.join(ckpt_dir, 'epoch-{:03d}.pkl'.format(epoch))
+  if not os.path.exists(hparams.ckpt_dir):
+    os.makedirs(hparams.ckpt_dir)
+  filename = os.path.join(hparams.ckpt_dir, 'epoch-{:03d}.pkl'.format(epoch))
 
   with open(filename, 'wb') as file:
-    pickle.dump({
+    content = {
         'epoch': epoch,
-        'generator_weights': gan.generator.get_weights(),
-        'discriminator_weights': gan.discriminator.get_weights()
-    }, file)
+        'gen_weights': gan.generator.get_weights(),
+        'dis_weights': gan.discriminator.get_weights(),
+        'gen_steps': gan.gen_optimizer.iterations,
+        'dis_steps': gan.dis_optimizer.iterations
+    }
+    pickle.dump(content, file)
 
   if hparams.verbose:
     print('Saved checkpoint to {}'.format(filename))
 
 
-def load_models(hparams, generator, discriminator):
-  ckpts = glob(os.path.join(hparams.output_dir, 'checkpoints', 'epoch-*'))
-  if ckpts:
-    ckpts.sort()
-    filename = ckpts[-1]
+def load_models(hparams, gan):
+  if not hasattr(hparams, 'ckpt_dir'):
+    hparams.ckpt_dir = os.path.join(hparams.output_dir, 'checkpoints')
+
+  hparams.start_epoch = 0
+  filenames = glob(os.path.join(hparams.ckpt_dir, 'epoch-*'))
+  if filenames:
+    filename = sorted(filenames)[-1]
     with open(filename, 'rb') as file:
       ckpt = pickle.load(file)
-    generator.set_weights(ckpt['generator_weights'])
-    discriminator.set_weights(ckpt['discriminator_weights'])
+    hparams.start_epoch = ckpt['epoch'] + 1
+    gan.generator.set_weights(ckpt['gen_weights'])
+    gan.discriminator.set_weights(ckpt['dis_weights'])
+    gan.gen_optimizer.iterations = ckpt['gen_steps']
+    gan.dis_optimizer.iterations = ckpt['dis_steps']
+
     if hparams.verbose:
-      print('Restored checkpoint at {}'.format(filename))
+      print('\n\nRestored checkpoint at {}\n\n'.format(filename))
 
 
 def get_array_format(shape, hparams):

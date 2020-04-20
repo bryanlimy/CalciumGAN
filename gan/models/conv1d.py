@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 
-from .utils import activation_fn, calculate_input_config, Conv1DTranspose
+from .utils import activation_fn, Conv1DTranspose
 
 
 @register('conv1d')
@@ -12,18 +12,24 @@ def get_conv1d(hparams):
   return generator(hparams), discriminator(hparams)
 
 
-def generator(hparams, filters=32, kernel_size=4, strides=2, padding='same'):
+def calculate_noise_shape(output_shape, noise_dim, num_convolutions, strides):
+  w = output_shape[0] / (strides**num_convolutions)
+  if not w.is_integer():
+    raise ValueError('Conv1D: w {} is not an integer.'.format(w))
+  return (int(w), noise_dim)
+
+
+def generator(hparams, filters=32, kernel_size=16, strides=2, padding='same'):
+  shape = calculate_noise_shape(
+      output_shape=hparams.signal_shape,
+      noise_dim=hparams.noise_dim,
+      num_convolutions=3,
+      strides=strides)
+  noise_size = int(np.prod(shape))
+
   inputs = tf.keras.Input(shape=hparams.noise_shape, name='inputs')
 
-  shape, num_units = calculate_input_config(
-      output=hparams.sequence_length,
-      noise_dim=hparams.noise_dim,
-      num_convolution=3,
-      kernel_size=kernel_size,
-      strides=strides,
-      padding=padding)
-
-  outputs = layers.Dense(num_units)(inputs)
+  outputs = layers.Dense(noise_size)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Reshape(shape)(outputs)
 
@@ -58,7 +64,10 @@ def generator(hparams, filters=32, kernel_size=4, strides=2, padding='same'):
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
 
-def discriminator(hparams, filters=32, kernel_size=4, strides=2,
+def discriminator(hparams,
+                  filters=32,
+                  kernel_size=16,
+                  strides=2,
                   padding='same'):
   inputs = tf.keras.Input(hparams.signal_shape, name='signals')
 

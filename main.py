@@ -12,6 +12,7 @@ np.random.seed(1234)
 tf.random.set_seed(1234)
 
 from gan.utils import utils
+from gan.utils import spike_helper
 from gan.models.registry import get_models
 from gan.utils.summary_helper import Summary
 from gan.utils.dataset_helper import get_dataset
@@ -30,7 +31,7 @@ def set_precision_policy(hparams):
 
 
 def train(hparams, train_ds, gan, summary, epoch):
-  gen_losses, dis_losses = [], []
+  gen_losses, dis_losses, gradient_penalties = [], [], []
   batch_count = 0
 
   start = time()
@@ -50,32 +51,37 @@ def train(hparams, train_ds, gan, summary, epoch):
     if hparams.profile and batch_count == 6 and epoch == 1:
       summary.profiler_export()
 
-    # log training progress every 200 steps
-    if hparams.global_step % 200 == 0:
-      summary.log(
-          gen_loss,
-          dis_loss,
-          gradient_penalty,
-          metrics=metrics,
-          gan=gan,
-          training=True)
-
     gen_losses.append(gen_loss)
     dis_losses.append(dis_loss)
+    if gradient_penalty is not None:
+      gradient_penalties.append(gradient_penalty)
 
     hparams.global_step += 1
     batch_count += 1
 
   end = time()
 
-  summary.scalar('elapse', end - start, training=True)
+  gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
 
-  return np.mean(gen_losses), np.mean(dis_losses)
+  summary.log(
+      gen_loss,
+      dis_loss,
+      np.mean(gradient_penalties) if gradient_penalties else None,
+      elapse=end - start,
+      gan=gan,
+      step=epoch,
+      training=True)
+
+  return gen_loss, dis_loss
 
 
 def validate(hparams, validation_ds, gan, summary, epoch):
   gen_losses, dis_losses, gradient_penalties, results = [], [], [], {}
 
+  save_generated = (hparams.save_generated == 'all' and
+                    (epoch % 10 == 0 or epoch == hparams.epochs - 1)) or (
+                        hparams.save_generated == 'last' and
+                        epoch == hparams.epochs - 1)
   start = time()
 
   for signal, _ in tqdm(
@@ -95,12 +101,10 @@ def validate(hparams, validation_ds, gan, summary, epoch):
         results[key] = []
       results[key].append(item)
 
-    if hparams.save_generated and (epoch % hparams.save_generated_freq == 0 or
-                                   epoch == hparams.epochs - 1):
+    if save_generated:
       utils.save_fake_signals(hparams, epoch, signals=fake)
 
   gen_loss, dis_loss = np.mean(gen_losses), np.mean(dis_losses)
-  gradient_penalty = np.mean(gradient_penalties) if gradient_penalties else None
   results = {key: np.mean(item) for key, item in results.items()}
 
   end = time()
@@ -108,9 +112,10 @@ def validate(hparams, validation_ds, gan, summary, epoch):
   summary.log(
       gen_loss,
       dis_loss,
-      gradient_penalty,
+      np.mean(gradient_penalties) if gradient_penalties else None,
       metrics=results,
       elapse=end - start,
+      step=epoch,
       training=False)
 
   return gen_loss, dis_loss
@@ -120,7 +125,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
   # noise to test generator and plot to TensorBoard
   test_noise = gan.get_noise(batch_size=1)
 
-  for epoch in range(hparams.epochs):
+  for epoch in range(hparams.start_epoch, hparams.epochs):
     if hparams.verbose:
       print('Epoch {:03d}/{:03d}'.format(epoch, hparams.epochs))
 
@@ -137,13 +142,17 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
       fake_signals = gan.generate(test_noise, denorm=hparams.normalize)
       if hparams.fft:
         fake_signals = utils.ifft(fake_signals)
+      fake_signals = utils.set_array_format(
+          fake_signals[0], data_format='CW', hparams=hparams)
+      fake_spikes = spike_helper.deconvolve_signals(fake_signals)
       summary.plot_traces(
           'fake',
-          signals=fake_signals,
-          step=epoch,
+          fake_signals,
+          fake_spikes,
           indexes=hparams.focus_neurons,
+          step=epoch,
           training=False)
-      if hparams.save_checkpoints:
+      if not hparams.skip_checkpoints:
         utils.save_models(hparams, gan, epoch)
 
     end = time()
@@ -186,16 +195,11 @@ def main(hparams, return_metrics=False):
 
   generator, discriminator = get_models(hparams, summary)
 
-  if hparams.verbose:
-    generator.summary()
-    print('')
-    discriminator.summary()
-
-  utils.store_hparams(hparams)
-
-  utils.load_models(hparams, generator, discriminator)
+  utils.save_hparams(hparams)
 
   gan = get_algorithm(hparams, generator, discriminator, summary)
+
+  utils.load_models(hparams, gan)
 
   start = time()
 
@@ -234,14 +238,15 @@ if __name__ == '__main__':
       type=int,
       help='number of steps between each generator update')
   parser.add_argument('--clear_output_dir', action='store_true')
-  parser.add_argument('--save_generated', action='store_true')
-  parser.add_argument('--save_generated_freq', default=10, type=int)
+  parser.add_argument(
+      '--save_generated', default="", choices=["", "last", "all"], type=str)
   parser.add_argument('--plot_weights', action='store_true')
-  parser.add_argument('--save_checkpoints', action='store_true')
+  parser.add_argument('--skip_checkpoints', action='store_true')
   parser.add_argument('--mixed_precision', action='store_true')
   parser.add_argument(
       '--profile', action='store_true', help='enable TensorBoard profiling')
   parser.add_argument('--focus_neurons', action='store_true')
+  parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 
