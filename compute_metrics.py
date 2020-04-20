@@ -121,6 +121,15 @@ def mse(x, y):
   return np.nanmean(np.square(x - y), dtype=np.float32)
 
 
+def kl_divergence(p, q):
+  return np.sum(
+      np.where(
+          np.logical_or(np.equal(p, 0), np.equal(q, 0)),
+          0,
+          p * np.log(p / q),
+      ))
+
+
 def firing_rate_neuron(hparams, filename, neuron):
   if hparams.verbose == 2:
     print('\tComputing firing rate for neuron #{}'.format(neuron))
@@ -149,15 +158,6 @@ def firing_rate_neuron(hparams, filename, neuron):
 
 
 def firing_rate_kl(firing_rate_pairs):
-
-  def kl_divergence(p, q):
-    return np.sum(
-        np.where(
-            np.logical_or(np.equal(p, 0), np.equal(q, 0)),
-            0,
-            p * np.log(p / q),
-        ))
-
   kl = []
   for i in range(len(firing_rate_pairs)):
     real_firing_rate, fake_firing_rate = firing_rate_pairs[i]
@@ -231,8 +231,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       kl,
       xlabel='KL divergence',
       ylabel='Count',
-      title='KL divergence histogram of {} neurons'.format(
-          len(firing_rate_pairs)),
+      title='Firing rate KL divergence',
       step=epoch)
 
 
@@ -511,6 +510,38 @@ def van_rossum_neuron_histogram(hparams, filename, neuron, num_trials):
   return (real_van_rossum, fake_van_rossum)
 
 
+def van_rossum_trial_kl_histogram(van_rossum_pairs):
+  kl = []
+  for i in range(len(van_rossum_pairs)):
+    real_van_rossum, fake_van_rossum = van_rossum_pairs[i]
+    assert real_van_rossum.shape == fake_van_rossum.shape
+
+    df = pd.DataFrame({
+        'van_rossum':
+        np.concatenate([real_van_rossum, fake_van_rossum]),
+        'real_data':
+        [True] * len(real_van_rossum) + [False] * len(fake_van_rossum)
+    })
+
+    num_bins = 30
+    df['bins'] = pd.cut(
+        df.firing_rate, bins=num_bins, labels=np.arange(num_bins))
+
+    real_pdf = np.array([
+        len(df[(df.bins == i) & (df.real_data == True)])
+        for i in range(num_bins)
+    ],
+                        dtype=np.float32) / len(real_van_rossum)
+    fake_pdf = np.array([
+        len(df[(df.bins == i) & (df.real_data == False)])
+        for i in range(num_bins)
+    ],
+                        dtype=np.float32) / len(fake_van_rossum)
+
+    kl.append(kl_divergence(real_pdf, fake_pdf))
+  return kl
+
+
 def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
@@ -584,18 +615,14 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
       step=epoch)
 
-  # compute neuron-wise van rossum distance histogram for 200 trials
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(van_rossum_neuron_histogram,
-                         [(hparams, filename, n, 200) for n in hparams.neurons])
-  pool.close()
+  kl = firing_rate_kl(results)
 
-  summary.plot_histograms_grid(
-      'van_rossum_neuron_histograms',
-      results,
-      xlabel='Distance',
+  summary.plot_distribution(
+      'van_rossum_trial_kl_histogram',
+      kl,
+      xlabel='KL divergence',
       ylabel='Count',
-      titles=['Neuron #{:03d}'.format(i) for i in hparams.neurons],
+      title='van-Rossum distance KL divergence',
       step=epoch)
 
 
