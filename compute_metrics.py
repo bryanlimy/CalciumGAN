@@ -122,12 +122,10 @@ def mse(x, y):
 
 
 def kl_divergence(p, q):
-  return np.sum(
-      np.where(
-          np.logical_or(np.equal(p, 0), np.equal(q, 0)),
-          0,
-          p * np.log(p / q),
-      ))
+  # replace entries with 0 probability with 1e-10
+  p = np.where(p == 0, 1e-10, p)
+  q = np.where(q == 0, 1e-10, q)
+  return np.sum(p * np.log(p / q))
 
 
 def firing_rate_neuron(hparams, filename, neuron):
