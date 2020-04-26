@@ -9,7 +9,7 @@ from tqdm import tqdm
 from time import time
 from multiprocessing import Pool
 
-np.random.seed(1234)
+np.random.seed(2)
 
 # use CPU only
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -193,7 +193,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
 
   pool = Pool(hparams.num_processors)
   results = pool.starmap(firing_rate_neuron,
-                         [(hparams, filename, n) for n in hparams.neurons])
+                         [(hparams, filename, n) for n in hparams.neurons[:3]])
   pool.close()
 
   firing_rate_errors, firing_rate_pairs = [], []
@@ -211,7 +211,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       firing_rate_pairs,
       xlabel='Hz',
       ylabel='Count',
-      titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons],
+      titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons[:3]],
       step=epoch)
 
   # get firing rate for all neurons
@@ -255,8 +255,9 @@ def covariance_metrics(hparams, summary, filename, epoch):
 
   # compute neuron-wise covariance with 200 trials
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(neuron_covariance,
-                         [(hparams, filename, n, 200) for n in hparams.neurons])
+  results = pool.starmap(
+      neuron_covariance,
+      [(hparams, filename, n, 200) for n in hparams.neurons[:3]])
   pool.close()
 
   summary.scalar(
@@ -338,7 +339,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
   results = pool.starmap(correlation_coefficient_trial_histogram,
-                         [(hparams, filename, i) for i in hparams.trials])
+                         [(hparams, filename, i) for i in hparams.trials[:3]])
   pool.close()
 
   summary.plot_histograms_grid(
@@ -346,7 +347,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       results,
       xlabel='Correlation',
       ylabel='Count',
-      titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
+      titles=['Trial #{:03d}'.format(i) for i in hparams.trials[:3]],
       step=epoch)
 
   # compute mean trial-wise correlation histogram
@@ -546,8 +547,9 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
 
   # compute neuron-wise van rossum distance error with 200 trials
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(neuron_van_rossum_distance,
-                         [(hparams, filename, n, 200) for n in hparams.neurons])
+  results = pool.starmap(
+      neuron_van_rossum_distance,
+      [(hparams, filename, n, 200) for n in hparams.neurons[:3]])
   pool.close()
 
   summary.scalar(
@@ -578,8 +580,9 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
 
   # compute neuron-wise van rossum heat-map for 50 trials
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(van_rossum_neuron_heatmap,
-                         [(hparams, filename, n, 50) for n in hparams.neurons])
+  results = pool.starmap(
+      van_rossum_neuron_heatmap,
+      [(hparams, filename, n, 50) for n in hparams.neurons[:3]])
   pool.close()
 
   heatmaps, xticklabels, yticklabels, titles = [], [], [], []
@@ -587,7 +590,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     heatmaps.append(results[i]['heatmap'])
     xticklabels.append(results[i]['xticklabels'])
     yticklabels.append(results[i]['yticklabels'])
-    titles.append('Neuron #{:03d}'.format(hparams.neurons[i]))
+    titles.append('Neuron #{:03d}'.format(hparams.neurons[:3][i]))
 
   summary.plot_heatmaps_grid(
       'van_rossum_neuron_heatmaps',
@@ -602,7 +605,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   # compute trial-wise van rossum distance histogram
   pool = Pool(hparams.num_processors)
   results = pool.starmap(van_rossum_trial_histogram,
-                         [(hparams, filename, i) for i in hparams.trials])
+                         [(hparams, filename, i) for i in hparams.trials[:3]])
   pool.close()
 
   summary.plot_histograms_grid(
@@ -610,7 +613,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       results,
       xlabel='Distance',
       ylabel='Count',
-      titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
+      titles=['Trial #{:03d}'.format(i) for i in hparams.trials[:3]],
       step=epoch)
 
   # compute trial-wise van rossum distance KL divergence

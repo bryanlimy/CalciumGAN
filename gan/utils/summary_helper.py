@@ -45,10 +45,8 @@ class Summary(object):
       self._metrics_dir = os.path.join(hparams.output_dir, 'metrics')
       self.metrics_writer = tf.summary.create_file_writer(self._metrics_dir)
 
-    # output image dpi
-    self._dpi = hparams.dpi
-
-    # color for matplotlib
+    self.dpi = hparams.dpi
+    self.fontsize = 20
     self.real_color = 'dodgerblue'
     self.fake_color = 'orangered'
 
@@ -68,40 +66,9 @@ class Summary(object):
     """
     plt.tight_layout()
     buf = io.BytesIO()
-    plt.savefig(buf, dpi=self._dpi, format='png')
+    plt.savefig(buf, dpi=self.dpi, format='png')
     buf.seek(0)
     return tf.image.decode_png(buf.getvalue(), channels=4)
-
-  @staticmethod
-  def _simple_axis(axis):
-    """plot only x and y axis, not a frame for subplot ax"""
-    axis.spines['top'].set_visible(False)
-    axis.spines['right'].set_visible(False)
-    axis.get_xaxis().tick_bottom()
-    axis.get_yaxis().tick_left()
-
-  def _plot_trace(self, signal, spike, neuron=None):
-    assert len(signal) == len(spike)
-
-    plt.figure(figsize=(20, 4))
-    plt.plot(signal, label='signal', alpha=0.6, color='dodgerblue')
-
-    x = np.nonzero(spike)[0]
-    y = np.zeros(x.shape)
-    plt.scatter(x, y, s=200, marker='|', label='spike', color='orangered')
-    plt.legend(ncol=3, frameon=False, loc=(.04, .85))
-    plt.xlabel('Time (ms)')
-    if neuron is not None:
-      plt.title('Neuron #{:03d}'.format(neuron))
-    axis = plt.gca()
-    axis.spines['top'].set_visible(False)
-    axis.spines['right'].set_visible(False)
-    axis.get_xaxis().tick_bottom()
-    axis.get_yaxis().tick_left()
-    plt.tight_layout()
-    image = self._plot_to_image()
-    plt.close()
-    return image
 
   def scalar(self, tag, value, step=0, training=True):
     writer = self._get_writer(training)
@@ -151,16 +118,115 @@ class Summary(object):
       # plot spike
       x = np.nonzero(spikes[neuron])[0]
       y = np.zeros(x.shape)
-      plt.scatter(x, y, s=200, marker='|', label='spike', color='orangered')
+      plt.scatter(x, y, s=400, marker='|', label='spike', color='orangered')
 
       plt.legend(ncol=3, frameon=False, loc=(.04, .85))
-      plt.title('Neuron #{:03d}'.format(neuron))
-      plt.xlabel('Time (ms)')
+      plt.title('Neuron #{:03d}'.format(neuron), fontsize=self.fontsize)
+      plt.xlabel('Time (ms)', fontsize=self.fontsize)
+
       axis = plt.gca()
       axis.spines['top'].set_visible(False)
       axis.spines['right'].set_visible(False)
       axis.get_xaxis().tick_bottom()
       axis.get_yaxis().tick_left()
+
+    plt.tight_layout()
+    images.append(self._plot_to_image())
+    plt.close()
+
+    self.image(tag, values=images, step=step, training=training)
+
+  def raster_plot(self,
+                  tag,
+                  real_spikes,
+                  fake_spikes,
+                  xlabel='',
+                  ylabel='',
+                  title=None,
+                  step=0,
+                  training=True):
+    images = []
+
+    real_x, real_y = np.nonzero(real_spikes)
+    fake_x, fake_y = np.nonzero(fake_spikes)
+
+    df = pd.DataFrame({
+        'x': np.concatenate([real_y, fake_y]),
+        'y': np.concatenate([real_x, fake_x]),
+        'real_data': [True] * len(real_x) + [False] * len(fake_x)
+    })
+
+    g = sns.JointGrid(x='x', y='y', data=df)
+    plt.gcf().set_size_inches(24, 14)
+    plt.gcf().set_facecolor("white")
+
+    real = df.loc[df.real_data == True]
+    fake = df.loc[df.real_data == False]
+
+    sns.scatterplot(
+        real.x,
+        real.y,
+        marker='|',
+        color=self.real_color,
+        alpha=0.9,
+        ax=g.ax_joint)
+    ax = sns.scatterplot(
+        fake.x,
+        fake.y,
+        marker='|',
+        color=self.fake_color,
+        alpha=0.9,
+        ax=g.ax_joint)
+    ax.set_xlabel(xlabel, fontsize=self.fontsize)
+    ax.set_ylabel(ylabel, fontsize=self.fontsize)
+
+    hist_kws = {"rwidth": 0.85, "alpha": 0.6}
+
+    bins = range(0, max(max(real.x), max(fake.x)), 50)
+    sns.distplot(
+        real.x,
+        kde=False,
+        hist_kws=hist_kws,
+        color=self.real_color,
+        ax=g.ax_marg_x,
+        bins=bins)
+    ax = sns.distplot(
+        fake.x,
+        kde=False,
+        hist_kws=hist_kws,
+        color=self.fake_color,
+        ax=g.ax_marg_x,
+        bins=bins)
+    ax.set(xlabel='', ylabel='')
+
+    bins = range(0, max(max(real.y), max(fake.y)), 4)
+    sns.distplot(
+        real.y,
+        kde=False,
+        hist_kws=hist_kws,
+        color=self.real_color,
+        ax=g.ax_marg_y,
+        bins=bins,
+        vertical=True)
+    ax = sns.distplot(
+        fake.y,
+        kde=False,
+        hist_kws=hist_kws,
+        color=self.fake_color,
+        ax=g.ax_marg_y,
+        bins=bins,
+        vertical=True)
+    ax.set(xlabel='', ylabel='')
+
+    g.ax_joint.legend(
+        labels=['real', 'fake'],
+        ncol=2,
+        frameon=False,
+        prop={
+            'weight': 'regular',
+            'size': self.fontsize
+        },
+        loc='upper right')
 
     plt.tight_layout()
     images.append(self._plot_to_image())
@@ -187,7 +253,8 @@ class Summary(object):
         hist_kws={"rwidth": 0.85},
         color="dodgerblue",
         bins=bins)
-    ax.set(xlabel=xlabel, ylabel=ylabel, title=title)
+    ax.set_xlabel(xlabel, fontsize=self.fontsize)
+    ax.set_ylabel(ylabel, fontsize=self.fontsize)
 
     plt.tight_layout()
     images.append(self._plot_to_image())
@@ -198,8 +265,8 @@ class Summary(object):
   def plot_histogram(self,
                      tag,
                      data,
-                     xlabel=None,
-                     ylabel=None,
+                     xlabel='',
+                     ylabel='',
                      title=None,
                      step=0,
                      training=False):
@@ -232,10 +299,9 @@ class Summary(object):
         color=self.fake_color,
         label="Fake")
 
-    ax.legend()
-
-    if xlabel and ylabel and title:
-      ax.set(xlabel=xlabel, ylabel=ylabel, title=title)
+    ax.legend(fontsize=15)
+    ax.set_xlabel(xlabel, fontsize=self.fontsize)
+    ax.set_ylabel(ylabel, fontsize=self.fontsize)
 
     plt.tight_layout()
     images.append(self._plot_to_image())
@@ -246,9 +312,9 @@ class Summary(object):
   def plot_histograms_grid(self,
                            tag,
                            data,
-                           xlabel,
-                           ylabel,
-                           titles,
+                           xlabel='',
+                           ylabel='',
+                           titles=None,
                            step=0,
                            training=False):
     assert type(data) == list and type(data[0]) == tuple
@@ -288,8 +354,10 @@ class Summary(object):
           color=self.fake_color,
           label="Fake")
 
-      ax.legend()
-      ax.set(xlabel=xlabel, ylabel=ylabel, title=titles[i])
+      ax.legend(fontsize=15)
+      ax.set_xlabel(xlabel, fontsize=self.fontsize)
+      ax.set_ylabel(ylabel, fontsize=self.fontsize)
+      ax.set_title(titles[i], fontsize=self.fontsize)
 
     plt.tight_layout()
     images.append(self._plot_to_image())
@@ -325,7 +393,9 @@ class Summary(object):
           xticklabels=xticklabels[i] if type(xticklabels) == list else 'auto',
           yticklabels=yticklabels[i] if type(xticklabels) == list else 'auto',
       )
-      ax.set(xlabel=xlabel, ylabel=ylabel, title=titles[i])
+      ax.set_xlabel(xlabel, fontsize=self.fontsize)
+      ax.set_ylabel(ylabel, fontsize=self.fontsize)
+      ax.set_title(titles[i], fontsize=self.fontsize)
 
     plt.tight_layout()
     images.append(self._plot_to_image())
@@ -368,101 +438,6 @@ class Summary(object):
           step=step,
           training=training,
       )
-
-  def raster_plot(self,
-                  tag,
-                  real_spikes,
-                  fake_spikes,
-                  xlabel=None,
-                  ylabel=None,
-                  title=None,
-                  step=0,
-                  training=True):
-    images = []
-
-    real_x, real_y = np.nonzero(real_spikes)
-    fake_x, fake_y = np.nonzero(fake_spikes)
-
-    df = pd.DataFrame({
-        'x': np.concatenate([real_y, fake_y]),
-        'y': np.concatenate([real_x, fake_x]),
-        'real_data': [True] * len(real_x) + [False] * len(fake_x)
-    })
-
-    g = sns.JointGrid(x='x', y='y', data=df)
-    plt.gcf().set_size_inches(24, 14)
-    plt.gcf().set_facecolor("white")
-
-    real = df.loc[df.real_data == True]
-    fake = df.loc[df.real_data == False]
-
-    sns.scatterplot(
-        real.x,
-        real.y,
-        marker='|',
-        color=self.real_color,
-        alpha=0.9,
-        ax=g.ax_joint)
-    ax = sns.scatterplot(
-        fake.x,
-        fake.y,
-        marker='|',
-        color=self.fake_color,
-        alpha=0.9,
-        ax=g.ax_joint)
-    ax.set(xlabel=xlabel, ylabel=ylabel)
-
-    hist_kws = {"rwidth": 0.85, "alpha": 0.6}
-
-    sns.distplot(
-        real.x,
-        kde=False,
-        hist_kws=hist_kws,
-        color=self.real_color,
-        ax=g.ax_marg_x,
-        bins=40)
-    ax = sns.distplot(
-        fake.x,
-        kde=False,
-        hist_kws=hist_kws,
-        color=self.fake_color,
-        ax=g.ax_marg_x,
-        bins=40)
-    ax.set(xlabel='', ylabel='', title=title)
-
-    sns.distplot(
-        real.y,
-        kde=False,
-        hist_kws=hist_kws,
-        color=self.real_color,
-        ax=g.ax_marg_y,
-        bins=40,
-        vertical=True)
-    ax = sns.distplot(
-        fake.y,
-        kde=False,
-        hist_kws=hist_kws,
-        color=self.fake_color,
-        ax=g.ax_marg_y,
-        bins=40,
-        vertical=True)
-    ax.set_ylabel('')
-
-    g.ax_joint.legend(
-        labels=['real', 'fake'],
-        ncol=2,
-        frameon=False,
-        prop={
-            'weight': 'regular',
-            'size': 12
-        },
-        loc='upper right')
-
-    plt.tight_layout()
-    images.append(self._plot_to_image())
-    plt.close()
-
-    self.image(tag, values=images, step=step, training=training)
 
   def log(self,
           gen_loss,
