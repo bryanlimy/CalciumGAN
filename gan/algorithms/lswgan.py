@@ -16,7 +16,7 @@ class LSWGAN(GAN):
     self.n_critic = hparams.n_critic
 
   def generator_loss(self, fake_output):
-    return tf.reduce_mean(fake_output**2)
+    return -tf.reduce_mean((1.0 - fake_output)**2)
 
   def _train_generator(self, inputs):
     noise = self.get_noise(batch_size=inputs.shape[0])
