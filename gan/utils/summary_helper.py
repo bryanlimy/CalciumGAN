@@ -46,7 +46,7 @@ class Summary(object):
       self.metrics_writer = tf.summary.create_file_writer(self._metrics_dir)
 
     self.dpi = hparams.dpi
-    self.fontsize = 20
+    self.fontsize = 25
     self.real_color = 'dodgerblue'
     self.fake_color = 'orangered'
 

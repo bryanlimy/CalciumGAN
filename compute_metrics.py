@@ -9,7 +9,7 @@ from tqdm import tqdm
 from time import time
 from multiprocessing import Pool
 
-np.random.seed(2)
+np.random.seed(1234)
 
 # use CPU only
 os.environ["CUDA_VISIBLE_DEVICES"] = ""

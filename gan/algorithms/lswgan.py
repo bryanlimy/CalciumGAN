@@ -6,8 +6,8 @@ import tensorflow as tf
 from .gan import GAN
 
 
-@register('wgan-gp')
-class WGAN_GP(GAN):
+@register('lswgan')
+class LSWGAN(GAN):
 
   def __init__(self, hparams, generator, discriminator, summary):
     super().__init__(hparams, generator, discriminator, summary)
@@ -46,7 +46,7 @@ class WGAN_GP(GAN):
       interpolated_output = self.discriminator(interpolated, training=training)
     gradient = tape.gradient(interpolated_output, interpolated)
     norm = tf.norm(tf.reshape(gradient, shape=(gradient.shape[0], -1)), axis=1)
-    return tf.reduce_mean(tf.square(norm - 1.0))
+    return tf.reduce_mean(tf.square(1.0 - norm))
 
   def discriminator_loss(self,
                          real_output,
@@ -54,8 +54,8 @@ class WGAN_GP(GAN):
                          real=None,
                          fake=None,
                          training=True):
-    real_loss = -tf.reduce_mean(real_output)
-    fake_loss = tf.reduce_mean(fake_output)
+    real_loss = tf.reduce_mean(real_output**2)
+    fake_loss = tf.reduce_mean((1 - fake_output)**2)
     gradient_penalty = self.gradient_penalty(real, fake, training=training)
     loss = real_loss + fake_loss + self.penalty * gradient_penalty
     return loss, gradient_penalty
