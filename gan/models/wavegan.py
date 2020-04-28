@@ -9,7 +9,9 @@ from .utils import activation_fn, Conv1DTranspose
 
 @register('wavegan')
 def get_wavegan(hparams):
-  return generator(hparams), discriminator(hparams)
+  return generator(
+      hparams, kernel_size=25), discriminator(
+          hparams, kernel_size=25)
 
 
 def calculate_noise_shape(output_shape, noise_dim, num_convolutions, strides):
