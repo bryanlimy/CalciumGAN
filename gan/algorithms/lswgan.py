@@ -46,7 +46,7 @@ class LSWGAN(GAN):
       interpolated_output = self.discriminator(interpolated, training=training)
     gradient = tape.gradient(interpolated_output, interpolated)
     norm = tf.norm(tf.reshape(gradient, shape=(gradient.shape[0], -1)), axis=1)
-    return tf.reduce_mean(tf.square(1.0 - norm))
+    return tf.reduce_mean((1.0 - norm)**2)
 
   def discriminator_loss(self,
                          real_output,
@@ -55,7 +55,7 @@ class LSWGAN(GAN):
                          fake=None,
                          training=True):
     real_loss = tf.reduce_mean(real_output**2)
-    fake_loss = tf.reduce_mean((1 - fake_output)**2)
+    fake_loss = tf.reduce_mean((1.0 - fake_output)**2)
     gradient_penalty = self.gradient_penalty(real, fake, training=training)
     loss = real_loss + fake_loss + self.penalty * gradient_penalty
     return loss, gradient_penalty
