@@ -35,7 +35,8 @@ def deconvolve_neuron(hparams, filename, neuron):
 
 
 def deconvolve_from_file(hparams, filename):
-  print('\tDeconvolve {}'.format(filename))
+  if hparams.verbose:
+    print('\tDeconvolve {}'.format(filename))
 
   pool = Pool(hparams.num_processors)
   fake_spikes = pool.starmap(
@@ -684,8 +685,9 @@ def main(hparams):
 
     summary.scalar('elapse/spike_metrics', end - start, step=epoch)
 
-    print('{} took {:.02f} mins'.format(info[epoch]['filename'],
-                                        (end - start) / 60))
+    if hparams.verbose:
+      print('{} took {:.02f} mins'.format(info[epoch]['filename'],
+                                          (end - start) / 60))
 
 
 if __name__ == '__main__':

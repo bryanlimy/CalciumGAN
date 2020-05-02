@@ -187,6 +187,10 @@ def main(hparams, return_metrics=False):
 
   tf.keras.backend.clear_session()
 
+  # hand picked neurons to plots
+  if hparams.focus_neurons:
+    hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
+
   policy = set_precision_policy(hparams)
 
   summary = Summary(hparams, policy=policy)
@@ -223,15 +227,19 @@ if __name__ == '__main__':
   parser.add_argument('--input_dir', default='dataset/tfrecords')
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--batch_size', default=64, type=int)
+  parser.add_argument('--num_units', default=32, type=int)
+  parser.add_argument('--kernel_size', default=24, type=int)
+  parser.add_argument('--strides', default=2, type=int)
+  parser.add_argument('--phase_shuffle', default=2, type=int)
   parser.add_argument('--epochs', default=20, type=int)
   parser.add_argument('--dropout', default=0.2, type=float)
   parser.add_argument('--learning_rate', default=0.0001, type=float)
-  parser.add_argument('--noise_dim', default=128, type=int)
+  parser.add_argument('--noise_dim', default=32, type=int)
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
-  parser.add_argument('--model', default='mlp', type=str)
-  parser.add_argument('--activation', default='linear', type=str)
+  parser.add_argument('--model', default='wavegan', type=str)
+  parser.add_argument('--activation', default='leakyrelu', type=str)
   parser.add_argument('--no_batch_norm', action='store_true')
-  parser.add_argument('--algorithm', default='gan', type=str)
+  parser.add_argument('--algorithm', default='wgan-gp', type=str)
   parser.add_argument(
       '--n_critic',
       default=5,
@@ -249,10 +257,6 @@ if __name__ == '__main__':
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
-
-  # hand picked neurons to plots
-  if hparams.focus_neurons:
-    hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
 
   hparams.global_step = 0
 
