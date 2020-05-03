@@ -39,8 +39,10 @@ def generator(hparams, padding='same'):
       kernel_size=hparams.kernel_size,
       strides=hparams.strides,
       padding=padding)(outputs)
-  if not hparams.no_batch_norm:
+  if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
+  if hparams.layer_norm:
+    outputs = layers.LayerNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 2
@@ -49,8 +51,10 @@ def generator(hparams, padding='same'):
       kernel_size=hparams.kernel_size,
       strides=hparams.strides,
       padding=padding)(outputs)
-  if not hparams.no_batch_norm:
+  if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
+  if hparams.layer_norm:
+    outputs = layers.LayerNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 3
@@ -59,8 +63,10 @@ def generator(hparams, padding='same'):
       kernel_size=hparams.kernel_size,
       strides=hparams.strides,
       padding=padding)(outputs)
-  if not hparams.no_batch_norm:
+  if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
+  if hparams.layer_norm:
+    outputs = layers.LayerNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 4
@@ -69,8 +75,10 @@ def generator(hparams, padding='same'):
       kernel_size=hparams.kernel_size,
       strides=hparams.strides,
       padding=padding)(outputs)
-  if not hparams.no_batch_norm:
+  if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
+  if hparams.layer_norm:
+    outputs = layers.LayerNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   # Layer 5
@@ -79,8 +87,10 @@ def generator(hparams, padding='same'):
       kernel_size=hparams.kernel_size,
       strides=hparams.strides,
       padding=padding)(outputs)
-  if not hparams.no_batch_norm:
+  if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
+  if hparams.layer_norm:
+    outputs = layers.LayerNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
 
   outputs = layers.Dense(hparams.num_channels)(outputs)

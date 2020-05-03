@@ -238,7 +238,8 @@ if __name__ == '__main__':
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
   parser.add_argument('--model', default='wavegan', type=str)
   parser.add_argument('--activation', default='leakyrelu', type=str)
-  parser.add_argument('--no_batch_norm', action='store_true')
+  parser.add_argument('--batch_norm', action='store_true')
+  parser.add_argument('--layer_norm', action='store_true')
   parser.add_argument('--algorithm', default='wgan-gp', type=str)
   parser.add_argument(
       '--n_critic',
