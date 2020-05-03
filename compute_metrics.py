@@ -156,33 +156,27 @@ def firing_rate_neuron(hparams, filename, neuron):
   }
 
 
-def firing_rate_kl(firing_rate_pairs):
+def pairs_kl_divergence(pairs):
   kl = []
-  for i in range(len(firing_rate_pairs)):
-    real_firing_rate, fake_firing_rate = firing_rate_pairs[i]
-    assert real_firing_rate.shape == fake_firing_rate.shape
+  for i in range(len(pairs)):
+    real, fake = pairs[i]
 
     df = pd.DataFrame({
-        'firing_rate':
-        np.concatenate([real_firing_rate, fake_firing_rate]),
-        'real_data':
-        [True] * len(real_firing_rate) + [False] * len(fake_firing_rate)
+        'data': np.concatenate([real, fake]),
+        'is_real': [True] * len(real) + [False] * len(fake)
     })
 
     num_bins = 30
-    df['bins'] = pd.cut(
-        df.firing_rate, bins=num_bins, labels=np.arange(num_bins))
+    df['bins'] = pd.cut(df.data, bins=num_bins, labels=np.arange(num_bins))
 
     real_pdf = np.array([
-        len(df[(df.bins == i) & (df.real_data == True)])
-        for i in range(num_bins)
+        len(df[(df.bins == i) & (df.is_real == True)]) for i in range(num_bins)
     ],
-                        dtype=np.float32) / len(real_firing_rate)
+                        dtype=np.float32) / len(real)
     fake_pdf = np.array([
-        len(df[(df.bins == i) & (df.real_data == False)])
-        for i in range(num_bins)
+        len(df[(df.bins == i) & (df.is_real == False)]) for i in range(num_bins)
     ],
-                        dtype=np.float32) / len(fake_firing_rate)
+                        dtype=np.float32) / len(fake)
 
     kl.append(kl_divergence(real_pdf, fake_pdf))
   return kl
@@ -223,7 +217,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
   pool.close()
 
   firing_rate_pairs = [result['firing_rate_pair'] for result in results]
-  kl = firing_rate_kl(firing_rate_pairs)
+  kl = pairs_kl_divergence(firing_rate_pairs)
 
   summary.plot_distribution(
       'firing_rate_kl_histogram',
@@ -303,25 +297,6 @@ def correlation_coefficient_trial_histogram(hparams, filename, trial):
   return (real_corrcoef, fake_corrcoef)
 
 
-def correlation_coefficient_trials_mean_histogram(hparams, filename, trial):
-  if hparams.verbose == 2:
-    print('\t\tComputing mean correlation coefficient histogram for trial #{}'.
-          format(trial))
-
-  diag_indices = np.triu_indices(hparams.num_neurons, k=1)
-
-  real_spikes = get_neo_trains(
-      hparams, hparams.validation_cache, trial=trial, data_format='CW')
-  real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
-  real_corrcoef = np.nanmean(real_corrcoef[diag_indices], dtype=np.float32)
-
-  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
-  fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
-  fake_corrcoef = np.nanmean(fake_corrcoef[diag_indices], dtype=np.float32)
-
-  return [real_corrcoef, fake_corrcoef]
-
-
 def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
@@ -353,18 +328,17 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
 
   # compute mean trial-wise correlation histogram
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(correlation_coefficient_trials_mean_histogram,
-                         [(hparams, filename, i) for i in range(200)])
+  corrcoeff_pairs = pool.starmap(correlation_coefficient_trial_histogram,
+                                 [(hparams, filename, i) for i in range(200)])
   pool.close()
+  kl = pairs_kl_divergence(corrcoeff_pairs)
 
-  results = np.array(results, dtype=np.float32)
-
-  summary.plot_histogram(
-      'correlation_coefficient_mean_trials_histogram',
-      (results[:, 0], results[:, 1]),
-      xlabel='Mean correlation',
+  summary.plot_distribution(
+      'correlation_coefficient_trial_kl_histogram',
+      kl,
+      xlabel='KL divergence',
       ylabel='Count',
-      title='Mean correlation over {} trials'.format(len(results)),
+      title='Correlation coefficient KL divergence',
       step=epoch)
 
 
@@ -510,38 +484,6 @@ def van_rossum_neuron_histogram(hparams, filename, neuron, num_trials):
   return (real_van_rossum, fake_van_rossum)
 
 
-def van_rossum_trial_kl_histogram(van_rossum_pairs):
-  kl = []
-  for i in range(len(van_rossum_pairs)):
-    real_van_rossum, fake_van_rossum = van_rossum_pairs[i]
-    assert real_van_rossum.shape == fake_van_rossum.shape
-
-    df = pd.DataFrame({
-        'van_rossum':
-        np.concatenate([real_van_rossum, fake_van_rossum]),
-        'real_data':
-        [True] * len(real_van_rossum) + [False] * len(fake_van_rossum)
-    })
-
-    num_bins = 30
-    df['bins'] = pd.cut(
-        df.firing_rate, bins=num_bins, labels=np.arange(num_bins))
-
-    real_pdf = np.array([
-        len(df[(df.bins == i) & (df.real_data == True)])
-        for i in range(num_bins)
-    ],
-                        dtype=np.float32) / len(real_van_rossum)
-    fake_pdf = np.array([
-        len(df[(df.bins == i) & (df.real_data == False)])
-        for i in range(num_bins)
-    ],
-                        dtype=np.float32) / len(fake_van_rossum)
-
-    kl.append(kl_divergence(real_pdf, fake_pdf))
-  return kl
-
-
 def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
@@ -622,7 +564,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   van_rossum_pairs = pool.starmap(van_rossum_trial_histogram,
                                   [(hparams, filename, i) for i in range(200)])
   pool.close()
-  kl = firing_rate_kl(van_rossum_pairs)
+  kl = pairs_kl_divergence(van_rossum_pairs)
 
   summary.plot_distribution(
       'van_rossum_trial_kl_histogram',
