@@ -237,12 +237,12 @@ if __name__ == '__main__':
   parser.add_argument(
       '--input', default='raw_data/ST260_Day4_signals4Bryan.pkl', type=str)
   parser.add_argument('--output_dir', default='tfrecords', type=str)
-  parser.add_argument('--sequence_length', default=1024, type=int)
-  parser.add_argument('--stride', default=1, type=int)
+  parser.add_argument('--sequence_length', default=2048, type=int)
+  parser.add_argument('--stride', default=2, type=int)
   parser.add_argument('--normalize', action='store_true')
   parser.add_argument('--fft', action='store_true')
   parser.add_argument('--replace', action='store_true')
-  parser.add_argument('--train_percentage', default=0.7, type=float)
+  parser.add_argument('--train_percentage', default=0.9, type=float)
   parser.add_argument(
       '--target_shard_size',
       default=0.25,
