@@ -1,5 +1,6 @@
 import os
 import io
+import shutil
 import platform
 import numpy as np
 import pandas as pd
@@ -45,8 +46,18 @@ class Summary(object):
       self._metrics_dir = os.path.join(hparams.output_dir, 'metrics')
       self.metrics_writer = tf.summary.create_file_writer(self._metrics_dir)
 
+      # save plots as vector pdf
+      self._vector_dir = os.path.join(self._metrics_dir, 'plots')
+      if os.path.exists(self._vector_dir):
+        shutil.rmtree(self._vector_dir)
+      os.makedirs(self._vector_dir)
+
+    self.tick_size = 15
+    plt.rc('xtick', labelsize=self.tick_size)
+    plt.rc('ytick', labelsize=self.tick_size)
+
     self.dpi = hparams.dpi
-    self.fontsize = 25
+    self.fontsize = 28
     self.real_color = 'dodgerblue'
     self.fake_color = 'orangered'
 
@@ -59,7 +70,7 @@ class Summary(object):
   def _get_loss_scale(self):
     return self._policy.loss_scale._current_loss_scale if self._policy else None
 
-  def _plot_to_image(self):
+  def _plot_to_png(self):
     """
     Converts the matplotlib plot specified by 'figure' to a PNG image and
     returns it. The supplied figure is closed and inaccessible after this call.
@@ -69,6 +80,14 @@ class Summary(object):
     plt.savefig(buf, dpi=self.dpi, format='png')
     buf.seek(0)
     return tf.image.decode_png(buf.getvalue(), channels=4)
+
+  def save_vector_plot(self, filename):
+    if self.spike_metrics:
+      plt.tight_layout()
+      plt.savefig(
+          os.path.join(self._vector_dir, '{}.pdf'.format(filename)),
+          dpi=self.dpi,
+          format='pdf')
 
   def scalar(self, tag, value, step=0, training=True):
     writer = self._get_writer(training)
@@ -111,6 +130,8 @@ class Summary(object):
     fig = plt.figure(figsize=(32, 4 * num_rows))
     fig.patch.set_facecolor('white')
 
+    plt.tick_params(axis='both', which='minor', labelsize=20)
+
     for i, neuron in enumerate(indexes):
       plt.subplot(num_rows, 3, i + 1)
       # plot signal
@@ -131,7 +152,8 @@ class Summary(object):
       axis.get_yaxis().tick_left()
 
     plt.tight_layout()
-    images.append(self._plot_to_image())
+    images.append(self._plot_to_png())
+    self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=images, step=step, training=training)
@@ -229,7 +251,8 @@ class Summary(object):
         loc='upper right')
 
     plt.tight_layout()
-    images.append(self._plot_to_image())
+    images.append(self._plot_to_png())
+    self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=images, step=step, training=training)
@@ -257,7 +280,8 @@ class Summary(object):
     ax.set_ylabel(ylabel, fontsize=self.fontsize)
 
     plt.tight_layout()
-    images.append(self._plot_to_image())
+    images.append(self._plot_to_png())
+    self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=images, step=step, training=training)
@@ -304,7 +328,8 @@ class Summary(object):
     ax.set_ylabel(ylabel, fontsize=self.fontsize)
 
     plt.tight_layout()
-    images.append(self._plot_to_image())
+    images.append(self._plot_to_png())
+    self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=images, step=step, training=training)
@@ -360,7 +385,8 @@ class Summary(object):
       ax.set_title(titles[i], fontsize=self.fontsize)
 
     plt.tight_layout()
-    images.append(self._plot_to_image())
+    images.append(self._plot_to_png())
+    self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=images, step=step, training=training)
@@ -398,7 +424,8 @@ class Summary(object):
       ax.set_title(titles[i], fontsize=self.fontsize)
 
     plt.tight_layout()
-    images.append(self._plot_to_image())
+    images.append(self._plot_to_png())
+    self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=images, step=step, training=training)

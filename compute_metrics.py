@@ -5,11 +5,12 @@ import argparse
 import warnings
 import numpy as np
 import pandas as pd
+
 from tqdm import tqdm
 from time import time
 from multiprocessing import Pool
 
-np.random.seed(1234)
+np.random.seed(689)
 
 # use CPU only
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -56,29 +57,32 @@ def raster_plots(hparams, summary, filename, epoch):
   fake_spikes = h5_helper.get(filename, name='spikes')
   fake_spikes = utils.set_array_format(fake_spikes, 'NCW', hparams)
 
+  trial = 0
   summary.raster_plot(
       'raster_plot_trial',
-      real_spikes=real_spikes[0],
-      fake_spikes=fake_spikes[0],
+      real_spikes=real_spikes[trial],
+      fake_spikes=fake_spikes[trial],
       xlabel='Time (ms)',
       ylabel='Neuron',
       title='Trial #001',
       step=epoch)
 
-  summary.raster_plot(
-      'raster_plot_neuron',
-      real_spikes=real_spikes[:100, 5, :],
-      fake_spikes=fake_spikes[:100, 5, :],
-      xlabel='Time (ms)',
-      ylabel='Trial',
-      title='Neuron #005',
-      step=epoch)
+  # summary.raster_plot(
+  #     'raster_plot_neuron',
+  #     real_spikes=real_spikes[:100, 5, :],
+  #     fake_spikes=fake_spikes[:100, 5, :],
+  #     xlabel='Time (ms)',
+  #     ylabel='Trial',
+  #     title='Neuron #005',
+  #     step=epoch)
 
 
-def plot_signals(hparams, summary, filename, epoch):
+def plot_signals(hparams, summary, filename, epoch, trail=25):
+
   real_signals = h5_helper.get(
-      hparams.validation_cache, name='signals', trial=0)
-  real_spikes = h5_helper.get(hparams.validation_cache, name='spikes', trial=0)
+      hparams.validation_cache, name='signals', trial=trail)
+  real_spikes = h5_helper.get(
+      hparams.validation_cache, name='spikes', trial=trail)
 
   real_signals = utils.set_array_format(
       real_signals, data_format='CW', hparams=hparams)
@@ -88,8 +92,8 @@ def plot_signals(hparams, summary, filename, epoch):
   summary.plot_traces(
       'real', real_signals, real_spikes, indexes=hparams.neurons, step=epoch)
 
-  fake_signals = h5_helper.get(filename, name='signals', trial=0)
-  fake_spikes = h5_helper.get(filename, name='spikes', trial=0)
+  fake_signals = h5_helper.get(filename, name='signals', trial=trail)
+  fake_spikes = h5_helper.get(filename, name='spikes', trial=trail)
 
   fake_signals = utils.set_array_format(
       fake_signals, data_format='CW', hparams=hparams)
@@ -545,19 +549,19 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       titles=titles,
       step=epoch)
 
-  # compute trial-wise van rossum distance histogram
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(van_rossum_trial_histogram,
-                         [(hparams, filename, i) for i in hparams.trials[:3]])
-  pool.close()
-
-  summary.plot_histograms_grid(
-      'van_rossum_trial_histograms',
-      results,
-      xlabel='Distance',
-      ylabel='Count',
-      titles=['Trial #{:03d}'.format(i) for i in hparams.trials[:3]],
-      step=epoch)
+  # # compute trial-wise van rossum distance histogram
+  # pool = Pool(hparams.num_processors)
+  # results = pool.starmap(van_rossum_trial_histogram,
+  #                        [(hparams, filename, i) for i in hparams.trials[:3]])
+  # pool.close()
+  #
+  # summary.plot_histograms_grid(
+  #     'van_rossum_trial_histograms',
+  #     results,
+  #     xlabel='Distance',
+  #     ylabel='Count',
+  #     titles=['Trial #{:03d}'.format(i) for i in hparams.trials[:3]],
+  #     step=epoch)
 
   # compute trial-wise van rossum distance KL divergence
   pool = Pool(hparams.num_processors)
@@ -606,6 +610,7 @@ def main(hparams):
   # randomly select neurons and trials to plot
   hparams.neurons = list(
       np.random.choice(hparams.num_neurons, hparams.num_neurons_plot))
+  hparams.neurons = [5, 39, 60, 87, 90, 39]
   hparams.trials = list(
       np.random.choice(hparams.num_samples, hparams.num_trials_plot))
 
