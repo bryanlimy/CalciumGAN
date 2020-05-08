@@ -52,12 +52,18 @@ class Summary(object):
         shutil.rmtree(self._vector_dir)
       os.makedirs(self._vector_dir)
 
-    self.tick_size = 15
-    plt.rc('xtick', labelsize=self.tick_size)
-    plt.rc('ytick', labelsize=self.tick_size)
+    tick_size = 18
+    label_size = 28
+    legend_size = 12
+    plt.rc('xtick', labelsize=tick_size)
+    plt.rc('ytick', labelsize=tick_size)
+    plt.rc('axes', titlesize=label_size)
+    plt.rc('axes', labelsize=label_size)
+    plt.rc('axes', labelsize=label_size)
+    plt.rc('legend', fontsize=legend_size)
 
     self.dpi = hparams.dpi
-    self.fontsize = 28
+
     self.real_color = 'dodgerblue'
     self.fake_color = 'orangered'
 
@@ -142,8 +148,8 @@ class Summary(object):
       plt.scatter(x, y, s=400, marker='|', label='spike', color='orangered')
 
       plt.legend(ncol=3, frameon=False, loc=(.04, .85))
-      plt.title('Neuron #{:03d}'.format(neuron), fontsize=self.fontsize)
-      plt.xlabel('Time (ms)', fontsize=self.fontsize)
+      plt.title('Neuron #{:03d}'.format(neuron))
+      plt.xlabel('Time (ms)')
 
       axis = plt.gca()
       axis.spines['top'].set_visible(False)
@@ -191,16 +197,18 @@ class Summary(object):
         marker='|',
         color=self.real_color,
         alpha=0.9,
-        ax=g.ax_joint)
+        ax=g.ax_joint,
+        s=45)
     ax = sns.scatterplot(
         fake.x,
         fake.y,
         marker='|',
         color=self.fake_color,
         alpha=0.9,
-        ax=g.ax_joint)
-    ax.set_xlabel(xlabel, fontsize=self.fontsize)
-    ax.set_ylabel(ylabel, fontsize=self.fontsize)
+        ax=g.ax_joint,
+        s=45)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
 
     hist_kws = {"rwidth": 0.85, "alpha": 0.6}
 
@@ -243,11 +251,8 @@ class Summary(object):
     g.ax_joint.legend(
         labels=['real', 'fake'],
         ncol=2,
-        frameon=False,
-        prop={
-            'weight': 'regular',
-            'size': self.fontsize
-        },
+        frameon=True,
+        prop={'weight': 'regular'},
         loc='upper right')
 
     plt.tight_layout()
@@ -276,8 +281,8 @@ class Summary(object):
         hist_kws={"rwidth": 0.85},
         color="dodgerblue",
         bins=bins)
-    ax.set_xlabel(xlabel, fontsize=self.fontsize)
-    ax.set_ylabel(ylabel, fontsize=self.fontsize)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
 
     plt.tight_layout()
     images.append(self._plot_to_png())
@@ -323,9 +328,9 @@ class Summary(object):
         color=self.fake_color,
         label="Fake")
 
-    ax.legend(fontsize=15)
-    ax.set_xlabel(xlabel, fontsize=self.fontsize)
-    ax.set_ylabel(ylabel, fontsize=self.fontsize)
+    ax.legend()
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
 
     plt.tight_layout()
     images.append(self._plot_to_png())
@@ -379,10 +384,10 @@ class Summary(object):
           color=self.fake_color,
           label="Fake")
 
-      ax.legend(fontsize=15)
-      ax.set_xlabel(xlabel, fontsize=self.fontsize)
-      ax.set_ylabel(ylabel, fontsize=self.fontsize)
-      ax.set_title(titles[i], fontsize=self.fontsize)
+      ax.legend()
+      ax.set_xlabel(xlabel)
+      ax.set_ylabel(ylabel)
+      ax.set_title(titles[i])
 
     plt.tight_layout()
     images.append(self._plot_to_png())
@@ -419,9 +424,9 @@ class Summary(object):
           xticklabels=xticklabels[i] if type(xticklabels) == list else 'auto',
           yticklabels=yticklabels[i] if type(xticklabels) == list else 'auto',
       )
-      ax.set_xlabel(xlabel, fontsize=self.fontsize)
-      ax.set_ylabel(ylabel, fontsize=self.fontsize)
-      ax.set_title(titles[i], fontsize=self.fontsize)
+      ax.set_xlabel(xlabel)
+      ax.set_ylabel(ylabel)
+      ax.set_title(titles[i])
 
     plt.tight_layout()
     images.append(self._plot_to_png())

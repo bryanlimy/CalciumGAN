@@ -51,59 +51,6 @@ def deconvolve_from_file(hparams, filename):
   h5_helper.write(filename, {'spikes': fake_spikes})
 
 
-def raster_plots(hparams, summary, filename, epoch):
-  real_spikes = h5_helper.get(hparams.validation_cache, name='spikes')
-  real_spikes = utils.set_array_format(real_spikes, 'NCW', hparams)
-  fake_spikes = h5_helper.get(filename, name='spikes')
-  fake_spikes = utils.set_array_format(fake_spikes, 'NCW', hparams)
-
-  trial = 0
-  summary.raster_plot(
-      'raster_plot_trial',
-      real_spikes=real_spikes[trial],
-      fake_spikes=fake_spikes[trial],
-      xlabel='Time (ms)',
-      ylabel='Neuron',
-      title='Trial #001',
-      step=epoch)
-
-  # summary.raster_plot(
-  #     'raster_plot_neuron',
-  #     real_spikes=real_spikes[:100, 5, :],
-  #     fake_spikes=fake_spikes[:100, 5, :],
-  #     xlabel='Time (ms)',
-  #     ylabel='Trial',
-  #     title='Neuron #005',
-  #     step=epoch)
-
-
-def plot_signals(hparams, summary, filename, epoch, trail=25):
-
-  real_signals = h5_helper.get(
-      hparams.validation_cache, name='signals', trial=trail)
-  real_spikes = h5_helper.get(
-      hparams.validation_cache, name='spikes', trial=trail)
-
-  real_signals = utils.set_array_format(
-      real_signals, data_format='CW', hparams=hparams)
-  real_spikes = utils.set_array_format(
-      real_spikes, data_format='CW', hparams=hparams)
-
-  summary.plot_traces(
-      'real', real_signals, real_spikes, indexes=hparams.neurons, step=epoch)
-
-  fake_signals = h5_helper.get(filename, name='signals', trial=trail)
-  fake_spikes = h5_helper.get(filename, name='spikes', trial=trail)
-
-  fake_signals = utils.set_array_format(
-      fake_signals, data_format='CW', hparams=hparams)
-  fake_spikes = utils.set_array_format(
-      fake_spikes, data_format='CW', hparams=hparams)
-
-  summary.plot_traces(
-      'fake', fake_signals, fake_spikes, indexes=hparams.neurons, step=epoch)
-
-
 def get_neo_trains(hparams,
                    filename,
                    neuron=None,
@@ -131,6 +78,64 @@ def kl_divergence(p, q):
   p = np.where(p == 0, 1e-10, p)
   q = np.where(q == 0, 1e-10, q)
   return np.sum(p * np.log(p / q))
+
+
+def raster_plots(hparams, summary, filename, epoch):
+  if hparams.verbose:
+    print('\tPlotting raster plot for epoch #{}'.format(epoch))
+
+  real_spikes = h5_helper.get(hparams.validation_cache, name='spikes')
+  real_spikes = utils.set_array_format(real_spikes, 'NCW', hparams)
+  fake_spikes = h5_helper.get(filename, name='spikes')
+  fake_spikes = utils.set_array_format(fake_spikes, 'NCW', hparams)
+
+  trial = 0
+  summary.raster_plot(
+      'raster_plot_trial',
+      real_spikes=real_spikes[trial],
+      fake_spikes=fake_spikes[trial],
+      xlabel='Time (ms)',
+      ylabel='Neuron',
+      title='Trial #001',
+      step=epoch)
+
+  # summary.raster_plot(
+  #     'raster_plot_neuron',
+  #     real_spikes=real_spikes[:100, 5, :],
+  #     fake_spikes=fake_spikes[:100, 5, :],
+  #     xlabel='Time (ms)',
+  #     ylabel='Trial',
+  #     title='Neuron #005',
+  #     step=epoch)
+
+
+def plot_signals(hparams, summary, filename, epoch, trial=25):
+  if hparams.verbose:
+    print('\tPlotting traces for trial #{}'.format(trial))
+
+  real_signals = h5_helper.get(
+      hparams.validation_cache, name='signals', trial=trial)
+  real_spikes = h5_helper.get(
+      hparams.validation_cache, name='spikes', trial=trial)
+
+  real_signals = utils.set_array_format(
+      real_signals, data_format='CW', hparams=hparams)
+  real_spikes = utils.set_array_format(
+      real_spikes, data_format='CW', hparams=hparams)
+
+  summary.plot_traces(
+      'real', real_signals, real_spikes, indexes=hparams.neurons, step=epoch)
+
+  fake_signals = h5_helper.get(filename, name='signals', trial=trial)
+  fake_spikes = h5_helper.get(filename, name='spikes', trial=trial)
+
+  fake_signals = utils.set_array_format(
+      fake_signals, data_format='CW', hparams=hparams)
+  fake_spikes = utils.set_array_format(
+      fake_spikes, data_format='CW', hparams=hparams)
+
+  summary.plot_traces(
+      'fake', fake_signals, fake_spikes, indexes=hparams.neurons, step=epoch)
 
 
 def firing_rate_neuron(hparams, filename, neuron):
@@ -525,11 +530,11 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   #     titles=titles,
   #     step=epoch)
 
-  # compute neuron-wise van rossum heat-map for 50 trials
+  # compute neuron-wise van rossum heat-map for 40 trials
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
       van_rossum_neuron_heatmap,
-      [(hparams, filename, n, 50) for n in hparams.neurons[:3]])
+      [(hparams, filename, n, 40) for n in hparams.neurons[:3]])
   pool.close()
 
   heatmaps, xticklabels, yticklabels, titles = [], [], [], []
