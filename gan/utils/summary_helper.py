@@ -52,9 +52,9 @@ class Summary(object):
         shutil.rmtree(self._vector_dir)
       os.makedirs(self._vector_dir)
 
-    tick_size = 18
-    label_size = 28
-    legend_size = 12
+    tick_size = 20
+    label_size = 30
+    legend_size = 14
     plt.rc('xtick', labelsize=tick_size)
     plt.rc('ytick', labelsize=tick_size)
     plt.rc('axes', titlesize=label_size)
@@ -83,13 +83,12 @@ class Summary(object):
     """
     plt.tight_layout()
     buf = io.BytesIO()
-    plt.savefig(buf, dpi=self.dpi, format='png')
+    plt.savefig(buf, dpi=40, format='png')
     buf.seek(0)
     return tf.image.decode_png(buf.getvalue(), channels=4)
 
   def save_vector_plot(self, filename):
     if self.spike_metrics:
-      plt.tight_layout()
       plt.savefig(
           os.path.join(self._vector_dir, '{}.pdf'.format(filename)),
           dpi=self.dpi,
@@ -281,8 +280,8 @@ class Summary(object):
         hist_kws={"rwidth": 0.85},
         color="dodgerblue",
         bins=bins)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel, fontsize=40)
+    ax.set_ylabel(ylabel, fontsize=40)
 
     plt.tight_layout()
     images.append(self._plot_to_png())

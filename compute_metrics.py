@@ -80,6 +80,32 @@ def kl_divergence(p, q):
   return np.sum(p * np.log(p / q))
 
 
+def pairs_kl_divergence(pairs):
+  kl = []
+  for i in range(len(pairs)):
+    real, fake = pairs[i]
+
+    df = pd.DataFrame({
+        'data': np.concatenate([real, fake]),
+        'is_real': [True] * len(real) + [False] * len(fake)
+    })
+
+    num_bins = 30
+    df['bins'] = pd.cut(df.data, bins=num_bins, labels=np.arange(num_bins))
+
+    real_pdf = np.array([
+        len(df[(df.bins == i) & (df.is_real == True)]) for i in range(num_bins)
+    ],
+                        dtype=np.float32) / len(real)
+    fake_pdf = np.array([
+        len(df[(df.bins == i) & (df.is_real == False)]) for i in range(num_bins)
+    ],
+                        dtype=np.float32) / len(fake)
+
+    kl.append(kl_divergence(real_pdf, fake_pdf))
+  return kl
+
+
 def raster_plots(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tPlotting raster plot for epoch #{}'.format(epoch))
@@ -163,32 +189,6 @@ def firing_rate_neuron(hparams, filename, neuron):
       'firing_rate_error': firing_rate_error,
       'firing_rate_pair': (real_firing_rate, fake_firing_rate)
   }
-
-
-def pairs_kl_divergence(pairs):
-  kl = []
-  for i in range(len(pairs)):
-    real, fake = pairs[i]
-
-    df = pd.DataFrame({
-        'data': np.concatenate([real, fake]),
-        'is_real': [True] * len(real) + [False] * len(fake)
-    })
-
-    num_bins = 30
-    df['bins'] = pd.cut(df.data, bins=num_bins, labels=np.arange(num_bins))
-
-    real_pdf = np.array([
-        len(df[(df.bins == i) & (df.is_real == True)]) for i in range(num_bins)
-    ],
-                        dtype=np.float32) / len(real)
-    fake_pdf = np.array([
-        len(df[(df.bins == i) & (df.is_real == False)]) for i in range(num_bins)
-    ],
-                        dtype=np.float32) / len(fake)
-
-    kl.append(kl_divergence(real_pdf, fake_pdf))
-  return kl
 
 
 def firing_rate_metrics(hparams, summary, filename, epoch):
@@ -310,16 +310,16 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
 
-  # compute trial-wise covariance for the first 200 trials
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(correlation_coefficient_error,
-                         [(hparams, filename, i) for i in range(200)])
-  pool.close()
-
-  summary.scalar(
-      'spike_metrics/correlation_error',
-      np.nanmean(results, dtype=np.float32),
-      step=epoch)
+  # # compute trial-wise covariance for the first 200 trials
+  # pool = Pool(hparams.num_processors)
+  # results = pool.starmap(correlation_coefficient_error,
+  #                        [(hparams, filename, i) for i in range(200)])
+  # pool.close()
+  #
+  # summary.scalar(
+  #     'spike_metrics/correlation_error',
+  #     np.nanmean(results, dtype=np.float32),
+  #     step=epoch)
 
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
@@ -497,15 +497,15 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
 
-  # compute neuron-wise van rossum distance error with 200 trials
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      neuron_van_rossum_distance,
-      [(hparams, filename, n, 200) for n in hparams.neurons[:3]])
-  pool.close()
-
-  summary.scalar(
-      'spike_metrics/van_rossum_neuron', np.mean(results), step=epoch)
+  # # compute neuron-wise van rossum distance error with 200 trials
+  # pool = Pool(hparams.num_processors)
+  # results = pool.starmap(
+  #     neuron_van_rossum_distance,
+  #     [(hparams, filename, n, 200) for n in hparams.neurons[:3]])
+  # pool.close()
+  #
+  # summary.scalar(
+  #     'spike_metrics/van_rossum_neuron', np.mean(results), step=epoch)
 
   # # compute trial-wise van rossum heat-map
   # pool = Pool(hparams.num_processors)
@@ -530,7 +530,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   #     titles=titles,
   #     step=epoch)
 
-  # compute neuron-wise van rossum heat-map for 40 trials
+  # compute neuron-wise van rossum heat-map for 25 trials
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
       van_rossum_neuron_heatmap,
