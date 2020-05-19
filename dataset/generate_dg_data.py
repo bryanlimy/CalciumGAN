@@ -61,12 +61,12 @@ def get_recorded_data_statistics(hparams):
 
   # reshape to (time bins, trial, num neurons)
   spike_trains = np.transpose(spike_trains, axes=(1, 0))
-  spike_trains = np.expand_dims(spike_trains, axis=1)
+  spike_trains = np.expand_dims(spike_trains, axis=0)
 
   dg_optimizer = DGOptimise(spike_trains)
 
   mean = dg_optimizer.gauss_mean
-  corr = dg_optimizer.get_gauss_correlation()
+  corr = dg_optimizer.data_tfix_covariance
 
   return mean, corr
 
@@ -76,8 +76,8 @@ def generate_dg_spikes(hparams, mean, corr):
   spike_trains = dg.sample(repeats=hparams.duration)
 
   # reshape to (num_neurons, duration)
-  spike_trains = np.reshape(
-      spike_trains, newshape=(hparams.num_neurons, hparams.duration))
+  spike_trains = np.squeeze(spike_trains, axis=0)
+  spike_trains = np.transpose(spike_trains, axes=[1, 0])
 
   return spike_trains.astype(np.float32)
 

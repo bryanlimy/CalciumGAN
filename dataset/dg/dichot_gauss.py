@@ -33,15 +33,19 @@ class WarningDG(UserWarning):
 
 
 class Higham:
-  """ Converts an input symmetric matrix M into a positive semi-definite matrix A using the Higham iterative
-        projection algorithm to minimize the Frobenius norm between A and M.
-        Reference: NJ Higham, Computing the nearest correlation matrix - a problem from finance, IMA Journal of
-        Numerical Analysis, 2002
+  """
+    Converts an input symmetric matrix M into a positive semi-definite 
+    matrix A using the Higham iterative projection algorithm to minimize the 
+    Frobenius norm between A and M.
+    
+    Reference: NJ Higham, Computing the nearest correlation matrix - a problem 
+    from finance, IMA Journal of Numerical Analysis, 2002
 
-        Inputs:
-        maxiters: max. number of iterations for iterative projection algorithm. Default is 100,000.
-        tol: tolerance value for Frobenius norm. Default is 1e-10.
-    """
+    Inputs:
+      maxiters: max. number of iterations for iterative projection algorithm. 
+                Default is 100,000.
+      tol: tolerance value for Frobenius norm. Default is 1e-10.
+  """
 
   def __init__(self, maxiters=1e5, tol=1e-10):
     self.maxiters = maxiters
@@ -98,17 +102,21 @@ class Higham:
 
 class DichotGauss:
   """
-        Creates dichotomous Gaussian model. The model takes the mean and correlation of a multivariate Gaussian as
-        input and generates binary population spike trains, assuming that they are independent across timebins, but have
-        fixed correlations across neurons in each timebin.
-
-        Inputs:
-            :param num_neur: number of neurons.
-            :param mean: mean of multivariate Gaussian. Default is zero for all timebins and neurons.
-            :param corr: fixed correlation matrix for multivariate Gaussian, assumed to be symmetric.
-            Default is the identity matrix.
-            :param make_pd: set to True to make input correlation matrix positive definite using Higham algorithm.
-            :param kwargs: hyper-parameters for class Higham which performs the Higham correction (see help(Higham)).
+    Creates dichotomous Gaussian model. The model takes the mean and 
+    correlation of a multivariate Gaussian as input and generates binary 
+    population spike trains, assuming that they are independent across 
+    timebins, but have fixed correlations across neurons in each timebin.
+    
+    Inputs:
+      :param num_neur: number of neurons.
+      :param mean: mean of multivariate Gaussian. Default is zero for all 
+                  timebins and neurons.
+      :param corr: fixed correlation matrix for multivariate Gaussian, assumed 
+                  to be symmetric. Default is the identity matrix.
+      :param make_pd: set to True to make input correlation matrix positive 
+                      definite using Higham algorithm.
+      :param kwargs: hyper-parameters for class Higham which performs the 
+                    Higham correction (see help(Higham)).
     """
 
   def __init__(self, num_neur, mean=None, corr=None, make_pd=False, **kwargs):
@@ -122,11 +130,13 @@ class DichotGauss:
     if mean is None:
       mean = np.zeros((1, self.num_neur))
 
-    if corr is None:  # Generate default identity correlation matrix
+    # Generate default identity correlation matrix
+    if corr is None:
       corr = np.eye(self.num_neur)
       self.make_pd = False
 
-    if self.make_pd is True:  # Make input correlation matrix positive
+    # Make input correlation matrix positive
+    if self.make_pd is True:
       corr = self.do_higham_correction(make_symmetric(corr))
 
     self.mean = mean
@@ -134,14 +144,19 @@ class DichotGauss:
 
   def sample(self, mean=None, corr=None, repeats=1):
     """
-        Samples binary spike trains from DG model with input mean and correlation matrix.
-        Inputs:
-            :param mean: mean of multivariate Gaussian of size (timebins x number of neurons).
-            :param corr: correlation matrix for multivariate Gaussian of size (number of neurons x number of neurons).
-            :param repeats: number of binary spike trains to generate for the given mean and covariance matrix.
-        Returns:
-            :return: binary spike count tensor of size timebins x repeats x neurons
-        """
+      Samples binary spike trains from DG model with input mean and 
+      correlation matrix.
+      
+      Inputs:
+        :param mean: mean of multivariate Gaussian of size 
+                    (timebins x number of neurons).
+        :param corr: correlation matrix for multivariate Gaussian of size 
+                    (number of neurons x number of neurons).
+        :param repeats: number of binary spike trains to generate for the 
+                      given mean and covariance matrix.
+      Returns:
+        :return: binary spike count tensor of size timebins x repeats x neurons
+    """
     if mean is None:
       mean = self.mean
     if corr is None:
@@ -151,25 +166,28 @@ class DichotGauss:
     self._check_mean_size(mean)
     self._check_corr_size(corr)
 
-    # Check if input correlation matrix is positive definite, and do Higham correction if required
+    # Check if input correlation matrix is positive definite, and do
+    # Higham correction if required
     self.do_higham_correction(corr)
 
+    # Generate samples from a multivariate Gaussian
     z = mnorm(
-        np.zeros(self.num_neur), cov=self.corr).rvs(
-            size=[repeats,
-                  len(mean)])  # Generate samples from a multivariate Gaussian
+        np.zeros(self.num_neur),
+        cov=self.corr).rvs(size=[repeats, len(mean)])
     z = z.reshape(repeats, -1, self.num_neur)
     z = z + mean
     return heaviside(z.transpose(1, 0, 2))
 
   def do_higham_correction(self, M):
     """
-        Finds nearest positive definite matrix to the input matrix using the Higham algorithm.
-        """
-    is_pd = self._check_pd(
-        M)  # Check if input matrix is already positive definite.
+      Finds nearest positive definite matrix to the input matrix using the 
+      Higham algorithm.
+    """
+    # Check if input matrix is already positive definite.
+    is_pd = self._check_pd(M)
     if is_pd is False:
-      if self.make_pd is False:  # Raise warning if input matrix is not pd, and make_pd is False.
+      # Raise warning if input matrix is not pd, and make_pd is False.
+      if self.make_pd is False:
         warnings.warn(
             'Input covariance matrix is not positive definite. Set \'make_pd\' to True to do Higham '
             'correction.', WarningDG)

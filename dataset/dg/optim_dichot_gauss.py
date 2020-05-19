@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.stats import norm, multivariate_normal as mnorm
 from scipy.special import erfinv, erf
-from IPython.display import clear_output
-
 from tqdm import tqdm
 import warnings
 
@@ -51,21 +49,19 @@ def find_root_bisection(*eqn_input, eqn=function, maxiters=1000, tol=1e-10):
     Finds root of input equation using the bisection algorithm.
 
     Inputs:
-        :param eqn_input: list containing inputs to \'eqn\' method.
-        :param eqn: method implementing the equation for which we need the root.
-        :param maxiters: max. number of iterations for bisection algorithm.
-        :param tol: tolerance value for convergence of bisection algorithm.
+      :param eqn_input: list containing inputs to \'eqn\' method.
+      :param eqn: method implementing the equation for which we need the root.
+      :param maxiters: max. number of iterations for bisection algorithm.
+      :param tol: tolerance value for convergence of bisection algorithm.
 
     Returns:
-        :return: root of \'eqn\'.
-    """
+      :return: root of \'eqn\'. 
+  """
   lambda_0 = -.99999
   lambda_1 = .99999
 
   f0 = eqn(*eqn_input, lambda_0)
   f1 = eqn(*eqn_input, lambda_1)
-
-  # print('f0, f1', f0, f1)
 
   if np.abs(f0) < tol:
     warnings.warn("Warning: f0 is already close to 0. Returning initial value.",
@@ -90,38 +86,38 @@ def find_root_bisection(*eqn_input, eqn=function, maxiters=1000, tol=1e-10):
     result = (lambda_0 + lambda_1) / 2
     f = eqn(*eqn_input, result)
 
-    # print('result, f(result)', result, f)
-
     if f > 0:
       lambda_1 = result
     elif f < 0:
       lambda_0 = result
     it += 1
-  clear_output(wait=True)
+
   return result
 
 
 class DGOptimise(object):
   """
-        Finds the parameters of the multivariate Gaussian that best fit the given binary spike train.
-        Inputs:
-            :param data: binary spike count data of size timebins x repeats x neurons
-    """
+      Finds the parameters of the multivariate Gaussian that best fit the given binary spike train.
+      Inputs:
+          :param data: binary spike count data of size timebins x repeats x neurons
+  """
 
   def __init__(self, data):
     self.timebins, self.trials, self.num_neur = data.shape
-    self.tril_inds = np.tril_indices(self.num_neur, -1)
+    self.tril_indices = np.tril_indices(self.num_neur, -1)
     self.data = data
 
   @property
   def gauss_mean(self):
     """
-        Computes mean of the multivariate Gaussian corresponding to the input binary spike train.
-        """
+      Computes mean of the multivariate Gaussian corresponding to the input 
+      binary spike train.
+    """
     data = self.data
 
     mean = data.mean(1)
-    self._check_mean(mean)  # Check if mean lies between 0 and 1
+    # Check if mean lies between 0 and 1
+    self._check_mean(mean)
 
     # Need this to ensure inverse cdf calculation (norm.ppf()) does not break
     mean[mean == 0.] += 1e-4
@@ -132,8 +128,11 @@ class DGOptimise(object):
 
   @property
   def data_tvar_covariance(self):
-    """Computes covariance between spike trains from different neurons, averaged across timebins and trials.
-           Calculated for time-varying firing rate"""
+    """
+      Computes covariance between spike trains from different neurons, 
+      averaged across timebins and trials.
+      Calculated for time-varying firing rate
+    """
     data = self.data
 
     data_norm = (data - data.mean(0)).reshape(self.timebins, -1)
@@ -145,8 +144,10 @@ class DGOptimise(object):
 
   @property
   def data_tfix_covariance(self):
-    """Computes covariance between spike trains from different neurons, averaged across repeats. Calculated for
-           fixed firing rate."""
+    """
+      Computes covariance between spike trains from different neurons, averaged 
+      across repeats. Calculated for fixed firing rate.
+    """
     data = self.data
     data_norm = (data - data.mean(1)).reshape(-1, self.num_neur)
     tot_covar = data_norm.T.dot(data_norm) / (self.timebins * self.trials)
@@ -155,14 +156,19 @@ class DGOptimise(object):
 
   def get_gauss_correlation(self, set_attr=True, **kwargs):
     """
-        Computes the correlation matrix of the multivariate Gaussian that best fits the input binary spike trains.
-        Inputs:
-            :param set_attr: set to True to make computed correlation matrix an attribute of the class.
-            :param kwargs: arguments for bisection algorithm method (see help(find_root_bisection)).
+      Computes the correlation matrix of the multivariate Gaussian that best 
+      fits the input binary spike trains.
+      
+      Inputs:
+        :param set_attr: set to True to make computed correlation matrix an 
+                        attribute of the class.
+        :param kwargs: arguments for bisection algorithm method 
+                      (see help(find_root_bisection)).
 
-        Returns:
-            :return: computed correlation matrix of multivariate Gaussian distribution.
-        """
+      Returns:
+        :return: computed correlation matrix of multivariate Gaussian 
+                distribution.
+      """
     data_mean = self.data.mean(1).mean(0)
     gauss_mean = self.gauss_mean
     if self.timebins > 1:
@@ -173,14 +179,11 @@ class DGOptimise(object):
     gauss_corr = np.eye(self.num_neur)
 
     # Find pairwise correlation between each unique pair of neurons
-    for i, j in tqdm(zip(*self.tril_inds)):
-      # print("Neuron pair:", i, j)
+    for i, j in tqdm(
+        zip(self.tril_indices[0], self.tril_indices[1]),
+        total=len(self.tril_indices[0])):
       if np.abs(data_covar[i][j]) <= 1e-10:
-        print(
-            'Data covariance is zero. Setting corresponding Gaussian dist. covariance to 0.'
-        )
         gauss_corr[i][j], gauss_corr[j][i] = 0., 0.
-
       else:
         x = find_root_bisection([data_mean[i], data_mean[j]],
                                 [gauss_mean[..., i], gauss_mean[..., j]],
@@ -192,7 +195,7 @@ class DGOptimise(object):
     return gauss_corr
 
   def _check_mean(self, mean):
-    """Checks if input mean values lie between 0 and 1."""
+    """ Checks if input mean values lie between 0 and 1. """
     if np.any(mean < 0) or np.any(mean > 1):
       print('Mean should have value between 0 and 1.')
       raise NotImplementedError
