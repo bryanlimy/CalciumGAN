@@ -3,6 +3,7 @@ from scipy.stats import norm, multivariate_normal as mnorm
 from scipy.special import erfinv, erf
 from IPython.display import clear_output
 
+from tqdm import tqdm
 import warnings
 
 
@@ -172,7 +173,7 @@ class DGOptimise(object):
     gauss_corr = np.eye(self.num_neur)
 
     # Find pairwise correlation between each unique pair of neurons
-    for i, j in zip(*self.tril_inds):
+    for i, j in tqdm(zip(*self.tril_inds)):
       # print("Neuron pair:", i, j)
       if np.abs(data_covar[i][j]) <= 1e-10:
         print(

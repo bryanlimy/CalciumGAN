@@ -9,6 +9,7 @@ import quantities as pq
 from neo.core import SpikeTrain
 
 from dg.dichot_gauss import DichotGauss
+from dg.optim_dichot_gauss import DGOptimise
 
 
 def trains_to_neo(trains):
@@ -48,21 +49,30 @@ def get_recorded_data_statistics(hparams):
     data = pickle.load(file)
 
   spike_trains = np.array(data['oasis'], dtype=np.float32)[2:]
-  neo_trains = trains_to_neo(spike_trains)
+  hparams.num_neurons = spike_trains.shape[0]
+  hparams.duration = spike_trains.shape[1]
 
-  hparams.num_neurons = len(neo_trains)
+  # neo_trains = trains_to_neo(spike_trains)
+  #
+  # hparams.num_neurons = len(neo_trains)
+  #
+  # mean = mean_firing_rate(neo_trains)
+  # corr = correlation_coefficients(neo_trains)
 
-  mean = mean_firing_rate(neo_trains)
-  corr = correlation_coefficients(neo_trains)
+  # reshape to (time bins, trial, num neurons)
+  spike_trains = np.transpose(spike_trains, axes=(1, 0))
+  spike_trains = np.expand_dims(spike_trains, axis=1)
+
+  dg_optimizer = DGOptimise(spike_trains)
+
+  mean = dg_optimizer.gauss_mean
+  corr = dg_optimizer.get_gauss_correlation()
+
   return mean, corr
 
 
 def generate_dg_spikes(hparams, mean, corr):
-  dg = DichotGauss(
-      hparams.num_neurons,
-      mean=np.expand_dims(mean, axis=0),
-      corr=corr,
-      make_pd=True)
+  dg = DichotGauss(hparams.num_neurons, mean=mean, corr=corr, make_pd=True)
   spike_trains = dg.sample(repeats=hparams.duration)
 
   # reshape to (num_neurons, duration)
@@ -112,6 +122,5 @@ if __name__ == '__main__':
   parser.add_argument(
       '--input', default='raw_data/ST260_Day4_signals4Bryan.pkl', type=str)
   parser.add_argument('--output', default='dg/data.pkl', type=str)
-  parser.add_argument('--duration', default=21556, type=int)
   hparams = parser.parse_args()
   main(hparams)
