@@ -1,7 +1,7 @@
-import numpy as np
-from scipy.stats import multivariate_normal as mnorm
-from numpy.linalg import LinAlgError
 import warnings
+import numpy as np
+from numpy.linalg import LinAlgError
+from scipy.stats import multivariate_normal as mnorm
 
 
 def heaviside(_input, center=0):

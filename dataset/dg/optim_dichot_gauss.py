@@ -1,8 +1,7 @@
-import numpy as np
-from scipy.stats import norm, multivariate_normal as mnorm
-from scipy.special import erfinv, erf
-from tqdm import tqdm
 import warnings
+import numpy as np
+from tqdm import tqdm
+from scipy.stats import norm, multivariate_normal as mnorm
 
 
 class WarningDGOpt(UserWarning):
