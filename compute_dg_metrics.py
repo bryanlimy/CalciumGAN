@@ -12,13 +12,25 @@ from dataset.dg.dichot_gauss import DichotGauss
 from dataset.dg.optim_dichot_gauss import DGOptimise
 
 import matplotlib
+
 if platform.system() == 'Darwin':
   matplotlib.use('TkAgg')
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 plt.style.use('seaborn-deep')
 
 import seaborn as sns
+
+tick_size = 20
+label_size = 30
+legend_size = 14
+plt.rc('xtick', labelsize=tick_size)
+plt.rc('ytick', labelsize=tick_size)
+plt.rc('axes', titlesize=label_size)
+plt.rc('axes', labelsize=label_size)
+plt.rc('axes', labelsize=label_size)
+plt.rc('legend', fontsize=legend_size)
 
 
 def load_info(hparams):
@@ -40,44 +52,51 @@ def get_data_statistics(hparams, filename, trial=0):
   mean = dg_optimizer.gauss_mean
   corr = dg_optimizer.data_tfix_covariance
 
+  diag_indices = np.triu_indices(len(corr))
+  corr = corr[diag_indices]
+
   return mean, corr
 
 
-def plot_means(hparams, dg_means, fake_means):
-  df = pd.DataFrame({
-      'means':
-      np.concatenate([dg_means, fake_means]),
-      'data': ['DG'] * len(dg_means) + ['Fake'] * len(fake_means),
-      'trials':
-      list(range(len(dg_means))) + list(range(len(dg_means))),
-  })
+def plot_statistics(filename, dg_means, fake_means, dg_corrs, fake_corrs):
+  fig = plt.figure(figsize=(32, 10))
+  fig.patch.set_facecolor('white')
 
-  g = sns.lmplot(
-      x='trials',
-      y='means',
-      hue='data',
-      data=df,
-      markers=['o', 'x'],
-      palette={
-          'DG': "dodgerblue",
-          'Fake': 'orangered'
-      },
-      legend_out=False,
-      scatter_kws={'alpha': 0.8},
-      line_kws={'alpha': 0.9})
-  g.set(ylim=(df['means'].min() - 0.1, df['means'].max() + 0.1))
+  x = list(range(len(dg_means)))
 
-  plt.gcf().set_size_inches(12, 9)
-  axis = plt.gca()
-  axis.spines['top'].set_visible(False)
-  axis.spines['right'].set_visible(False)
+  # plot means
+  plt.subplot(1, 2, 1)
+  sns.regplot(
+      x, dg_means, marker='o', color='dodgerblue', scatter_kws={'alpha': 0.7})
+  ax = sns.regplot(
+      x, fake_means, marker='x', color='orangered', scatter_kws={'alpha': 0.7})
+  ax.set_ylim(
+      min(dg_means + fake_means) - 0.05,
+      max(dg_means + fake_means) + 0.05)
+  ax.spines['top'].set_visible(False)
+  ax.spines['right'].set_visible(False)
+  ax.set_xlabel('Trials')
+  ax.set_ylabel('Mean')
   plt.legend(loc='upper left', labels=['DG', 'CalciumGAN'])
-  plt.xlabel('Trials')
-  plt.ylabel('Mean')
+
+  # plot correlations
+  plt.subplot(1, 2, 2)
+  sns.regplot(
+      x, dg_corrs, marker='o', color='dodgerblue', scatter_kws={'alpha': 0.7})
+  ax = sns.regplot(
+      x, fake_corrs, marker='x', color='orangered', scatter_kws={'alpha': 0.7})
+  ax.set_ylim(
+      min(dg_corrs + fake_corrs) - 0.00001,
+      max(dg_corrs + fake_corrs) + 0.00001)
+  ax.yaxis.set_major_formatter(ticker.LogFormatterSciNotation())
+  ax.spines['top'].set_visible(False)
+  ax.spines['right'].set_visible(False)
+  ax.set_xlabel('Trials')
+  ax.set_ylabel('Mean correlations')
+  plt.legend(loc='upper left', labels=['DG', 'CalciumGAN'])
 
   plt.tight_layout()
-  filename = 'dg_means_lmplot.png'
-  plt.savefig(filename, dpi=120)
+  plt.savefig(filename, dpi=120, format='pdf')
   plt.close()
 
   print('saved figure to {}'.format(filename))
@@ -106,18 +125,11 @@ def main(hparams):
 
     dg_means.append(np.mean(dg_mean))
     fake_means.append(np.mean(fake_mean))
+    dg_corrs.append(np.mean(dg_corr))
+    fake_corrs.append(np.mean(fake_corr))
 
-  plot_means(hparams, dg_means, fake_means)
-
-  # print('Trial {:02}/{:02d}'.format(trial + 1, hparams.num_trials))
-  # print('dg mean: {:.04f}\tfake mean: {:.04f}'.format(
-  #     np.mean(dg_mean), np.mean(fake_mean)))
-  # print('corr mean: {:.04f}\tcorr mean: {:.04f}'.format(
-  #     np.mean(dg_corr), np.mean(fake_corr)))
-  # print('mean all close: {}'.format(
-  #     np.allclose(dg_mean, fake_mean, rtol=0.2, atol=0.8)))
-  # print('corr all close: {}\n'.format(
-  #     np.allclose(dg_corr, fake_corr, rtol=0.2, atol=0.8)))
+  plot_statistics('diagrams/dg_lmplot.pdf', dg_means, fake_means, dg_corrs,
+                  fake_corrs)
 
 
 if __name__ == '__main__':
