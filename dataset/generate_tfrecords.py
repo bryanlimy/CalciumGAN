@@ -56,8 +56,9 @@ def get_segments(hparams):
   raw_spikes = np.array(data['oasis'], dtype=np.float32)
 
   # remove first two rows in signals
-  raw_signals = raw_signals[2:]
-  raw_spikes = raw_spikes[2:]
+  if not hparams.is_dg_data:
+    raw_signals = raw_signals[2:]
+    raw_spikes = raw_spikes[2:]
 
   assert raw_signals.shape == raw_spikes.shape
 
@@ -243,6 +244,7 @@ if __name__ == '__main__':
   parser.add_argument('--fft', action='store_true')
   parser.add_argument('--replace', action='store_true')
   parser.add_argument('--train_percentage', default=0.9, type=float)
+  parser.add_argument('--is_dg_data', action='store_true')
   parser.add_argument(
       '--target_shard_size',
       default=0.25,

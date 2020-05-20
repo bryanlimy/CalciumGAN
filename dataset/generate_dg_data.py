@@ -52,13 +52,6 @@ def get_recorded_data_statistics(hparams):
   hparams.num_neurons = spike_trains.shape[0]
   hparams.duration = spike_trains.shape[1]
 
-  # neo_trains = trains_to_neo(spike_trains)
-  #
-  # hparams.num_neurons = len(neo_trains)
-  #
-  # mean = mean_firing_rate(neo_trains)
-  # corr = correlation_coefficients(neo_trains)
-
   # reshape to (time bins, trial, num neurons)
   spike_trains = np.transpose(spike_trains, axes=(1, 0))
   spike_trains = np.expand_dims(spike_trains, axis=0)
@@ -66,7 +59,7 @@ def get_recorded_data_statistics(hparams):
   dg_optimizer = DGOptimise(spike_trains)
 
   mean = dg_optimizer.gauss_mean
-  corr = dg_optimizer.data_tfix_covariance
+  corr = dg_optimizer.data_tvar_covariance
 
   return mean, corr
 
