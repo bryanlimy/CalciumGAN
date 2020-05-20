@@ -191,21 +191,9 @@ class Summary(object):
     fake = df.loc[df.real_data == False]
 
     sns.scatterplot(
-        real.x,
-        real.y,
-        marker='|',
-        color=self.real_color,
-        alpha=0.9,
-        ax=g.ax_joint,
-        s=45)
+        real.x, real.y, color=self.real_color, alpha=0.9, ax=g.ax_joint, s=45)
     ax = sns.scatterplot(
-        fake.x,
-        fake.y,
-        marker='|',
-        color=self.fake_color,
-        alpha=0.9,
-        ax=g.ax_joint,
-        s=45)
+        fake.x, fake.y, color=self.fake_color, alpha=0.9, ax=g.ax_joint, s=45)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
@@ -282,6 +270,8 @@ class Summary(object):
         bins=bins)
     ax.set_xlabel(xlabel, fontsize=40)
     ax.set_ylabel(ylabel, fontsize=40)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
     images.append(self._plot_to_png())
@@ -330,6 +320,8 @@ class Summary(object):
     ax.legend()
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
     images.append(self._plot_to_png())
@@ -387,6 +379,8 @@ class Summary(object):
       ax.set_xlabel(xlabel)
       ax.set_ylabel(ylabel)
       ax.set_title(titles[i])
+      ax.spines['top'].set_visible(False)
+      ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
     images.append(self._plot_to_png())

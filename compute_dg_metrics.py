@@ -96,7 +96,7 @@ def plot_statistics(filename, dg_means, fake_means, dg_corrs, fake_corrs):
   plt.legend(loc='upper left', labels=['DG', 'CalciumGAN'])
 
   plt.tight_layout()
-  plt.savefig(filename, dpi=120, format='pdf')
+  plt.savefig(filename, dpi=120, format='pdf', transparent=True)
   plt.close()
 
   print('saved figure to {}'.format(filename))
@@ -128,7 +128,7 @@ def main(hparams):
     dg_corrs.append(np.mean(dg_corr))
     fake_corrs.append(np.mean(fake_corr))
 
-  plot_statistics('diagrams/dg_lmplot.pdf', dg_means, fake_means, dg_corrs,
+  plot_statistics('diagrams/dg_statistics.pdf', dg_means, fake_means, dg_corrs,
                   fake_corrs)
 
 

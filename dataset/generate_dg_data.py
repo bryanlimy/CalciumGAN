@@ -59,7 +59,7 @@ def get_recorded_data_statistics(hparams):
   dg_optimizer = DGOptimise(spike_trains)
 
   mean = dg_optimizer.gauss_mean
-  corr = dg_optimizer.data_tvar_covariance
+  corr = dg_optimizer.data_tfix_covariance
 
   return mean, corr
 
