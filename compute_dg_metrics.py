@@ -1,5 +1,6 @@
 import os
 import pickle
+import warnings
 import platform
 import argparse
 import numpy as np
@@ -8,6 +9,10 @@ from tqdm import tqdm
 
 from gan.utils import utils
 from gan.utils import h5_helper
+from gan.utils import spike_helper
+from gan.utils import spike_metrics
+import compute_metrics
+
 from dataset.dg.dichot_gauss import DichotGauss
 from dataset.dg.optim_dichot_gauss import DGOptimise
 
@@ -17,20 +22,16 @@ if platform.system() == 'Darwin':
   matplotlib.use('TkAgg')
 
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 plt.style.use('seaborn-deep')
 
 import seaborn as sns
 
-tick_size = 20
-label_size = 30
-legend_size = 14
-plt.rc('xtick', labelsize=tick_size)
-plt.rc('ytick', labelsize=tick_size)
-plt.rc('axes', titlesize=label_size)
-plt.rc('axes', labelsize=label_size)
-plt.rc('axes', labelsize=label_size)
-plt.rc('legend', fontsize=legend_size)
+plt.rc('xtick', labelsize=14)
+plt.rc('ytick', labelsize=20)
+plt.rc('axes', titlesize=30)
+plt.rc('axes', labelsize=30)
+plt.rc('axes', labelsize=30)
+plt.rc('legend', fontsize=14)
 
 
 def load_info(hparams):
@@ -40,66 +41,108 @@ def load_info(hparams):
   return info
 
 
-def get_data_statistics(hparams, filename, trial=0):
+def get_data_statistics(hparams, filename):
   ''' Get mean firing rate and correlation of recorded data '''
-  spike_trains = h5_helper.get(filename, name='spikes', trial=trial)
+  firing_rates = np.zeros(
+      shape=(hparams.num_neurons, hparams.num_trials), dtype=np.float32)
+  covariances = np.zeros(
+      shape=(hparams.num_neurons * (hparams.num_neurons + 1) // 2,
+             hparams.num_trials),
+      dtype=np.float32)
 
-  # reshape to (time bins, trial, num neurons)
-  spike_trains = np.expand_dims(spike_trains, axis=0)
+  for i in tqdm(range(hparams.num_trials), desc="Trial"):
+    spike_trains = compute_metrics.get_neo_trains(
+        hparams, filename, trial=i, data_format='CW')
+    firing_rates[:, i] = spike_metrics.mean_firing_rate(spike_trains)
+    covariance = spike_metrics.covariance(spikes1=spike_trains, spikes2=None)
+    indices = np.triu_indices(len(covariance))
+    covariance = np.nan_to_num(covariance[indices])
+    covariances[:, i] = covariance
 
-  dg_optimizer = DGOptimise(spike_trains)
-
-  mean = dg_optimizer.gauss_mean
-  corr = dg_optimizer.data_tfix_covariance
-
-  diag_indices = np.triu_indices(len(corr))
-  corr = corr[diag_indices]
-
-  return mean, corr
+  return firing_rates, covariances
 
 
-def plot_statistics(filename, dg_means, fake_means, dg_corrs, fake_corrs):
-  fig = plt.figure(figsize=(32, 10))
+def plot_firing_rate(hparams, filename, real, fake):
+  assert real.shape == fake.shape
+
+  # sort firing rate by the mean of num_trials trials
+  neuron_order = np.argsort(np.mean(real, axis=-1))
+  real = real[neuron_order].flatten('F')
+  fake = fake[neuron_order].flatten('F')
+  x = list(range(len(neuron_order)))
+
+  fig = plt.figure(figsize=(16, 10))
   fig.patch.set_facecolor('white')
 
-  x = list(range(len(dg_means)))
-
-  # plot means
-  plt.subplot(1, 2, 1)
   sns.regplot(
-      x, dg_means, marker='o', color='dodgerblue', scatter_kws={'alpha': 0.7})
+      x=x * hparams.num_trials,
+      y=real,
+      marker='o',
+      fit_reg=False,
+      color='dodgerblue',
+      scatter_kws={'alpha': 0.7})
   ax = sns.regplot(
-      x, fake_means, marker='x', color='orangered', scatter_kws={'alpha': 0.7})
-  ax.set_ylim(
-      min(dg_means + fake_means) - 0.05,
-      max(dg_means + fake_means) + 0.05)
+      x=x * hparams.num_trials,
+      y=fake,
+      marker='x',
+      fit_reg=False,
+      color='orangered',
+      scatter_kws={'alpha': 0.7})
+
+  plt.xticks(ticks=list(range(0, len(x), 2)), labels=neuron_order, rotation=90)
   ax.spines['top'].set_visible(False)
   ax.spines['right'].set_visible(False)
-  ax.set_xlabel('Trials')
-  ax.set_ylabel('Mean')
-  plt.legend(loc='upper left', labels=['DG', 'CalciumGAN'])
-
-  # plot correlations
-  plt.subplot(1, 2, 2)
-  sns.regplot(
-      x, dg_corrs, marker='o', color='dodgerblue', scatter_kws={'alpha': 0.7})
-  ax = sns.regplot(
-      x, fake_corrs, marker='x', color='orangered', scatter_kws={'alpha': 0.7})
-  ax.set_ylim(
-      min(dg_corrs + fake_corrs) - 0.00001,
-      max(dg_corrs + fake_corrs) + 0.00001)
-  ax.yaxis.set_major_formatter(ticker.LogFormatterSciNotation())
-  ax.spines['top'].set_visible(False)
-  ax.spines['right'].set_visible(False)
-  ax.set_xlabel('Trials')
-  ax.set_ylabel('Mean correlations')
+  ax.set_xlabel('Neuron')
+  ax.set_ylabel('Firing rate (Hz)')
   plt.legend(loc='upper left', labels=['DG', 'CalciumGAN'])
 
   plt.tight_layout()
   plt.savefig(filename, dpi=120, format='pdf', transparent=True)
   plt.close()
 
-  print('saved figure to {}'.format(filename))
+  print('saved firing rate figure to {}'.format(filename))
+
+
+def plot_covariance(hparams, filename, real, fake):
+  assert real.shape == fake.shape
+
+  # sort covariance by the mean of num_trials trials
+  pair_order = np.argsort(np.mean(real, axis=-1))
+  pair_order = pair_order[::15]
+  real = real[pair_order].flatten('F')
+  fake = fake[pair_order].flatten('F')
+  x = list(range(len(pair_order)))
+
+  fig = plt.figure(figsize=(16, 10))
+  fig.patch.set_facecolor('white')
+
+  sns.regplot(
+      x=x * hparams.num_trials,
+      y=real,
+      fit_reg=False,
+      marker='o',
+      color='dodgerblue',
+      scatter_kws={'alpha': 0.7})
+  ax = sns.regplot(
+      x=x * hparams.num_trials,
+      y=fake,
+      fit_reg=False,
+      marker='x',
+      color='orangered',
+      scatter_kws={'alpha': 0.7})
+
+  plt.xticks(ticks=list(range(0, len(x), 10)), labels=pair_order, rotation=90)
+  ax.spines['top'].set_visible(False)
+  ax.spines['right'].set_visible(False)
+  ax.set_xlabel('Neuron Pair')
+  ax.set_ylabel('Covariance')
+  plt.legend(loc='upper left', labels=['DG', 'CalciumGAN'])
+
+  plt.tight_layout()
+  plt.savefig(filename, dpi=120, format='pdf', transparent=True)
+  plt.close()
+
+  print('saved covariance figure to {}'.format(filename))
 
 
 def main(hparams):
@@ -112,28 +155,31 @@ def main(hparams):
 
   epochs = sorted(list(info.keys()))
 
-  hparams.num_trials = h5_helper.get_dataset_length(hparams.validation_cache,
-                                                    'spikes')
+  real_firing_rate, real_covariance = get_data_statistics(
+      hparams, filename=hparams.validation_cache)
+  fake_firing_rate, fake_covariance = get_data_statistics(
+      hparams, filename=info[epochs[-1]]['filename'])
 
-  dg_means, fake_means = [], []
-  dg_corrs, fake_corrs = [], []
-  for trial in tqdm(range(hparams.num_trials), desc='Measure statisitcs'):
-    dg_mean, dg_corr = get_data_statistics(
-        hparams, filename=hparams.validation_cache, trial=trial)
-    fake_mean, fake_corr = get_data_statistics(
-        hparams, filename=info[epochs[-1]]['filename'], trial=trial)
-
-    dg_means.append(np.mean(dg_mean))
-    fake_means.append(np.mean(fake_mean))
-    dg_corrs.append(np.mean(dg_corr))
-    fake_corrs.append(np.mean(fake_corr))
-
-  plot_statistics('diagrams/dg_statistics.pdf', dg_means, fake_means, dg_corrs,
-                  fake_corrs)
+  plot_firing_rate(
+      hparams,
+      filename='diagrams/dg_firing_rate.pdf',
+      real=real_firing_rate,
+      fake=fake_firing_rate)
+  plot_covariance(
+      hparams,
+      filename='diagrams/dg_covariance.pdf',
+      real=real_covariance,
+      fake=fake_covariance)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='runs', type=str)
+  parser.add_argument('--num_trials', default=5, type=int)
   hparams = parser.parse_args()
+
+  warnings.simplefilter(action='ignore', category=UserWarning)
+  warnings.simplefilter(action='ignore', category=RuntimeWarning)
+  warnings.simplefilter(action='ignore', category=DeprecationWarning)
+
   main(hparams)
