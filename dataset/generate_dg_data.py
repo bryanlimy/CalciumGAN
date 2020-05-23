@@ -59,9 +59,9 @@ def get_recorded_data_statistics(hparams):
   dg_optimizer = DGOptimise(spike_trains)
 
   mean = dg_optimizer.gauss_mean
-  corr = dg_optimizer.data_tfix_covariance
+  covariance = dg_optimizer.data_tfix_covariance
 
-  return mean, corr
+  return mean, covariance
 
 
 def generate_dg_spikes(hparams, mean, corr):
@@ -79,24 +79,24 @@ def spikes_to_signals(hparams, spike_trains, g=[.95], sn=.3, b=0):
   ''' Convert spike trains to calcium signals 
   Code extracted from https://github.com/j-friedrich/OASIS/blob/e62063cfd8bc0f06625aebd3ea3e09133665b409/oasis/functions.py#L17
   '''
-  truth = spike_trains.astype(np.float32)
+  spikes = spike_trains.astype(np.float32)
 
   for i in range(2, hparams.duration):
     if len(g) == 2:
-      truth[:, i] += g[0] * truth[:, i - 1] + g[1] * truth[:, i - 2]
+      spikes[:, i] += g[0] * spikes[:, i - 1] + g[1] * spikes[:, i - 2]
     else:
-      truth[:, i] += g[0] * truth[:, i - 1]
+      spikes[:, i] += g[0] * spikes[:, i - 1]
 
-  signals = b + truth + sn * np.random.randn(hparams.num_neurons,
-                                             hparams.duration)
+  signals = b + spikes + sn * np.random.randn(hparams.num_neurons,
+                                              hparams.duration)
 
   return signals.astype(np.float32)
 
 
 def main(hparams):
-  mean, corr = get_recorded_data_statistics(hparams)
+  mean, covariance = get_recorded_data_statistics(hparams)
 
-  dg_spikes = generate_dg_spikes(hparams, mean, corr)
+  dg_spikes = generate_dg_spikes(hparams, mean, covariance)
 
   dg_signals = spikes_to_signals(hparams, dg_spikes)
 

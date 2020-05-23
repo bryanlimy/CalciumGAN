@@ -4,17 +4,11 @@ import warnings
 import platform
 import argparse
 import numpy as np
-import pandas as pd
 from tqdm import tqdm
 
-from gan.utils import utils
-from gan.utils import h5_helper
-from gan.utils import spike_helper
-from gan.utils import spike_metrics
 import compute_metrics
-
-from dataset.dg.dichot_gauss import DichotGauss
-from dataset.dg.optim_dichot_gauss import DGOptimise
+from gan.utils import utils
+from gan.utils import spike_metrics
 
 import matplotlib
 
@@ -26,12 +20,12 @@ plt.style.use('seaborn-deep')
 
 import seaborn as sns
 
-plt.rc('xtick', labelsize=14)
+plt.rc('xtick', labelsize=20)
 plt.rc('ytick', labelsize=20)
 plt.rc('axes', titlesize=30)
 plt.rc('axes', labelsize=30)
 plt.rc('axes', labelsize=30)
-plt.rc('legend', fontsize=14)
+plt.rc('legend', fontsize=18)
 
 
 def load_info(hparams):
@@ -131,7 +125,7 @@ def plot_covariance(hparams, filename, real, fake):
       color='orangered',
       scatter_kws={'alpha': 0.7})
 
-  plt.xticks(ticks=list(range(0, len(x), 10)), labels=pair_order, rotation=90)
+  plt.xticks(ticks=list(range(0, len(x), 8)), labels=pair_order, rotation=90)
   ax.spines['top'].set_visible(False)
   ax.spines['right'].set_visible(False)
   ax.set_xlabel('Neuron Pair')
