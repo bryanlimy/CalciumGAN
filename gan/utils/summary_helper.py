@@ -139,7 +139,7 @@ class Summary(object):
     if rem > 0:
       num_rows += 1
 
-    fig = plt.figure(figsize=(32, 5 * num_rows))
+    fig = plt.figure(figsize=(32, int(4.5 * num_rows)))
     fig.patch.set_facecolor('white')
 
     plt.tick_params(axis='both', which='minor', labelsize=20)
@@ -392,10 +392,14 @@ class Summary(object):
       real, fake = data[i]
 
       hist_kws = {
-          "rwidth": 0.85,
-          "alpha": 0.6,
-          "range": [min(min(real), min(fake)),
-                    max(max(real), max(fake))]
+          "rwidth":
+          0.85,
+          "alpha":
+          0.6,
+          "range": [
+              np.min([np.min(real), np.min(fake)]),
+              np.max([np.max(real), np.max(fake)])
+          ]
       }
 
       sns.distplot(
@@ -413,7 +417,8 @@ class Summary(object):
           color=self.fake_color,
           label="Fake")
 
-      ax.legend()
+      if i == 2:
+        ax.legend(frameon=False, prop={'size': 25})
       ax.set_xlabel(xlabel)
       ax.set_ylabel(ylabel)
       ax.set_title(titles[i])
@@ -452,12 +457,23 @@ class Summary(object):
       ax = sns.heatmap(
           matrix[i],
           cmap='YlOrRd',
+          vmin=0,
+          vmax=80,
           xticklabels=xticklabels[i] if type(xticklabels) == list else 'auto',
           yticklabels=yticklabels[i] if type(xticklabels) == list else 'auto',
       )
       ax.set_xlabel(xlabel)
       ax.set_ylabel(ylabel)
       ax.set_title(titles[i])
+
+      plt.xticks(
+          ticks=list(range(0, len(xticklabels[i]), 2)),
+          labels=xticklabels[i],
+          fontsize=20)
+      plt.yticks(
+          ticks=list(range(0, len(yticklabels[i]), 2)),
+          labels=yticklabels[i],
+          fontsize=20)
 
     plt.tight_layout()
     images.append(self._plot_to_png())

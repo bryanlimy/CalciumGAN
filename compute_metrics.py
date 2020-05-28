@@ -1,16 +1,14 @@
 import os
-import json
 import pickle
 import argparse
 import warnings
 import numpy as np
 import pandas as pd
-
 from tqdm import tqdm
 from time import time
 from multiprocessing import Pool
 
-np.random.seed(689)
+np.random.seed(26)
 
 # use CPU only
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -106,36 +104,10 @@ def pairs_kl_divergence(pairs):
   return kl
 
 
-def raster_plots(hparams, summary, filename, epoch):
-  if hparams.verbose:
-    print('\tPlotting raster plot for epoch #{}'.format(epoch))
+def plot_signals(hparams, summary, filename, epoch):
+  num_trials = h5_helper.get_dataset_length(filename, name='signals')
+  trial = int(np.random.choice(list(range(num_trials)), size=1))
 
-  real_spikes = h5_helper.get(hparams.validation_cache, name='spikes')
-  real_spikes = utils.set_array_format(real_spikes, 'NCW', hparams)
-  fake_spikes = h5_helper.get(filename, name='spikes')
-  fake_spikes = utils.set_array_format(fake_spikes, 'NCW', hparams)
-
-  trial = 0
-  summary.raster_plot(
-      'raster_plot_trial',
-      real_spikes=real_spikes[trial],
-      fake_spikes=fake_spikes[trial],
-      xlabel='Time (ms)',
-      ylabel='Neuron',
-      title='Trial #001',
-      step=epoch)
-
-  # summary.raster_plot(
-  #     'raster_plot_neuron',
-  #     real_spikes=real_spikes[:100, 5, :],
-  #     fake_spikes=fake_spikes[:100, 5, :],
-  #     xlabel='Time (ms)',
-  #     ylabel='Trial',
-  #     title='Neuron #005',
-  #     step=epoch)
-
-
-def plot_signals(hparams, summary, filename, epoch, trial=25):
   if hparams.verbose:
     print('\tPlotting traces for trial #{}'.format(trial))
 
@@ -185,7 +157,30 @@ def plot_signals(hparams, summary, filename, epoch, trial=25):
       step=epoch)
 
 
-def firing_rate_neuron(hparams, filename, neuron):
+def raster_plots(hparams, summary, filename, epoch):
+  num_trials = h5_helper.get_dataset_length(filename, name='spikes')
+  trial = int(np.random.choice(list(range(num_trials)), size=1))
+
+  if hparams.verbose:
+    print('\tPlotting raster plot for trial #{}'.format(trial))
+
+  real_spikes = h5_helper.get(
+      hparams.validation_cache, name='spikes', trial=trial)
+  real_spikes = utils.set_array_format(real_spikes, 'CW', hparams)
+  fake_spikes = h5_helper.get(filename, name='spikes', trial=trial)
+  fake_spikes = utils.set_array_format(fake_spikes, 'CW', hparams)
+
+  summary.raster_plot(
+      'raster_plot_trial',
+      real_spikes=real_spikes,
+      fake_spikes=fake_spikes,
+      xlabel='Time (ms)',
+      ylabel='Neuron',
+      title='Trial #{}'.format(trial),
+      step=epoch)
+
+
+def firing_rate(hparams, filename, neuron, num_trials=200):
   if hparams.verbose == 2:
     print('\tComputing firing rate for neuron #{}'.format(neuron))
 
@@ -194,22 +189,19 @@ def firing_rate_neuron(hparams, filename, neuron):
       hparams.validation_cache,
       neuron=neuron,
       data_format='NW',
-  )
+      num_trials=num_trials)
   fake_spikes = get_neo_trains(
       hparams,
       filename,
       neuron=neuron,
       data_format='NW',
+      num_trials=num_trials,
   )
 
   real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
   fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
-  firing_rate_error = mse(real_firing_rate, fake_firing_rate)
 
-  return {
-      'firing_rate_error': firing_rate_error,
-      'firing_rate_pair': (real_firing_rate, fake_firing_rate)
-  }
+  return (real_firing_rate, fake_firing_rate)
 
 
 def firing_rate_metrics(hparams, summary, filename, epoch):
@@ -217,19 +209,9 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
     print('\tComputing firing rate')
 
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(firing_rate_neuron,
-                         [(hparams, filename, n) for n in hparams.neurons[:3]])
+  firing_rate_pairs = pool.starmap(
+      firing_rate, [(hparams, filename, n, 400) for n in hparams.neurons[:3]])
   pool.close()
-
-  firing_rate_errors, firing_rate_pairs = [], []
-  for result in results:
-    firing_rate_errors.append(result['firing_rate_error'])
-    firing_rate_pairs.append(result['firing_rate_pair'])
-
-  summary.scalar(
-      'spike_metrics/firing_rate_error',
-      np.mean(firing_rate_errors),
-      step=epoch)
 
   summary.plot_histograms_grid(
       'firing_rate_histograms',
@@ -241,14 +223,12 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
 
   # get firing rate for all neurons
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      firing_rate_neuron,
-      [(hparams, filename, n) for n in range(hparams.num_neurons)])
+  firing_rate_pairs = pool.starmap(
+      firing_rate,
+      [(hparams, filename, n, 1000) for n in range(hparams.num_neurons)])
   pool.close()
 
-  firing_rate_pairs = [result['firing_rate_pair'] for result in results]
   kl = pairs_kl_divergence(firing_rate_pairs)
-
   summary.plot_distribution(
       'firing_rate_kl_histogram',
       kl,
@@ -289,29 +269,9 @@ def covariance_metrics(hparams, summary, filename, epoch):
       'spike_metrics/neuron_covariance', np.mean(results), step=epoch)
 
 
-def correlation_coefficient_error(hparams, filename, trial):
+def correlation_coefficient(hparams, filename, trial):
   if hparams.verbose == 2:
-    print('\t\tComputing correlation coefficient error for trial #{}'.format(
-        trial))
-
-  diag_indices = np.triu_indices(hparams.num_neurons, k=1)
-
-  real_spikes = get_neo_trains(
-      hparams, hparams.validation_cache, trial=trial, data_format='CW')
-  real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
-  real_corrcoef = real_corrcoef[diag_indices]
-
-  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
-  fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
-  fake_corrcoef = fake_corrcoef[diag_indices]
-
-  return mse(real_corrcoef, fake_corrcoef)
-
-
-def correlation_coefficient_trial_histogram(hparams, filename, trial):
-  if hparams.verbose == 2:
-    print('\t\tComputing correlation coefficient histogram for sample #{}'.
-          format(trial))
+    print('\t\tComputing correlation coefficient for sample #{}'.format(trial))
 
   diag_indices = np.triu_indices(hparams.num_neurons, k=1)
 
@@ -331,26 +291,16 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
 
-  # # compute trial-wise covariance for the first 200 trials
-  # pool = Pool(hparams.num_processors)
-  # results = pool.starmap(correlation_coefficient_error,
-  #                        [(hparams, filename, i) for i in range(200)])
-  # pool.close()
-  #
-  # summary.scalar(
-  #     'spike_metrics/correlation_error',
-  #     np.nanmean(results, dtype=np.float32),
-  #     step=epoch)
-
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(correlation_coefficient_trial_histogram,
-                         [(hparams, filename, i) for i in hparams.trials[:3]])
+  correlations = pool.starmap(
+      correlation_coefficient,
+      [(hparams, filename, i) for i in hparams.trials[:3]])
   pool.close()
 
   summary.plot_histograms_grid(
       'correlation_coefficient_trial_histogram',
-      results,
+      correlations,
       xlabel='Correlation',
       ylabel='Count',
       titles=['Trial #{:03d}'.format(i) for i in hparams.trials[:3]],
@@ -358,11 +308,11 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
 
   # compute mean trial-wise correlation histogram
   pool = Pool(hparams.num_processors)
-  corrcoeff_pairs = pool.starmap(correlation_coefficient_trial_histogram,
-                                 [(hparams, filename, i) for i in range(200)])
+  correlations = pool.starmap(correlation_coefficient,
+                              [(hparams, filename, i) for i in range(200)])
   pool.close()
-  kl = pairs_kl_divergence(corrcoeff_pairs)
 
+  kl = pairs_kl_divergence(correlations)
   summary.plot_distribution(
       'correlation_coefficient_trial_kl_histogram',
       kl,
@@ -370,23 +320,6 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       ylabel='Count',
       title='Correlation coefficient KL divergence',
       step=epoch)
-
-
-def neuron_van_rossum_distance(hparams, filename, neuron, num_trials):
-  ''' compute van rossum distance for neuron with num_trials'''
-  if hparams.verbose == 2:
-    print('\t\tComputing van-rossum distance for neuron #{}'.format(neuron))
-
-  real_spikes = get_neo_trains(
-      hparams,
-      hparams.validation_cache,
-      neuron=neuron,
-      data_format='NW',
-      num_trials=num_trials)
-  fake_spikes = get_neo_trains(
-      hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
-
-  return np.mean(spike_metrics.van_rossum_distance(real_spikes, fake_spikes))
 
 
 def sort_heatmap(matrix):
@@ -413,25 +346,6 @@ def sort_heatmap(matrix):
     matrix_copy[row_order[i]][:] = np.inf
 
   return heatmap, row_order, column_order
-
-
-def van_rossum_trial_heatmap(hparams, filename, trial):
-  ''' compute van rossum heatmap for trial '''
-  if hparams.verbose == 2:
-    print('\t\tComputing van-rossum heatmap for trial #{}'.format(trial))
-
-  real_spikes = get_neo_trains(
-      hparams, hparams.validation_cache, trial=trial, data_format='CW')
-  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
-
-  distances = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
-  heatmap, row_order, column_order = sort_heatmap(distances)
-
-  return {
-      'heatmap': heatmap,
-      'xticklabels': row_order,
-      'yticklabels': column_order
-  }
 
 
 def van_rossum_neuron_heatmap(hparams, filename, neuron, num_trials):
@@ -489,73 +403,15 @@ def van_rossum_trial_histogram(hparams, filename, trial):
   return (real_van_rossum, fake_van_rossum)
 
 
-def van_rossum_neuron_histogram(hparams, filename, neuron, num_trials):
-  ''' compute van rossum distance for neuron '''
-  if hparams.verbose == 2:
-    print('\t\tComputing van-rossum histograms for neuron #{}'.format(neuron))
-
-  real_spikes = get_neo_trains(
-      hparams,
-      hparams.validation_cache,
-      neuron=neuron,
-      data_format='NW',
-      num_trials=num_trials)
-  real_van_rossum = spike_metrics.van_rossum_distance(real_spikes, None)
-
-  fake_spikes = get_neo_trains(
-      hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
-  fake_van_rossum = spike_metrics.van_rossum_distance(fake_spikes, None)
-
-  diag_indices = np.triu_indices(len(real_van_rossum), k=1)
-
-  real_van_rossum = real_van_rossum[diag_indices]
-  fake_van_rossum = fake_van_rossum[diag_indices]
-
-  return (real_van_rossum, fake_van_rossum)
-
-
 def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
-
-  # # compute neuron-wise van rossum distance error with 200 trials
-  # pool = Pool(hparams.num_processors)
-  # results = pool.starmap(
-  #     neuron_van_rossum_distance,
-  #     [(hparams, filename, n, 200) for n in hparams.neurons[:3]])
-  # pool.close()
-  #
-  # summary.scalar(
-  #     'spike_metrics/van_rossum_neuron', np.mean(results), step=epoch)
-
-  # # compute trial-wise van rossum heat-map
-  # pool = Pool(hparams.num_processors)
-  # results = pool.starmap(van_rossum_trial_heatmap,
-  #                        [(hparams, filename, i) for i in range(6)])
-  # pool.close()
-  #
-  # heatmaps, xticklabels, yticklabels, titles = [], [], [], []
-  # for i in range(len(results)):
-  #   heatmaps.append(results[i]['heatmap'])
-  #   xticklabels.append(results[i]['xticklabels'])
-  #   yticklabels.append(results[i]['yticklabels'])
-  #   titles.append('Trial #{:03d}'.format(i))
-  #
-  # summary.plot_heatmaps_grid(
-  #     'van_rossum_trial_heatmaps',
-  #     heatmaps,
-  #     xlabel='Fake neurons',
-  #     ylabel='Real neurons',
-  #     xticklabels=xticklabels,
-  #     yticklabels=yticklabels,
-  #     titles=titles,
-  #     step=epoch)
 
   # compute neuron-wise van rossum heat-map for 25 trials
   pool = Pool(hparams.num_processors)
   results = pool.starmap(
       van_rossum_neuron_heatmap,
-      [(hparams, filename, n, 40) for n in hparams.neurons[:3]])
+      [(hparams, filename, n, 50) for n in hparams.neurons[:3]])
   pool.close()
 
   heatmaps, xticklabels, yticklabels, titles = [], [], [], []
@@ -575,27 +431,13 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       titles=titles,
       step=epoch)
 
-  # # compute trial-wise van rossum distance histogram
-  # pool = Pool(hparams.num_processors)
-  # results = pool.starmap(van_rossum_trial_histogram,
-  #                        [(hparams, filename, i) for i in hparams.trials[:3]])
-  # pool.close()
-  #
-  # summary.plot_histograms_grid(
-  #     'van_rossum_trial_histograms',
-  #     results,
-  #     xlabel='Distance',
-  #     ylabel='Count',
-  #     titles=['Trial #{:03d}'.format(i) for i in hparams.trials[:3]],
-  #     step=epoch)
-
   # compute trial-wise van rossum distance KL divergence
   pool = Pool(hparams.num_processors)
   van_rossum_pairs = pool.starmap(van_rossum_trial_histogram,
                                   [(hparams, filename, i) for i in range(200)])
   pool.close()
-  kl = pairs_kl_divergence(van_rossum_pairs)
 
+  kl = pairs_kl_divergence(van_rossum_pairs)
   summary.plot_distribution(
       'van_rossum_trial_kl_histogram',
       kl,
@@ -636,7 +478,7 @@ def main(hparams):
   # randomly select neurons and trials to plot
   hparams.neurons = list(
       np.random.choice(hparams.num_neurons, hparams.num_neurons_plot))
-  hparams.neurons = [5, 39, 60, 87, 90, 39]
+  # hparams.neurons = [5, 39, 60, 87, 90, 39]
   hparams.trials = list(
       np.random.choice(hparams.num_samples, hparams.num_trials_plot))
 
