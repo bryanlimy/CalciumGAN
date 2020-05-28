@@ -113,7 +113,7 @@ def get_surrogate_dataset(hparams):
   test_signals, test_spikes = signals[train_size:], spikes[train_size:]
 
   hparams.train_size = len(train_signals)
-  hparams.validation_size = len(train_signals)
+  hparams.validation_size = len(test_signals)
   hparams.signal_shape = train_signals.shape[1:]
   hparams.spike_shape = data['spikes'].shape[1:]
   hparams.sequence_length = train_signals.shape[1]
