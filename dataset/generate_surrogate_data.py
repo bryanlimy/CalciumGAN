@@ -87,7 +87,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='surrogate', type=str)
   parser.add_argument('--num_trials', default=2 * 10**6, type=int)
-  parser.add_argument('--training_size', default=8192, type=int)
+  parser.add_argument('--training_size', default=9216, type=int)
   hparams = parser.parse_args()
 
   hparams.surrogate_path = os.path.join(hparams.output_dir, 'surrogate.pkl')

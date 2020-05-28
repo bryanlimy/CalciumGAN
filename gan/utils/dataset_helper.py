@@ -84,6 +84,59 @@ def get_fashion_mnist(hparams):
   return train_ds, eval_ds
 
 
+def get_surrogate_dataset(hparams):
+  filename = os.path.join(hparams.output_dir, 'training.pkl')
+  if not os.path.exists(filename):
+    print('training dataset {} not found'.format(filename))
+    exit()
+
+  with open(filename, 'rb') as file:
+    data = pickle.load(file)
+
+  def normalize(x):
+    hparams.signals_min = np.min(x)
+    hparams.signals_max = np.max(x)
+
+    shape = x.shape
+    x = np.reshape(x, newshape=(x[0], x[1] * x[2]))
+    x = (x - hparams.siganls_min) / (hparams.signals_max - hparams.signals_min)
+    x = np.reshape(x, newshape=shape)
+
+    return x
+
+  signals = normalize(data['signals'])
+  x_train = signals[:8192]
+  x_test = signals[1028:]
+
+  hparams.train_size = len(x_train)
+  hparams.validation_size = len(x_test)
+  hparams.signal_shape = x_train.shape[1:]
+  hparams.spike_shape = data['spikes'].shape[1:]
+  hparams.sequence_length = x_train.shape[2]
+  hparams.num_neurons = x_train.shape[1]
+  hparams.num_channels = x_train.shape[1]
+  hparams.normalize = True
+  hparams.fft = False
+
+  if hparams.save_generated:
+    hparams.generated_dir = os.path.join(hparams.output_dir, 'generated')
+    if not os.path.exists(hparams.generated_dir):
+      os.makedirs(hparams.generated_dir)
+
+    hparams.validation_cache = os.path.join(hparams.generated_dir,
+                                            'validation.h5')
+
+  train_ds = tf.data.Dataset.from_tensor_slices(x_train)
+  train_ds = train_ds.shuffle(buffer_size=2048)
+  train_ds = train_ds.batch(hparams.batch_size)
+  train_ds = train_ds.prefetch(4)
+
+  validation_ds = tf.data.Dataset.from_tensor_slices(x_test)
+  validation_ds = validation_ds.batch(hparams.batch_size)
+
+  return train_ds, validation_ds
+
+
 def get_dataset_info(hparams):
   """ Get dataset information """
   with open(os.path.join(hparams.input_dir, 'info.pkl'), 'rb') as file:
@@ -155,29 +208,13 @@ def get_tfrecords(hparams):
   return train_ds, validation_ds
 
 
-def normalize(hparams, x):
-  hparams.signals_min = np.min(x)
-  hparams.signals_max = np.max(x)
-
-  shape = x.shape
-  x = np.reshape(x, newshape=(x[0], x[1] * x[2]))
-  x = (x - hparams.siganls_min) / (hparams.signals_max - hparams.signals_min)
-  x = np.reshape(x, newshape=shape)
-
-  return x
-
-
-def get_surrogate_dataset(hparams):
-  pass
-
-
 def get_dataset(hparams, summary):
   hparams.noise_shape = (hparams.noise_dim,)
 
   if hparams.input_dir == 'fashion_mnist':
     train_ds, validation_ds = get_fashion_mnist(hparams)
-  elif hparams.input_dir == 'surrogate':
-    train_ds, validation = get_surrogate_dataset(hparams)
+  elif hparams.surrogate_ds:
+    train_ds, validation_ds = get_surrogate_dataset(hparams)
   else:
     train_ds, validation_ds = get_tfrecords(hparams)
 

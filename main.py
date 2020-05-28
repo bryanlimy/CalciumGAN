@@ -260,5 +260,6 @@ if __name__ == '__main__':
   hparams = parser.parse_args()
 
   hparams.global_step = 0
+  hparams.surrogate_ds = True if 'surrogate' in hparams.input_dir else False
 
   main(hparams)
