@@ -23,13 +23,10 @@ def generate_dg_spikes(hparams, mean, corr):
 
   for i in tqdm(range(hparams.num_trials), desc='Sampling'):
     spikes = dg.sample(repeats=hparams.sequence_length)
-
     # reshape to (num_neurons, duration)
     spikes = np.squeeze(spikes, axis=0)
     spikes = np.transpose(spikes, axes=[1, 0])
-
     spike_trains[i] = spikes
-
   return spike_trains
 
 
@@ -38,7 +35,6 @@ def spikes_to_signals(hparams, spikes, g=[.95], sn=.3, b=0):
   Code extracted from https://github.com/j-friedrich/OASIS/blob/e62063cfd8bc0f06625aebd3ea3e09133665b409/oasis/functions.py#L17
   '''
   signals = np.zeros(spikes.shape, dtype=np.float32)
-
   for i in tqdm(range(spikes.shape[0]), desc='Transformation'):
     spike = spikes[i].astype(np.float32)
     for j in range(2, spike.shape[1]):
@@ -48,7 +44,6 @@ def spikes_to_signals(hparams, spikes, g=[.95], sn=.3, b=0):
         spike[:, j] += g[0] * spike[:, j - 1]
     signals[i] = b + spike + sn * np.random.randn(spike.shape[0],
                                                   spike.shape[1])
-
   return signals
 
 
@@ -75,7 +70,6 @@ def main(hparams):
     pickle.dump({'spikes': ground_truth}, file)
 
   # select subset for training
-
   indices = np.random.choice(len(ground_truth), size=hparams.training_size)
   training_spikes = ground_truth[indices]
   training_signals = spikes_to_signals(hparams, training_spikes)

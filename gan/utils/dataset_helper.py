@@ -85,7 +85,7 @@ def get_fashion_mnist(hparams):
 
 
 def get_surrogate_dataset(hparams):
-  filename = os.path.join(hparams.output_dir, 'training.pkl')
+  filename = os.path.join(hparams.input_dir, 'training.pkl')
   if not os.path.exists(filename):
     print('training dataset {} not found'.format(filename))
     exit()
@@ -94,27 +94,31 @@ def get_surrogate_dataset(hparams):
     data = pickle.load(file)
 
   def normalize(x):
-    hparams.signals_min = np.min(x)
-    hparams.signals_max = np.max(x)
+    hparams.signals_min = float(np.min(x))
+    hparams.signals_max = float(np.max(x))
 
     shape = x.shape
-    x = np.reshape(x, newshape=(x[0], x[1] * x[2]))
-    x = (x - hparams.siganls_min) / (hparams.signals_max - hparams.signals_min)
+    x = np.reshape(x, newshape=(shape[0], shape[1] * shape[2]))
+    x = (x - hparams.signals_min) / (hparams.signals_max - hparams.signals_min)
     x = np.reshape(x, newshape=shape)
 
     return x
 
-  signals = normalize(data['signals'])
-  x_train = signals[:8192]
-  x_test = signals[1028:]
+  # set shape to (num trials, sequence length, num neurons)
+  signals = np.transpose(data['signals'], axes=[0, 2, 1])
 
-  hparams.train_size = len(x_train)
-  hparams.validation_size = len(x_test)
-  hparams.signal_shape = x_train.shape[1:]
+  signals, spikes = normalize(signals), data['spikes']
+  train_size = 8192
+  train_signals, train_spikes = signals[:train_size], spikes[:train_size]
+  test_signals, test_spikes = signals[train_size:], spikes[train_size:]
+
+  hparams.train_size = len(train_signals)
+  hparams.validation_size = len(train_signals)
+  hparams.signal_shape = train_signals.shape[1:]
   hparams.spike_shape = data['spikes'].shape[1:]
-  hparams.sequence_length = x_train.shape[2]
-  hparams.num_neurons = x_train.shape[1]
-  hparams.num_channels = x_train.shape[1]
+  hparams.sequence_length = train_signals.shape[1]
+  hparams.num_neurons = train_signals.shape[-1]
+  hparams.num_channels = train_signals.shape[-1]
   hparams.normalize = True
   hparams.fft = False
 
@@ -126,12 +130,13 @@ def get_surrogate_dataset(hparams):
     hparams.validation_cache = os.path.join(hparams.generated_dir,
                                             'validation.h5')
 
-  train_ds = tf.data.Dataset.from_tensor_slices(x_train)
+  train_ds = tf.data.Dataset.from_tensor_slices((train_signals, train_spikes))
   train_ds = train_ds.shuffle(buffer_size=2048)
   train_ds = train_ds.batch(hparams.batch_size)
   train_ds = train_ds.prefetch(4)
 
-  validation_ds = tf.data.Dataset.from_tensor_slices(x_test)
+  validation_ds = tf.data.Dataset.from_tensor_slices((test_signals,
+                                                      test_spikes))
   validation_ds = validation_ds.batch(hparams.batch_size)
 
   return train_ds, validation_ds
