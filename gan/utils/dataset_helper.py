@@ -117,7 +117,7 @@ def get_dataset_info(hparams):
                                             'validation.h5')
 
 
-def get_calcium_signals(hparams):
+def get_tfrecords(hparams):
   if not os.path.exists(hparams.input_dir):
     print('input directory {} cannot be found'.format(hparams.input_dir))
     exit()
@@ -155,13 +155,31 @@ def get_calcium_signals(hparams):
   return train_ds, validation_ds
 
 
+def normalize(hparams, x):
+  hparams.signals_min = np.min(x)
+  hparams.signals_max = np.max(x)
+
+  shape = x.shape
+  x = np.reshape(x, newshape=(x[0], x[1] * x[2]))
+  x = (x - hparams.siganls_min) / (hparams.signals_max - hparams.signals_min)
+  x = np.reshape(x, newshape=shape)
+
+  return x
+
+
+def get_surrogate_dataset(hparams):
+  pass
+
+
 def get_dataset(hparams, summary):
   hparams.noise_shape = (hparams.noise_dim,)
 
   if hparams.input_dir == 'fashion_mnist':
     train_ds, validation_ds = get_fashion_mnist(hparams)
+  elif hparams.input_dir == 'surrogate':
+    train_ds, validation = get_surrogate_dataset(hparams)
   else:
-    train_ds, validation_ds = get_calcium_signals(hparams)
+    train_ds, validation_ds = get_tfrecords(hparams)
 
     if hparams.save_generated:
       cache_validation_set(hparams, validation_ds)
