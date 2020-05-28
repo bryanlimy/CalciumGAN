@@ -226,7 +226,7 @@ class Summary(object):
         marker="|",
         linewidth=2.5,
         alpha=0.9,
-        ax=g.ax_joint 
+        ax=g.ax_joint,
         s=90)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
