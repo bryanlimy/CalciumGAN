@@ -149,9 +149,6 @@ def plot_signals(hparams, summary, filename, epoch, trial=25):
   real_spikes = utils.set_array_format(
       real_spikes, data_format='CW', hparams=hparams)
 
-  summary.plot_traces(
-      'real', real_signals, real_spikes, indexes=hparams.neurons, step=epoch)
-
   fake_signals = h5_helper.get(filename, name='signals', trial=trial)
   fake_spikes = h5_helper.get(filename, name='spikes', trial=trial)
 
@@ -160,8 +157,32 @@ def plot_signals(hparams, summary, filename, epoch, trial=25):
   fake_spikes = utils.set_array_format(
       fake_spikes, data_format='CW', hparams=hparams)
 
+  # get the y axis range for each neuron
+  assert real_signals.shape == fake_signals.shape
+  ylims = []
+  for i in range(len(real_signals)):
+    ylims.append([
+        np.min([np.min(real_signals[i]),
+                np.min(fake_signals[i])]),
+        np.max([np.max(real_signals[i]),
+                np.max(fake_signals[i])])
+    ])
+
   summary.plot_traces(
-      'fake', fake_signals, fake_spikes, indexes=hparams.neurons, step=epoch)
+      'real',
+      real_signals,
+      real_spikes,
+      indexes=hparams.neurons,
+      ylims=ylims,
+      step=epoch)
+
+  summary.plot_traces(
+      'fake',
+      fake_signals,
+      fake_spikes,
+      indexes=hparams.neurons,
+      ylims=ylims,
+      step=epoch)
 
 
 def firing_rate_neuron(hparams, filename, neuron):

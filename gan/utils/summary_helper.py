@@ -117,7 +117,14 @@ class Summary(object):
   def profiler_export(self):
     tf.summary.trace_export(name='models', profiler_outdir=self._profiler_dir)
 
-  def plot_traces(self, tag, signals, spikes, indexes, step=0, training=True):
+  def plot_traces(self,
+                  tag,
+                  signals,
+                  spikes,
+                  indexes,
+                  ylims,
+                  step=0,
+                  training=True):
     assert len(signals.shape) == 2 and len(spikes.shape) == 2
 
     images = []
@@ -132,7 +139,7 @@ class Summary(object):
     if rem > 0:
       num_rows += 1
 
-    fig = plt.figure(figsize=(32, 4 * num_rows))
+    fig = plt.figure(figsize=(32, 5 * num_rows))
     fig.patch.set_facecolor('white')
 
     plt.tick_params(axis='both', which='minor', labelsize=20)
@@ -143,14 +150,27 @@ class Summary(object):
       plt.plot(signals[neuron], label='signal', alpha=0.6, color='dodgerblue')
       # plot spike
       x = np.nonzero(spikes[neuron])[0]
-      y = np.zeros(x.shape)
-      plt.scatter(x, y, s=400, marker='|', label='spike', color='orangered')
+      y = np.full(
+          x.shape,
+          fill_value=ylims[neuron][0] + (
+              (ylims[neuron][1] - ylims[neuron][0]) * 0.1))
+      plt.scatter(
+          x,
+          y,
+          s=350,
+          marker='|',
+          linewidth=3,
+          label='spike',
+          color='orangered')
 
-      plt.legend(ncol=3, frameon=False, loc=(.04, .85))
+      if i == 2:
+        plt.legend(ncol=1, frameon=False, loc=(0.75, 0.75), prop={'size': 25})
+
       plt.title('Neuron #{:03d}'.format(neuron))
       plt.xlabel('Time (ms)')
 
       axis = plt.gca()
+      axis.set_ylim(ylims[neuron])
       axis.spines['top'].set_visible(False)
       axis.spines['right'].set_visible(False)
       axis.get_xaxis().tick_bottom()
@@ -183,19 +203,34 @@ class Summary(object):
         'real_data': [True] * len(real_x) + [False] * len(fake_x)
     })
 
-    g = sns.JointGrid(x='x', y='y', data=df)
-    plt.gcf().set_size_inches(24, 14)
+    g = sns.JointGrid(x='x', y='y', data=df, ratio=8)
+    plt.gcf().set_size_inches(24, 17)
     plt.gcf().set_facecolor("white")
 
     real = df.loc[df.real_data == True]
     fake = df.loc[df.real_data == False]
 
     sns.scatterplot(
-        real.x, real.y, color=self.real_color, alpha=0.9, ax=g.ax_joint, s=45)
+        real.x,
+        real.y,
+        color=self.real_color,
+        marker="|",
+        linewidth=2.5,
+        alpha=0.9,
+        ax=g.ax_joint,
+        s=90)
     ax = sns.scatterplot(
-        fake.x, fake.y, color=self.fake_color, alpha=0.9, ax=g.ax_joint, s=45)
+        fake.x,
+        fake.y,
+        color=self.fake_color,
+        marker="|",
+        linewidth=2.5,
+        alpha=0.9,
+        ax=g.ax_joint 
+        s=90)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
+    ax.set_ylim([-2, 104])
 
     hist_kws = {"rwidth": 0.85, "alpha": 0.6}
 
@@ -239,8 +274,11 @@ class Summary(object):
         labels=['real', 'fake'],
         ncol=2,
         frameon=True,
-        prop={'weight': 'regular'},
-        loc='upper right')
+        prop={
+            'weight': 'regular',
+            'size': 25
+        },
+        loc=(0.01, 0.95))
 
     plt.tight_layout()
     images.append(self._plot_to_png())
