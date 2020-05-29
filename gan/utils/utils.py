@@ -3,6 +3,7 @@ import json
 import pickle
 import subprocess
 import numpy as np
+from tqdm import tqdm
 from glob import glob
 import tensorflow as tf
 
@@ -169,9 +170,6 @@ def set_array_format(array, data_format, hparams):
 
 def remove_nan(array):
   return array[np.logical_not(np.isnan(array))]
-
-
-from tqdm import tqdm
 
 
 def generate_dataset(hparams, gan, num_samples=1000):

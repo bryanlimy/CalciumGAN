@@ -7,18 +7,16 @@ import numpy as np
 from tqdm import tqdm
 
 from gan.utils import utils
-from gan.utils import h5_helper
-from compute_metrics import deconvolve_from_file
 
-import matplotlib
-
-if platform.system() == 'Darwin':
-  matplotlib.use('TkAgg')
-
-import matplotlib.pyplot as plt
-plt.style.use('seaborn-deep')
-
-import seaborn as sns
+# import matplotlib
+#
+# if platform.system() == 'Darwin':
+#   matplotlib.use('TkAgg')
+#
+# import matplotlib.pyplot as plt
+# plt.style.use('seaborn-deep')
+#
+# import seaborn as sns
 
 
 def load_info(hparams):
@@ -34,16 +32,30 @@ def get_pickle_data(filename, name='spikes'):
   return data[name]
 
 
+from gan.utils import spike_helper
+
+
 def get_generate_data(hparams):
-  info = load_info(hparams)
-  epochs = sorted(list(info.keys()))
-  filename = info[epochs[-1]]['filename']
-  if h5_helper.contains(filename, name='spikes'):
-    spikes = h5_helper.get(filename, name='spikes')
+  filename = os.path.join(hparams.output_dir, 'generated.pkl')
+  if not os.path.exists(filename):
+    print('generated pickle file not found in {}'.format(hparams.output_dir))
+    exit()
+
+  with open(filename, 'rb') as file:
+    data = pickle.load(file)
+
+  if 'spikes' in data:
+    spikes = data['spikes']
   else:
-    spikes = deconvolve_from_file(hparams, filename, return_spikes=True)
-  spikes = utils.set_array_format(spikes, data_format='NCW', hparams=hparams)
-  return spikes
+    signals = utils.set_array_format(
+        data['signals'], data_format='NCW', hparams=hparams)
+    spikes = np.zeros(signals.shape, dtype=np.float32)
+    for i in tqdm(range(len(signals)), desc='Deconvolution'):
+      spikes[i] = spike_helper.deconvolve_signals(signals[i], threshold=0.5)
+    with open(filename, 'wb') as file:
+      pickle.dump({'signals': signals, 'spikes': spikes}, file)
+
+  return utils.set_array_format(spikes, data_format='NCW', hparams=hparams)
 
 
 def main(hparams):
@@ -58,8 +70,6 @@ def main(hparams):
   surrogate_data = get_pickle_data(
       os.path.join(hparams.input_dir, 'surrogate.pkl'))
   generated_data = get_generate_data(hparams)
-
-  print('done')
 
 
 if __name__ == '__main__':

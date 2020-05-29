@@ -1,5 +1,6 @@
 import os
 import pickle
+import random
 import argparse
 import warnings
 import numpy as np
@@ -7,8 +8,6 @@ import pandas as pd
 from tqdm import tqdm
 from time import time
 from multiprocessing import Pool
-
-np.random.seed(26)
 
 # use CPU only
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -18,6 +17,11 @@ from gan.utils import h5_helper
 from gan.utils import spike_metrics
 from gan.utils import spike_helper
 from gan.utils.summary_helper import Summary
+
+
+def set_seed(seed):
+  random.seed(seed)
+  np.random.seed(seed)
 
 
 def load_info(hparams):
@@ -33,7 +37,7 @@ def deconvolve_neuron(hparams, filename, neuron):
   return spike_helper.deconvolve_signals(signals, threshold=0.5)
 
 
-def deconvolve_from_file(hparams, filename):
+def deconvolve_from_file(hparams, filename, return_spikes=False):
   if hparams.verbose:
     print('\tDeconvolve {}'.format(filename))
 
@@ -47,6 +51,9 @@ def deconvolve_from_file(hparams, filename):
       np.array(fake_spikes, dtype=np.int8), data_format='NWC', hparams=hparams)
 
   h5_helper.write(filename, {'spikes': fake_spikes})
+
+  if return_spikes:
+    return fake_spikes
 
 
 def get_neo_trains(hparams,
@@ -105,8 +112,7 @@ def pairs_kl_divergence(pairs):
 
 
 def plot_signals(hparams, summary, filename, epoch):
-  num_trials = h5_helper.get_dataset_length(filename, name='signals')
-  trial = int(np.random.choice(list(range(num_trials)), size=1))
+  trial = random.randint(0, hparams.num_samples)
 
   if hparams.verbose:
     print('\tPlotting traces for trial #{}'.format(trial))
@@ -158,8 +164,7 @@ def plot_signals(hparams, summary, filename, epoch):
 
 
 def raster_plots(hparams, summary, filename, epoch):
-  num_trials = h5_helper.get_dataset_length(filename, name='spikes')
-  trial = int(np.random.choice(list(range(num_trials)), size=1))
+  trial = random.randint(0, hparams.num_samples)
 
   if hparams.verbose:
     print('\tPlotting raster plot for trial #{}'.format(trial))
@@ -309,7 +314,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   # compute mean trial-wise correlation histogram
   pool = Pool(hparams.num_processors)
   correlations = pool.starmap(correlation_coefficient,
-                              [(hparams, filename, i) for i in range(200)])
+                              [(hparams, filename, i) for i in range(1000)])
   pool.close()
 
   kl = pairs_kl_divergence(correlations)
@@ -434,7 +439,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   # compute trial-wise van rossum distance KL divergence
   pool = Pool(hparams.num_processors)
   van_rossum_pairs = pool.starmap(van_rossum_trial_histogram,
-                                  [(hparams, filename, i) for i in range(200)])
+                                  [(hparams, filename, i) for i in range(1000)])
   pool.close()
 
   kl = pairs_kl_divergence(van_rossum_pairs)
@@ -469,6 +474,8 @@ def main(hparams):
     print('{} not found'.format(hparams.output_dir))
     exit()
 
+  set_seed(hparams.seed)
+
   utils.load_hparams(hparams)
   info = load_info(hparams)
 
@@ -478,11 +485,10 @@ def main(hparams):
   # randomly select neurons and trials to plot
   hparams.neurons = list(
       np.random.choice(hparams.num_neurons, hparams.num_neurons_plot))
-  # hparams.neurons = [5, 39, 60, 87, 90, 39]
   hparams.trials = list(
       np.random.choice(hparams.num_samples, hparams.num_trials_plot))
 
-  summary = Summary(hparams, spike_metrics=True)
+  summary = Summary(hparams, spike_metrics=True, seed=hparams.seed)
 
   epochs = sorted(list(info.keys()))
 
@@ -514,6 +520,7 @@ if __name__ == '__main__':
   parser.add_argument('--num_trials_plot', default=6, type=int)
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
+  parser.add_argument('--seed', default=12, type=int)
   hparams = parser.parse_args()
 
   warnings.simplefilter(action='ignore', category=UserWarning)

@@ -24,7 +24,7 @@ class Summary(object):
   evaluation
   """
 
-  def __init__(self, hparams, policy=None, spike_metrics=False, seed=None):
+  def __init__(self, hparams, policy=None, spike_metrics=False):
     self._hparams = hparams
     self.spike_metrics = spike_metrics
 
@@ -48,8 +48,6 @@ class Summary(object):
 
       # save plots as vector pdf
       self._vector_dir = os.path.join(self._metrics_dir, 'plots')
-      if seed is not None:
-        self._vector_dir = os.path.join(self._vector_dir, '{:04d}'.format(seed))
       if os.path.exists(self._vector_dir):
         shutil.rmtree(self._vector_dir)
       os.makedirs(self._vector_dir)
