@@ -488,7 +488,7 @@ def main(hparams):
   hparams.trials = list(
       np.random.choice(hparams.num_samples, hparams.num_trials_plot))
 
-  summary = Summary(hparams, spike_metrics=True, seed=hparams.seed)
+  summary = Summary(hparams, spike_metrics=True)
 
   epochs = sorted(list(info.keys()))
 

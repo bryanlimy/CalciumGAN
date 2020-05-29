@@ -122,7 +122,7 @@ class Summary(object):
                   signals,
                   spikes,
                   indexes,
-                  ylims,
+                  ylims=[],
                   step=0,
                   training=True):
     assert len(signals.shape) == 2 and len(spikes.shape) == 2
@@ -150,10 +150,9 @@ class Summary(object):
       plt.plot(signals[neuron], label='signal', alpha=0.6, color='dodgerblue')
       # plot spike
       x = np.nonzero(spikes[neuron])[0]
-      y = np.full(
-          x.shape,
-          fill_value=ylims[neuron][0] + (
-              (ylims[neuron][1] - ylims[neuron][0]) * 0.1))
+      fill_value = ylims[neuron][0] + (
+          (ylims[neuron][1] - ylims[neuron][0]) * 0.1) if ylims else 0
+      y = np.full(x.shape, fill_value=fill_value)
       plt.scatter(
           x,
           y,
@@ -170,7 +169,8 @@ class Summary(object):
       plt.xlabel('Time (ms)')
 
       axis = plt.gca()
-      axis.set_ylim(ylims[neuron])
+      if ylims:
+        axis.set_ylim(ylims[neuron])
       axis.spines['top'].set_visible(False)
       axis.spines['right'].set_visible(False)
       axis.get_xaxis().tick_bottom()
