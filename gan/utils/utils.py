@@ -169,3 +169,21 @@ def set_array_format(array, data_format, hparams):
 
 def remove_nan(array):
   return array[np.logical_not(np.isnan(array))]
+
+
+from tqdm import tqdm
+
+
+def generate_dataset(hparams, gan, num_samples=1000):
+  generated = np.zeros((num_samples,) + hparams.signal_shape, dtype=np.float32)
+  batch_size = 100
+  for i in tqdm(range(0, num_samples, batch_size), desc='Surrogate'):
+    signals = gan.generate(gan.get_noise(batch_size), denorm=True)
+    generated[i:i + batch_size] = signals
+
+  filename = os.path.join(hparams.output_dir, 'generated.pkl')
+  with open(filename, 'wb') as file:
+    pickle.dump({'signals': generated}, file)
+
+  if hparams.verbose:
+    print('save {} samples to {}'.format(num_samples, filename))

@@ -219,6 +219,10 @@ def main(hparams, return_metrics=False):
 
   summary.scalar('elapse/total', end - start)
 
+  # generate dataset for surrogate metrics
+  if hparams.surrogate_ds:
+    utils.generate_dataset(hparams, gan=gan, num_samples=2 * 10**6)
+
   if return_metrics:
     return test(validation_ds, gan)
 
