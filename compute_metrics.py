@@ -163,9 +163,7 @@ def plot_signals(hparams, summary, filename, epoch):
       step=epoch)
 
 
-def raster_plots(hparams, summary, filename, epoch):
-  trial = random.randint(0, hparams.num_samples)
-
+def raster_plots(hparams, summary, filename, epoch, trial=0):
   if hparams.verbose:
     print('\tPlotting raster plot for trial #{}'.format(trial))
 

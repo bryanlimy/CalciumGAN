@@ -52,9 +52,9 @@ class Summary(object):
         shutil.rmtree(self._vector_dir)
       os.makedirs(self._vector_dir)
 
-    tick_size = 20
-    label_size = 30
-    legend_size = 14
+    tick_size = 30
+    label_size = 35
+    legend_size = 25
     plt.rc('xtick', labelsize=tick_size)
     plt.rc('ytick', labelsize=tick_size)
     plt.rc('axes', titlesize=label_size)
@@ -163,7 +163,7 @@ class Summary(object):
           color='orangered')
 
       if i == 2:
-        plt.legend(ncol=1, frameon=False, loc=(0.75, 0.75), prop={'size': 25})
+        plt.legend(ncol=1, frameon=False, loc=(0.75, 0.75))
 
       plt.title('Neuron #{:03d}'.format(neuron))
       plt.xlabel('Time (ms)')
@@ -274,11 +274,10 @@ class Summary(object):
         labels=['real', 'fake'],
         ncol=2,
         frameon=True,
-        prop={
-            'weight': 'regular',
-            'size': 25
-        },
-        loc=(0.01, 0.95))
+        prop={'weight': 'regular'},
+        loc=(0.02, 0.95),
+        fancybox=True,
+        framealpha=1)
 
     plt.tight_layout()
     images.append(self._plot_to_png())
@@ -298,16 +297,12 @@ class Summary(object):
                         training=False):
     images = []
 
-    fig = plt.figure(figsize=(15, 10))
+    fig = plt.figure(figsize=(12, 8))
     fig.patch.set_facecolor('white')
     ax = sns.distplot(
-        data,
-        kde=False,
-        hist_kws={"rwidth": 0.85},
-        color="dodgerblue",
-        bins=bins)
-    ax.set_xlabel(xlabel, fontsize=40)
-    ax.set_ylabel(ylabel, fontsize=40)
+        data, kde=False, hist_kws={"rwidth": 0.85}, color="green", bins=bins)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
@@ -329,7 +324,7 @@ class Summary(object):
     assert type(data) == tuple
     images = []
 
-    fig = plt.figure(figsize=(15, 10))
+    fig = plt.figure(figsize=(12, 10))
     fig.patch.set_facecolor('white')
 
     hist_kws = {
@@ -418,7 +413,7 @@ class Summary(object):
           label="Fake")
 
       if i == 2:
-        ax.legend(frameon=False, prop={'size': 25})
+        ax.legend(frameon=False)
       ax.set_xlabel(xlabel)
       ax.set_ylabel(ylabel)
       ax.set_title(titles[i])
@@ -469,11 +464,11 @@ class Summary(object):
       plt.xticks(
           ticks=list(range(0, len(xticklabels[i]), 2)),
           labels=xticklabels[i],
-          fontsize=20)
+          fontsize=22)
       plt.yticks(
           ticks=list(range(0, len(yticklabels[i]), 2)),
           labels=yticklabels[i],
-          fontsize=20)
+          fontsize=22)
 
     plt.tight_layout()
     images.append(self._plot_to_png())

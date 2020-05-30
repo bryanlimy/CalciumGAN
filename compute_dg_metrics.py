@@ -20,12 +20,15 @@ plt.style.use('seaborn-deep')
 
 import seaborn as sns
 
-plt.rc('xtick', labelsize=20)
-plt.rc('ytick', labelsize=20)
-plt.rc('axes', titlesize=30)
-plt.rc('axes', labelsize=30)
-plt.rc('axes', labelsize=30)
-plt.rc('legend', fontsize=18)
+tick_size = 26
+label_size = 35
+legend_size = 25
+plt.rc('xtick', labelsize=tick_size)
+plt.rc('ytick', labelsize=tick_size)
+plt.rc('axes', titlesize=label_size)
+plt.rc('axes', labelsize=label_size)
+plt.rc('axes', labelsize=label_size)
+plt.rc('legend', fontsize=legend_size)
 
 
 def load_info(hparams):
@@ -83,7 +86,7 @@ def plot_firing_rate(hparams, filename, real, fake):
       color='orangered',
       scatter_kws={'alpha': 0.7})
 
-  plt.xticks(ticks=list(range(0, len(x), 2)), labels=neuron_order, rotation=90)
+  plt.xticks(ticks=list(range(0, len(x), 3)), labels=neuron_order, rotation=90)
   ax.spines['top'].set_visible(False)
   ax.spines['right'].set_visible(False)
   ax.set_xlabel('Neuron')
@@ -102,6 +105,7 @@ def plot_covariance(hparams, filename, real, fake):
 
   # sort covariance by the mean of num_trials trials
   pair_order = np.argsort(np.mean(real, axis=-1))
+  # plot every 15th pair so that the graph won't be too clustered
   pair_order = pair_order[::15]
   real = real[pair_order].flatten('F')
   fake = fake[pair_order].flatten('F')
@@ -125,7 +129,7 @@ def plot_covariance(hparams, filename, real, fake):
       color='orangered',
       scatter_kws={'alpha': 0.7})
 
-  plt.xticks(ticks=list(range(0, len(x), 8)), labels=pair_order, rotation=90)
+  plt.xticks(ticks=list(range(0, len(x), 9)), labels=pair_order, rotation=90)
   ax.spines['top'].set_visible(False)
   ax.spines['right'].set_visible(False)
   ax.set_xlabel('Neuron Pair')
