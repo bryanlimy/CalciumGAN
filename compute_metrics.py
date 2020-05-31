@@ -213,28 +213,21 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
 
   pool = Pool(hparams.num_processors)
   firing_rate_pairs = pool.starmap(
-      firing_rate, [(hparams, filename, n, 400) for n in hparams.neurons])
+      firing_rate,
+      [(hparams, filename, n, 1000) for n in range(hparams.num_neurons)])
   pool.close()
 
   summary.plot_histograms_grid(
       'firing_rate_histograms',
-      firing_rate_pairs,
+      data=[firing_rate_pairs[n] for n in hparams.neurons],
       xlabel='Hz',
       ylabel='Count',
       titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons],
       step=epoch)
 
-  # get firing rate for all neurons
-  pool = Pool(hparams.num_processors)
-  firing_rate_pairs = pool.starmap(
-      firing_rate,
-      [(hparams, filename, n, 1000) for n in range(hparams.num_neurons)])
-  pool.close()
-
-  kl = pairs_kl_divergence(firing_rate_pairs)
   summary.plot_distribution(
-      'firing_rate_kl_histogram',
-      kl,
+      'firing_rate_kl',
+      data=pairs_kl_divergence(firing_rate_pairs),
       xlabel='KL divergence',
       ylabel='Count',
       title='Firing rate KL divergence',
@@ -261,7 +254,7 @@ def covariance_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing covariance')
 
-  # compute neuron-wise covariance with 200 trials
+  # compute neuron-wise covariance
   pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_covariance,
                          [(hparams, filename, n, 200) for n in hparams.neurons])
@@ -293,30 +286,22 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
 
-  # compute sample-wise correlation histogram
-  pool = Pool(hparams.num_processors)
-  correlations = pool.starmap(correlation_coefficient,
-                              [(hparams, filename, i) for i in hparams.trials])
-  pool.close()
-
-  summary.plot_histograms_grid(
-      'correlation_coefficient_trial_histogram',
-      correlations,
-      xlabel='Correlation',
-      ylabel='Count',
-      titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
-      step=epoch)
-
-  # compute mean trial-wise correlation histogram
   pool = Pool(hparams.num_processors)
   correlations = pool.starmap(correlation_coefficient,
                               [(hparams, filename, i) for i in range(1000)])
   pool.close()
 
-  kl = pairs_kl_divergence(correlations)
+  summary.plot_histograms_grid(
+      'correlation_histogram',
+      data=[correlations[i] for i in hparams.trials],
+      xlabel='Correlation',
+      ylabel='Count',
+      titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
+      step=epoch)
+
   summary.plot_distribution(
-      'correlation_coefficient_trial_kl_histogram',
-      kl,
+      'correlation_kl',
+      data=pairs_kl_divergence(correlations),
       xlabel='KL divergence',
       ylabel='Count',
       title='Correlation coefficient KL divergence',
@@ -349,7 +334,7 @@ def sort_heatmap(matrix):
   return heatmap, row_order, column_order
 
 
-def van_rossum_neuron_heatmap(hparams, filename, neuron, num_trials):
+def neuron_van_rossum(hparams, filename, neuron, num_trials=50):
   ''' compute van rossum heatmap for neuron with num_trials '''
   if hparams.verbose == 2:
     print('\t\tComputing van-rossum heatmap for neuron #{}'.format(neuron))
@@ -373,8 +358,8 @@ def van_rossum_neuron_heatmap(hparams, filename, neuron, num_trials):
   }
 
 
-def van_rossum_trial_histogram(hparams, filename, trial):
-  ''' compute van rossum distance for trial '''
+def trial_van_rossum(hparams, filename, trial):
+  ''' compute van rossum distance for a given trial '''
   if hparams.verbose == 2:
     print('\t\tComputing van-rossum histograms for trial #{}'.format(trial))
 
@@ -408,9 +393,9 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
 
-  # compute neuron-wise van rossum heat-map for 25 trials
+  # compute van-Rossum distance heatmap
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(van_rossum_neuron_heatmap,
+  results = pool.starmap(neuron_van_rossum,
                          [(hparams, filename, n, 50) for n in hparams.neurons])
   pool.close()
 
@@ -423,7 +408,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
 
   summary.plot_heatmaps_grid(
       'van_rossum_neuron_heatmaps',
-      heatmaps,
+      matrix=heatmaps,
       xlabel='Fake trials',
       ylabel='Real trials',
       xticklabels=xticklabels,
@@ -431,16 +416,15 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       titles=titles,
       step=epoch)
 
-  # compute trial-wise van rossum distance KL divergence
+  # compute van rossum distance KL divergence
   pool = Pool(hparams.num_processors)
-  van_rossum_pairs = pool.starmap(van_rossum_trial_histogram,
+  van_rossum_pairs = pool.starmap(trial_van_rossum,
                                   [(hparams, filename, i) for i in range(1000)])
   pool.close()
 
-  kl = pairs_kl_divergence(van_rossum_pairs)
   summary.plot_distribution(
       'van_rossum_trial_kl_histogram',
-      kl,
+      data=pairs_kl_divergence(van_rossum_pairs),
       xlabel='KL divergence',
       ylabel='Count',
       title='van-Rossum distance KL divergence',
