@@ -150,7 +150,7 @@ def plot_signals(hparams, summary, filename, epoch):
       'real',
       real_signals,
       real_spikes,
-      indexes=hparams.neurons,
+      indexes=hparams.neurons[:6],
       ylims=ylims,
       step=epoch)
 
@@ -158,12 +158,12 @@ def plot_signals(hparams, summary, filename, epoch):
       'fake',
       fake_signals,
       fake_spikes,
-      indexes=hparams.neurons,
+      indexes=hparams.neurons[:6],
       ylims=ylims,
       step=epoch)
 
 
-def raster_plots(hparams, summary, filename, epoch, trial=0):
+def raster_plots(hparams, summary, filename, epoch, trial=1):
   if hparams.verbose:
     print('\tPlotting raster plot for trial #{}'.format(trial))
 
@@ -213,7 +213,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
 
   pool = Pool(hparams.num_processors)
   firing_rate_pairs = pool.starmap(
-      firing_rate, [(hparams, filename, n, 400) for n in hparams.neurons[:3]])
+      firing_rate, [(hparams, filename, n, 400) for n in hparams.neurons])
   pool.close()
 
   summary.plot_histograms_grid(
@@ -221,7 +221,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       firing_rate_pairs,
       xlabel='Hz',
       ylabel='Count',
-      titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons[:3]],
+      titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons],
       step=epoch)
 
   # get firing rate for all neurons
@@ -263,9 +263,8 @@ def covariance_metrics(hparams, summary, filename, epoch):
 
   # compute neuron-wise covariance with 200 trials
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      neuron_covariance,
-      [(hparams, filename, n, 200) for n in hparams.neurons[:3]])
+  results = pool.starmap(neuron_covariance,
+                         [(hparams, filename, n, 200) for n in hparams.neurons])
   pool.close()
 
   summary.scalar(
@@ -296,9 +295,8 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
 
   # compute sample-wise correlation histogram
   pool = Pool(hparams.num_processors)
-  correlations = pool.starmap(
-      correlation_coefficient,
-      [(hparams, filename, i) for i in hparams.trials[:3]])
+  correlations = pool.starmap(correlation_coefficient,
+                              [(hparams, filename, i) for i in hparams.trials])
   pool.close()
 
   summary.plot_histograms_grid(
@@ -306,7 +304,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       correlations,
       xlabel='Correlation',
       ylabel='Count',
-      titles=['Trial #{:03d}'.format(i) for i in hparams.trials[:3]],
+      titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
       step=epoch)
 
   # compute mean trial-wise correlation histogram
@@ -412,9 +410,8 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
 
   # compute neuron-wise van rossum heat-map for 25 trials
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      van_rossum_neuron_heatmap,
-      [(hparams, filename, n, 50) for n in hparams.neurons[:3]])
+  results = pool.starmap(van_rossum_neuron_heatmap,
+                         [(hparams, filename, n, 50) for n in hparams.neurons])
   pool.close()
 
   heatmaps, xticklabels, yticklabels, titles = [], [], [], []
@@ -422,7 +419,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     heatmaps.append(results[i]['heatmap'])
     xticklabels.append(results[i]['xticklabels'])
     yticklabels.append(results[i]['yticklabels'])
-    titles.append('Neuron #{:03d}'.format(hparams.neurons[:3][i]))
+    titles.append('Neuron #{:03d}'.format(hparams.neurons[i]))
 
   summary.plot_heatmaps_grid(
       'van_rossum_neuron_heatmaps',
@@ -482,9 +479,11 @@ def main(hparams):
 
   # randomly select neurons and trials to plot
   hparams.neurons = list(
-      np.random.choice(hparams.num_neurons, hparams.num_neurons_plot))
+      range(hparams.num_neurons
+           ) if hparams.num_neuron_plots >= hparams.num_neurons else np.random.
+      choice(hparams.num_neurons, hparams.num_neuron_plots))
   hparams.trials = list(
-      np.random.choice(hparams.num_samples, hparams.num_trials_plot))
+      np.random.choice(hparams.num_samples, hparams.num_trial_plots))
 
   summary = Summary(hparams, spike_metrics=True)
 
@@ -514,8 +513,8 @@ if __name__ == '__main__':
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--num_processors', default=6, type=int)
   parser.add_argument('--all_epochs', action='store_true')
-  parser.add_argument('--num_neurons_plot', default=6, type=int)
-  parser.add_argument('--num_trials_plot', default=6, type=int)
+  parser.add_argument('--num_neuron_plots', default=6, type=int)
+  parser.add_argument('--num_trial_plots', default=6, type=int)
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   parser.add_argument('--seed', default=12, type=int)

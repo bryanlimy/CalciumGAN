@@ -182,8 +182,7 @@ def main(hparams):
   indexes = np.arange(len(signals))
   np.random.shuffle(indexes)
 
-  hparams.train_size = int(len(signals) * hparams.train_percentage)
-  hparams.validation_size = len(signals) - hparams.train_size
+  hparams.train_size = len(signals) - hparams.validation_size
   hparams.signal_shape = signals.shape[1:]
   hparams.spike_shape = spikes.shape[1:]
 
@@ -243,7 +242,7 @@ if __name__ == '__main__':
   parser.add_argument('--normalize', action='store_true')
   parser.add_argument('--fft', action='store_true')
   parser.add_argument('--replace', action='store_true')
-  parser.add_argument('--train_percentage', default=0.9, type=float)
+  parser.add_argument('--validation_size', default=1000, type=float)
   parser.add_argument('--is_dg_data', action='store_true')
   parser.add_argument(
       '--target_shard_size',
