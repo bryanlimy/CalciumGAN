@@ -126,7 +126,7 @@ def get_record_filename(hparams, mode, shard_id, num_shards):
 
 def write_to_record(hparams, mode, shard, num_shards, signals, spikes, indexes):
   record_filename = get_record_filename(hparams, mode, shard, num_shards)
-  print('writing {} segments to {}...'.format(len(signals), record_filename))
+  print('writing {} segments to {}...'.format(len(indexes), record_filename))
 
   with tf.io.TFRecordWriter(record_filename) as writer:
     for i in indexes:
@@ -246,7 +246,7 @@ if __name__ == '__main__':
   parser.add_argument('--is_dg_data', action='store_true')
   parser.add_argument(
       '--target_shard_size',
-      default=0.25,
+      default=0.5,
       type=float,
       help='target size in GB for each TFRecord file.')
   hparams = parser.parse_args()
