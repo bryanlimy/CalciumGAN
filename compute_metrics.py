@@ -179,7 +179,7 @@ def raster_plots(hparams, summary, filename, epoch, trial=1):
       fake_spikes=fake_spikes,
       xlabel='Time (ms)',
       ylabel='Neuron',
-      title='Trial #{}'.format(trial),
+      title='Sample #{}'.format(trial),
       step=epoch)
 
 
@@ -304,7 +304,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       data=[correlations[i] for i in hparams.trials],
       xlabel='Correlation',
       ylabel='Count',
-      titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
+      titles=['Sample #{:03d}'.format(i) for i in hparams.trials],
       step=epoch)
 
   kl_divergence = pairs_kl_divergence(correlations)
@@ -490,7 +490,7 @@ def main(hparams):
            ) if hparams.num_neuron_plots >= hparams.num_neurons else np.random.
       choice(hparams.num_neurons, hparams.num_neuron_plots))
   hparams.trials = list(
-      np.random.choice(hparams.num_samples, hparams.num_trial_plots))
+      np.random.choice(min(hparams.num_samples, 1000), hparams.num_trial_plots))
 
   summary = Summary(hparams, spike_metrics=True)
 
