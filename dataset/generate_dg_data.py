@@ -58,13 +58,16 @@ def get_recorded_data_statistics(hparams):
 
   dg_optimizer = DGOptimise(spike_trains)
 
+  print('measuring mean...')
   mean = dg_optimizer.gauss_mean
+  print('measuring covariance...')
   covariance = dg_optimizer.data_tfix_covariance
 
   return mean, covariance
 
 
 def generate_dg_spikes(hparams, mean, corr):
+  print('sample spike trains')
   dg = DichotGauss(hparams.num_neurons, mean=mean, corr=corr, make_pd=True)
   spike_trains = dg.sample(repeats=hparams.duration)
 
@@ -79,6 +82,7 @@ def spikes_to_signals(hparams, spike_trains, g=[.95], sn=.3, b=0):
   ''' Convert spike trains to calcium signals 
   Code extracted from https://github.com/j-friedrich/OASIS/blob/e62063cfd8bc0f06625aebd3ea3e09133665b409/oasis/functions.py#L17
   '''
+  print('transformation from spikes to signals')
   spikes = spike_trains.astype(np.float32)
 
   for i in range(2, hparams.duration):
@@ -104,7 +108,12 @@ def main(hparams):
     os.remove(hparams.output)
 
   with open(hparams.output, 'wb') as file:
-    pickle.dump({'signals': dg_signals, 'oasis': dg_spikes}, file)
+    pickle.dump({
+        'signals': dg_signals,
+        'oasis': dg_spikes,
+        'mean': mean,
+        'covariance': covariance
+    }, file)
 
   print('Saved {} DG signals and spikes to {}'.format(
       len(dg_signals), hparams.output))

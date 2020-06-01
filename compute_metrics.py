@@ -86,7 +86,7 @@ def kl_divergence(p, q):
 
 
 def pairs_kl_divergence(pairs):
-  kl = []
+  kl = np.zeros((len(pairs),), dtype=np.float32)
   for i in range(len(pairs)):
     real, fake = pairs[i]
 
@@ -107,7 +107,7 @@ def pairs_kl_divergence(pairs):
     ],
                         dtype=np.float32) / len(fake)
 
-    kl.append(kl_divergence(real_pdf, fake_pdf))
+    kl[i] = kl_divergence(real_pdf, fake_pdf)
   return kl
 
 
@@ -213,8 +213,8 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
 
   pool = Pool(hparams.num_processors)
   firing_rate_pairs = pool.starmap(
-      firing_rate,
-      [(hparams, filename, n, 1000) for n in range(hparams.num_neurons)])
+      firing_rate, [(hparams, filename, n, min(hparams.num_samples, 1000))
+                    for n in range(hparams.num_neurons)])
   pool.close()
 
   summary.plot_histograms_grid(
@@ -225,13 +225,20 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons],
       step=epoch)
 
+  kl_divergence = pairs_kl_divergence(firing_rate_pairs)
   summary.plot_distribution(
       'firing_rate_kl',
-      data=pairs_kl_divergence(firing_rate_pairs),
+      data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
       title='Firing rate KL divergence',
       step=epoch)
+
+  if hparams.verbose:
+    print(
+        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
+            np.min(kl_divergence), np.max(kl_divergence),
+            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
 
 
 def neuron_covariance(hparams, filename, neuron, num_trials):
@@ -287,8 +294,9 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
     print('\tComputing correlation coefficient')
 
   pool = Pool(hparams.num_processors)
-  correlations = pool.starmap(correlation_coefficient,
-                              [(hparams, filename, i) for i in range(1000)])
+  correlations = pool.starmap(
+      correlation_coefficient,
+      [(hparams, filename, i) for i in range(min(hparams.num_samples, 1000))])
   pool.close()
 
   summary.plot_histograms_grid(
@@ -299,13 +307,20 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
       step=epoch)
 
+  kl_divergence = pairs_kl_divergence(correlations)
   summary.plot_distribution(
       'correlation_kl',
-      data=pairs_kl_divergence(correlations),
+      data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
       title='Correlation coefficient KL divergence',
       step=epoch)
+
+  if hparams.verbose:
+    print(
+        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
+            np.min(kl_divergence), np.max(kl_divergence),
+            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
 
 
 def sort_heatmap(matrix):
@@ -407,7 +422,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     titles.append('Neuron #{:03d}'.format(hparams.neurons[i]))
 
   summary.plot_heatmaps_grid(
-      'van_rossum_neuron_heatmaps',
+      'van_rossum_heatmaps',
       matrix=heatmaps,
       xlabel='Fake trials',
       ylabel='Real trials',
@@ -418,17 +433,25 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
 
   # compute van rossum distance KL divergence
   pool = Pool(hparams.num_processors)
-  van_rossum_pairs = pool.starmap(trial_van_rossum,
-                                  [(hparams, filename, i) for i in range(1000)])
+  van_rossum_pairs = pool.starmap(
+      trial_van_rossum,
+      [(hparams, filename, i) for i in range(min(hparams.num_samples, 1000))])
   pool.close()
 
+  kl_divergence = pairs_kl_divergence(van_rossum_pairs)
   summary.plot_distribution(
-      'van_rossum_trial_kl_histogram',
-      data=pairs_kl_divergence(van_rossum_pairs),
+      'van_rossum_kl_divergence',
+      data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
       title='van-Rossum distance KL divergence',
       step=epoch)
+
+  if hparams.verbose:
+    print(
+        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
+            np.min(kl_divergence), np.max(kl_divergence),
+            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
 
 
 def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
