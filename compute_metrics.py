@@ -444,7 +444,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
 
   kl_divergence = pairs_kl_divergence(van_rossum_pairs)
   summary.plot_distribution(
-      'van_rossum_kl_divergence',
+      'van_rossum_kl',
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',

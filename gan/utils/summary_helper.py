@@ -238,7 +238,8 @@ class Summary(object):
 
     hist_kws = {"rwidth": 0.85, "alpha": 0.6}
 
-    bins = range(0, max(max(real.x), max(fake.x)), 50)
+    max_x = max(max(real.x), max(fake.x))
+    bins = range(0, max_x, max_x // 25)
     sns.distplot(
         real.x,
         kde=False,
@@ -255,7 +256,8 @@ class Summary(object):
         bins=bins)
     ax.set(xlabel='', ylabel='')
 
-    bins = range(0, max(max(real.y), max(fake.y)), 4)
+    max_y = max(max(real.y), max(fake.y))
+    bins = range(0, max_y, max_y // 20)
     sns.distplot(
         real.y,
         kde=False,
@@ -457,7 +459,7 @@ class Summary(object):
           matrix[i],
           cmap='YlOrRd',
           vmin=0,
-          vmax=80,
+          vmax=np.max(matrix),
           xticklabels=xticklabels[i] if type(xticklabels) == list else 'auto',
           yticklabels=yticklabels[i] if type(xticklabels) == list else 'auto',
       )
