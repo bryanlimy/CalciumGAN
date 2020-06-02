@@ -6,7 +6,7 @@ import quantities as pq
 def mean_firing_rate(spikes):
   ''' get mean firing rate of spikes in Hz'''
   result = [
-      elephant.statistics.mean_firing_rate(spikes[i])
+      elephant.statistics.mean_firing_rate(spikes[i]) * pq.s
       for i in range(len(spikes))
   ]
   return np.array(result, dtype=np.float32)

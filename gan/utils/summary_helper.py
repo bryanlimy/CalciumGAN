@@ -123,6 +123,7 @@ class Summary(object):
                   spikes,
                   indexes,
                   ylims=[],
+                  xlabel='Time bins',
                   step=0,
                   training=True):
     assert len(signals.shape) == 2 and len(spikes.shape) == 2
@@ -166,7 +167,7 @@ class Summary(object):
         plt.legend(ncol=1, frameon=False, loc=(0.75, 0.75))
 
       plt.title('Neuron #{:03d}'.format(neuron))
-      plt.xlabel('Time (ms)')
+      plt.xlabel(xlabel)
 
       axis = plt.gca()
       if ylims:
@@ -193,7 +194,6 @@ class Summary(object):
                   step=0,
                   training=True):
     images = []
-
     real_x, real_y = np.nonzero(real_spikes)
     fake_x, fake_y = np.nonzero(fake_spikes)
 
@@ -231,6 +231,10 @@ class Summary(object):
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_ylim([-2, 104])
+
+    # time_steps = np.arange(real_spikes.shape[1])
+    # time_steps = (time_steps / 24).astype(np.int32)
+    # ax.set_xticklabels(labels=time_steps)
 
     hist_kws = {"rwidth": 0.85, "alpha": 0.6}
 

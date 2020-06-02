@@ -188,9 +188,7 @@ def main(hparams, return_metrics=False):
 
   tf.keras.backend.clear_session()
 
-  # hand picked neurons to plots
-  if hparams.focus_neurons:
-    hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
+  hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
 
   policy = set_precision_policy(hparams)
 
@@ -259,7 +257,6 @@ if __name__ == '__main__':
   parser.add_argument('--mixed_precision', action='store_true')
   parser.add_argument(
       '--profile', action='store_true', help='enable TensorBoard profiling')
-  parser.add_argument('--focus_neurons', action='store_true')
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()

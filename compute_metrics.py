@@ -177,7 +177,7 @@ def raster_plots(hparams, summary, filename, epoch, trial=1):
       'raster_plot_trial',
       real_spikes=real_spikes,
       fake_spikes=fake_spikes,
-      xlabel='Time (ms)',
+      xlabel='Time bins',
       ylabel='Neuron',
       title='Sample #{}'.format(trial),
       step=epoch)
@@ -216,6 +216,10 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       firing_rate, [(hparams, filename, n, min(hparams.num_samples, 1000))
                     for n in range(hparams.num_neurons)])
   pool.close()
+  # firing_rate_pairs = []
+  # for n in range(hparams.num_neurons):
+  #   firing_rate_pairs.append(
+  #       firing_rate(hparams, filename, n, min(hparams.num_samples, 1000)))
 
   summary.plot_histograms_grid(
       'firing_rate_histograms',
