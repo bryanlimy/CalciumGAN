@@ -51,6 +51,8 @@ class HParams(object):
     self.verbose = args.verbose
     self.global_step = 0
 
+    self.surrogate_ds = True if 'surrogate' in args.input_dir else False
+
 
 class MetricsHParams(object):
 
