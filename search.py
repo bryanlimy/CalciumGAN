@@ -37,7 +37,8 @@ class HParams(object):
     self.gradient_penalty = gradient_penalty
     self.model = model
     self.activation = activation
-    self.no_batch_norm = False
+    self.batch_norm = False
+    self.layer_norm = True
     self.algorithm = algorithm
     self.n_critic = n_critic
     self.clear_output_dir = False
@@ -46,7 +47,6 @@ class HParams(object):
     self.skip_checkpoints = False
     self.mixed_precision = args.mixed_precision
     self.profile = False
-    self.focus_neurons = True
     self.dpi = 120
     self.verbose = args.verbose
     self.global_step = 0
@@ -101,11 +101,11 @@ def search(args):
   hp_algorithm = hp.HParam('algorithm', hp.Discrete(['wgan-gp']))
   hp_model = hp.HParam('models', hp.Discrete(['wavegan']))
   hp_activation = hp.HParam('activation', hp.Discrete(['leakyrelu']))
-  hp_noise_dim = hp.HParam('noise_dim', hp.Discrete([32]))
+  hp_noise_dim = hp.HParam('noise_dim', hp.Discrete([16, 32]))
   hp_num_units = hp.HParam('num_units', hp.Discrete([16, 32, 64]))
-  hp_kernel_size = hp.HParam('kernel_size', hp.Discrete([16, 24, 32]))
+  hp_kernel_size = hp.HParam('kernel_size', hp.Discrete([8, 12, 16]))
   hp_strides = hp.HParam('strides', hp.Discrete([2]))
-  hp_phase_shuffle = hp.HParam('phase_shuffle', hp.Discrete([0, 10, 20]))
+  hp_phase_shuffle = hp.HParam('phase_shuffle', hp.Discrete([0, 4, 6]))
   hp_gradient_penalty = hp.HParam('gradient_penalty', hp.Discrete([10.0]))
   hp_n_critic = hp.HParam('n_critic', hp.Discrete([5]))
 
@@ -187,7 +187,7 @@ if __name__ == '__main__':
   parser.add_argument('--input_dir', default='dataset/')
   parser.add_argument('--output_dir', default='runs/hparams_turning')
   parser.add_argument('--batch_size', default=64, type=int)
-  parser.add_argument('--epochs', default=500, type=int)
+  parser.add_argument('--epochs', default=400, type=int)
   parser.add_argument('--clear_output_dir', action='store_true')
   parser.add_argument('--mixed_precision', action='store_true')
   parser.add_argument('--verbose', default=0, type=int)
