@@ -12,33 +12,6 @@ from dg.dichot_gauss import DichotGauss
 from dg.optim_dichot_gauss import DGOptimise
 
 
-def trains_to_neo(trains):
-  ''' convert array of spike trains to list of  Neo SpikeTrains in sec scale '''
-  t_stop = trains.shape[-1] * pq.ms
-  return [
-      SpikeTrain(
-          np.nonzero(trains[i])[0] * pq.ms,
-          units=pq.s,
-          t_stop=t_stop,
-          dtype=np.float32) for i in range(len(trains))
-  ]
-
-
-def mean_firing_rate(spikes):
-  ''' get mean firing rate of spikes in Hz'''
-  result = [
-      elephant.statistics.mean_firing_rate(spikes[i])
-      for i in range(len(spikes))
-  ]
-  return np.array(result, dtype=np.float32)
-
-
-def correlation_coefficients(spike_trains, binsize=100 * pq.ms):
-  binned = elephant.conversion.BinnedSpikeTrain(spike_trains, binsize=binsize)
-  result = elephant.spike_train_correlation.corrcoef(binned, fast=False)
-  return np.nan_to_num(result)
-
-
 def get_recorded_data_statistics(hparams):
   ''' Get mean firing rate and correlation of recorded data '''
   if not os.path.exists(hparams.input):
