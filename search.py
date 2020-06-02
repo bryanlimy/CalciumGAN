@@ -11,7 +11,6 @@ np.random.seed(1234)
 tf.random.set_seed(1234)
 
 from main import main as train
-from compute_metrics import main as spike_metrics
 
 
 class HParams(object):
@@ -54,18 +53,6 @@ class HParams(object):
     self.surrogate_ds = True if 'surrogate' in args.input_dir else False
 
 
-class MetricsHParams(object):
-
-  def __init__(self, hparams):
-    self.output_dir = hparams.output_dir
-    self.num_processors = 6
-    self.all_epochs = False
-    self.num_neurons_plot = 6
-    self.num_trials_plot = 6
-    self.dpi = 120
-    self.verbose = hparams.verbose
-
-
 def print_experiment_settings(session, hparams):
   print('\nExperiment {:03d}'
         '\n-----------------------------------------\n'
@@ -91,9 +78,6 @@ def run_experiment(hparams, hp_hparams):
     metrics = train(hparams, return_metrics=True)
     for key, item in metrics.items():
       tf.summary.scalar('test/{}'.format(key), item, step=hparams.epochs + 1)
-
-    metrics_hparams = MetricsHParams(hparams)
-    spike_metrics(metrics_hparams)
 
 
 def search(args):
