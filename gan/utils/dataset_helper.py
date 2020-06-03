@@ -35,9 +35,9 @@ def cache_validation_set(hparams, validation_ds):
       })
 
 
-def plot_real_signals(hparams, summary, validation_ds):
+def plot_real_signals(hparams, summary, ds, indexes=None):
   # plot signals and spikes from validation set
-  signals, spikes = next(iter(validation_ds))
+  signals, spikes = next(iter(ds))
 
   signals, spikes = signals[0].numpy(), spikes[0].numpy()
 
@@ -55,7 +55,7 @@ def plot_real_signals(hparams, summary, validation_ds):
       'real',
       signals,
       spikes,
-      indexes=hparams.focus_neurons,
+      indexes=indexes if indexes is not None else hparams.focus_neurons,
       step=0,
       training=False)
 
@@ -220,6 +220,11 @@ def get_dataset(hparams, summary):
     train_ds, validation_ds = get_fashion_mnist(hparams)
   elif hparams.surrogate_ds:
     train_ds, validation_ds = get_surrogate_dataset(hparams)
+    plot_real_signals(
+        hparams,
+        summary,
+        validation_ds,
+        indexes=list(range(hparams.num_neurons)))
   else:
     train_ds, validation_ds = get_tfrecords(hparams)
 

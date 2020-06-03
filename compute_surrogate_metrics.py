@@ -27,10 +27,23 @@ def load_info(hparams):
   return info
 
 
-def get_pickle_data(filename, name='spikes'):
+def get_pickle_data(filename):
+  print('reading from {}...'.format(filename))
   with open(filename, 'rb') as file:
     data = pickle.load(file)
-  return data[name]
+
+  spikes, write_data = data['spikes'], False
+  if 'unique' in data and 'count' in data:
+    unique, count = data['unique'], data['count']
+  else:
+    unique, count = np.unique(spikes, return_counts=True, axis=0)
+    write_data = True
+
+  data = {'spikes': spikes, 'unique': unique, 'count': count}
+  if write_data:
+    with open(filename, 'wb') as file:
+      pickle.dump(data, file)
+  return data
 
 
 def get_generate_data(hparams):
@@ -38,41 +51,63 @@ def get_generate_data(hparams):
   if not os.path.exists(filename):
     print('generated pickle file not found in {}'.format(hparams.output_dir))
     exit()
+
+  print('reading from {}...'.format(filename))
+
   with open(filename, 'rb') as file:
     data = pickle.load(file)
+
+  signals, write_data = data['signals'], False
   if 'spikes' in data:
     spikes = data['spikes']
   else:
     signals = utils.set_array_format(
-        data['signals'], data_format='NCW', hparams=hparams)
+        signals, data_format='NCW', hparams=hparams)
     spikes = np.zeros(signals.shape, dtype=np.float32)
     for i in tqdm(range(len(signals)), desc='Deconvolution'):
       spikes[i] = spike_helper.deconvolve_signals(signals[i], threshold=0.5)
+    write_data = True
+
+  if 'unique' in data and 'count' in data:
+    unique, count = data['unique'], data['count']
+  else:
+    unique, count = np.unique(spikes, return_counts=True, axis=0)
+    write_data = True
+
+  data = {
+      'signals': signals,
+      'spikes': spikes,
+      'unique': unique,
+      'count': count
+  }
+  if write_data:
     with open(filename, 'wb') as file:
-      pickle.dump({'signals': signals, 'spikes': spikes}, file)
-  return utils.set_array_format(spikes, data_format='NCW', hparams=hparams)
+      pickle.dump(data, file)
+
+  return data
 
 
-def get_probability(sequence, filename=None, recompute=False):
-  if not recompute and filename is not None:
-    with open(filename, 'rb') as file:
-      data = pickle.load(file)
-    if 'probabilities' in data:
-      return data['probabilities']
-
+def get_probability(sequence):
   shape = sequence.shape
   flattened = np.reshape(sequence, newshape=(shape[0], shape[1] * shape[2]))
   unique, indices, counts = np.unique(
       flattened, return_inverse=True, return_counts=True, axis=0)
   prob = counts[indices] / shape[0]
-  if filename is not None:
-    with open(filename, 'rb') as file:
-      data = pickle.load(file)
-    data['probabilities'] = prob
-    with open(filename, 'wb') as file:
-      pickle.dump(data, file)
-
   return prob
+
+
+def get_probabilities(joint_unique_samples, data):
+  unique_samples, unique_count = data['unique'], data['count']
+
+  counts = np.zeros((joint_unique_samples.shape[0],), dtype=np.int32)
+
+  for i in tqdm(range(len(joint_unique_samples)), desc='Count unqiue'):
+    for j in range(len(unique_count)):
+      if np.array_equal(joint_unique_samples[i], unique_samples[j]):
+        counts[i] = unique_count[i]
+
+  probabilities = counts / len(data['spikes'])
+  return probabilities
 
 
 def main(hparams):
@@ -82,26 +117,25 @@ def main(hparams):
 
   utils.load_hparams(hparams)
 
-  print('get probability for the ground truth dataset')
   ground_truth_path = os.path.join(hparams.input_dir, 'ground_truth.pkl')
   ground_truth_data = get_pickle_data(ground_truth_path)
-  ground_truth_prob = get_probability(
-      ground_truth_data,
-      filename=ground_truth_path,
-      recompute=hparams.recompute)
 
-  print('get probability for the surrogate dataset')
   surrogate_path = os.path.join(hparams.input_dir, 'surrogate.pkl')
   surrogate_data = get_pickle_data(surrogate_path)
-  surrogate_prob = get_probability(
-      surrogate_data, filename=surrogate_path, recompute=hparams.recompute)
 
-  print('get probability for the generated dataset')
   generated_data = get_generate_data(hparams)
-  generated_prob = get_probability(
-      generated_data,
-      filename=os.path.join(hparams.output_dir, 'generated.pkl'),
-      recompute=hparams.recompute)
+
+  joint_unique_samples = np.unique(
+      np.concatenate([
+          ground_truth_data['unique'], surrogate_data['unique'],
+          generated_data['unique']
+      ],
+                     axis=0),
+      axis=0)
+
+  ground_truth_prob = get_probabilities(joint_unique_samples, ground_truth_data)
+  surrogate_prob = get_probabilities(joint_unique_samples, surrogate_data)
+  generated_prob = get_probabilities(joint_unique_samples, generated_data)
 
   def print_min_max(array):
     print('min: {:.04f}, max: {:.04f}, mean: {:.04f}'.format(
@@ -112,10 +146,6 @@ def main(hparams):
   ground_truth_prob = np.log10(ground_truth_prob)
   surrogate_prob = np.log10(surrogate_prob)
   generated_prob = np.log10(generated_prob)
-
-  ground_truth_prob = np.sort(ground_truth_prob)
-  surrogate_prob = np.sort(surrogate_prob)
-  generated_prob = np.sort(generated_prob)
 
   # plt.figure(figsize=(8, 8))
   sns.kdeplot(
