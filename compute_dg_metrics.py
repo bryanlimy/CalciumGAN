@@ -129,7 +129,7 @@ def plot_covariance(hparams, filename, real, fake):
       color='orangered',
       scatter_kws={'alpha': 0.7})
 
-  plt.xticks(ticks=list(range(0, len(x), 9)), labels=pair_order, rotation=90)
+  plt.xticks(ticks=list(range(0, len(x), 10)), labels=pair_order, rotation=90)
   ax.spines['top'].set_visible(False)
   ax.spines['right'].set_visible(False)
   ax.set_xlabel('Neuron Pair')

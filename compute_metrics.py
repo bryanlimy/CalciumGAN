@@ -218,7 +218,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
   pool.close()
 
   summary.plot_histograms_grid(
-      'firing_rate_histograms',
+      'firing_rate_histogram',
       data=[firing_rate_pairs[n] for n in hparams.neurons],
       xlabel='Hz',
       ylabel='Count',
@@ -443,7 +443,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     titles.append('Neuron #{:03d}'.format(hparams.neurons[i]))
 
   summary.plot_heatmaps_grid(
-      'van_rossum_heatmaps',
+      'van_rossum_heatmap',
       matrix=heatmaps,
       xlabel='Fake trials',
       ylabel='Real trials',

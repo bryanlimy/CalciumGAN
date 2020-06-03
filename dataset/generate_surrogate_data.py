@@ -16,12 +16,12 @@ from dg.optim_dichot_gauss import DGOptimise
 
 def generate_dg_spikes(hparams, mean, corr):
   spike_trains = np.zeros(
-      (hparams.num_trials, hparams.num_neurons, hparams.sequence_length),
+      (hparams.num_samples, hparams.num_neurons, hparams.sequence_length),
       dtype=np.float32)
 
   dg = DichotGauss(hparams.num_neurons, mean=mean, corr=corr, make_pd=True)
 
-  for i in tqdm(range(hparams.num_trials), desc='Sampling'):
+  for i in tqdm(range(hparams.num_samples), desc='Sampling'):
     spikes = dg.sample(repeats=hparams.sequence_length)
     # reshape to (num_neurons, duration)
     spikes = np.squeeze(spikes, axis=0)
@@ -53,10 +53,9 @@ def main(hparams):
   os.makedirs(hparams.output_dir)
 
   hparams.num_neurons = 2
-  hparams.sequence_length = 12
-  mean = np.array([[.4, .3]], dtype=np.float32)
-  covariance = np.eye(hparams.num_neurons)
-  covariance[0, 1], covariance[1, 0] = 0.3, 0.3
+  hparams.sequence_length = 32
+  mean = np.array([[0.6, 0.8]], dtype=np.float32)
+  covariance = np.array([[1., 0.3], [0.3, 1.]], dtype=np.float32)
 
   # generate surrogate dataset
   surrogate = generate_dg_spikes(hparams, mean, covariance)
@@ -80,8 +79,8 @@ def main(hparams):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='surrogate', type=str)
-  parser.add_argument('--num_trials', default=2 * 10**6, type=int)
-  parser.add_argument('--training_size', default=9216, type=int)
+  parser.add_argument('--num_samples', default=2 * 10**6, type=int)
+  parser.add_argument('--training_size', default=9754, type=int)
   hparams = parser.parse_args()
 
   hparams.surrogate_path = os.path.join(hparams.output_dir, 'surrogate.pkl')
