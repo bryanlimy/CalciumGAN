@@ -212,14 +212,10 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
     print('\tComputing firing rate')
 
   pool = Pool(hparams.num_processors)
-  firing_rate_pairs = pool.starmap(
-      firing_rate, [(hparams, filename, n, min(hparams.num_samples, 1000))
-                    for n in range(hparams.num_neurons)])
+  firing_rate_pairs = pool.starmap(firing_rate,
+                                   [(hparams, filename, n, hparams.num_samples)
+                                    for n in range(hparams.num_neurons)])
   pool.close()
-  # firing_rate_pairs = []
-  # for n in range(hparams.num_neurons):
-  #   firing_rate_pairs.append(
-  #       firing_rate(hparams, filename, n, min(hparams.num_samples, 1000)))
 
   summary.plot_histograms_grid(
       'firing_rate_histograms',
@@ -245,34 +241,55 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
             np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
 
 
-def neuron_covariance(hparams, filename, neuron, num_trials):
+def covariance(hparams, filename, trial):
   if hparams.verbose == 2:
-    print('\t\tComputing covariance for neuron #{}'.format(neuron))
+    print('\t\tComputing covariance for sample #{}'.format(trial))
+
+  diag_indices = np.triu_indices(hparams.num_neurons, k=1)
 
   real_spikes = get_neo_trains(
-      hparams,
-      hparams.validation_cache,
-      neuron=neuron,
-      data_format='NW',
-      num_trials=num_trials)
-  fake_spikes = get_neo_trains(
-      hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
+      hparams, hparams.validation_cache, trial=trial, data_format='CW')
+  real_covariance = spike_metrics.covariance(real_spikes, None)
+  real_covariance = utils.remove_nan(real_covariance[diag_indices])
 
-  return np.mean(spike_metrics.covariance(real_spikes, fake_spikes))
+  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
+  fake_covariance = spike_metrics.covariance(fake_spikes, None)
+  fake_covariance = utils.remove_nan(fake_covariance[diag_indices])
+
+  return (real_covariance, fake_covariance)
 
 
 def covariance_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing covariance')
 
-  # compute neuron-wise covariance
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(neuron_covariance,
-                         [(hparams, filename, n, 200) for n in hparams.neurons])
+  covariances = pool.starmap(
+      covariance, [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
 
-  summary.scalar(
-      'spike_metrics/neuron_covariance', np.mean(results), step=epoch)
+  summary.plot_histograms_grid(
+      'covariance_histogram',
+      data=[covariances[i] for i in hparams.trials],
+      xlabel='Covariance',
+      ylabel='Count',
+      titles=['Sample #{:03d}'.format(i) for i in hparams.trials],
+      step=epoch)
+
+  kl_divergence = pairs_kl_divergence(covariances)
+  summary.plot_distribution(
+      'covariance_kl',
+      data=kl_divergence,
+      xlabel='KL divergence',
+      ylabel='Count',
+      title='Covariance KL divergence',
+      step=epoch)
+
+  if hparams.verbose:
+    print(
+        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
+            np.min(kl_divergence), np.max(kl_divergence),
+            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
 
 
 def correlation_coefficient(hparams, filename, trial):
@@ -300,7 +317,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   pool = Pool(hparams.num_processors)
   correlations = pool.starmap(
       correlation_coefficient,
-      [(hparams, filename, i) for i in range(min(hparams.num_samples, 1000))])
+      [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
 
   summary.plot_histograms_grid(
@@ -439,7 +456,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   pool = Pool(hparams.num_processors)
   van_rossum_pairs = pool.starmap(
       trial_van_rossum,
-      [(hparams, filename, i) for i in range(min(hparams.num_samples, 1000))])
+      [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
 
   kl_divergence = pairs_kl_divergence(van_rossum_pairs)
@@ -462,9 +479,9 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
   if not h5_helper.contains(filename, 'spikes'):
     deconvolve_from_file(hparams, filename)
 
-  plot_signals(hparams, summary, filename, epoch)
+  # plot_signals(hparams, summary, filename, epoch)
 
-  raster_plots(hparams, summary, filename, epoch)
+  # raster_plots(hparams, summary, filename, epoch)
 
   firing_rate_metrics(hparams, summary, filename, epoch)
 
@@ -485,8 +502,8 @@ def main(hparams):
   utils.load_hparams(hparams)
   info = load_info(hparams)
 
-  hparams.num_samples = h5_helper.get_dataset_length(hparams.validation_cache,
-                                                     'signals')
+  hparams.num_samples = min(
+      h5_helper.get_dataset_length(hparams.validation_cache, 'signals'), 1000)
 
   # randomly select neurons and trials to plot
   hparams.neurons = list(
@@ -494,7 +511,7 @@ def main(hparams):
            ) if hparams.num_neuron_plots >= hparams.num_neurons else np.random.
       choice(hparams.num_neurons, hparams.num_neuron_plots))
   hparams.trials = list(
-      np.random.choice(min(hparams.num_samples, 1000), hparams.num_trial_plots))
+      np.random.choice(hparams.num_samples, hparams.num_trial_plots))
 
   summary = Summary(hparams, spike_metrics=True)
 

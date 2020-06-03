@@ -7,11 +7,11 @@ from oasis.oasis_methods import oasisAR1
 
 def train_to_neo(train, framerate=24):
   ''' convert a single spike train to Neo SpikeTrain '''
-  return SpikeTrain(
-      times=np.nonzero(train)[0] / framerate * 60 * pq.ms,
-      units=pq.s,
-      t_stop=train.shape[-1] / framerate * 60 * pq.ms,
-      dtype=np.float32)
+  times = np.nonzero(train)[0]
+  times = times / framerate * pq.s
+  t_stop = train.shape[-1] / framerate * pq.s
+  spike_train = SpikeTrain(times=times, units=pq.s, t_stop=t_stop)
+  return spike_train
 
 
 def trains_to_neo(trains):
