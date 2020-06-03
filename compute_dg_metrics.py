@@ -106,7 +106,7 @@ def plot_covariance(hparams, filename, real, fake):
   # sort covariance by the mean of num_trials trials
   pair_order = np.argsort(np.mean(real, axis=-1))
   # plot every 15th pair so that the graph won't be too clustered
-  pair_order = pair_order[::15]
+  pair_order = pair_order[::10]
   real = real[pair_order].flatten('F')
   fake = fake[pair_order].flatten('F')
   x = list(range(len(pair_order)))
@@ -160,12 +160,12 @@ def main(hparams):
 
   plot_firing_rate(
       hparams,
-      filename='diagrams/dg_firing_rate.pdf',
+      filename='diagrams/dg_firing_rate_test.pdf',
       real=real_firing_rate,
       fake=fake_firing_rate)
   plot_covariance(
       hparams,
-      filename='diagrams/dg_covariance.pdf',
+      filename='diagrams/dg_covariance_test.pdf',
       real=real_covariance,
       fake=fake_covariance)
 

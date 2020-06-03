@@ -479,9 +479,9 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
   if not h5_helper.contains(filename, 'spikes'):
     deconvolve_from_file(hparams, filename)
 
-  # plot_signals(hparams, summary, filename, epoch)
+  plot_signals(hparams, summary, filename, epoch)
 
-  # raster_plots(hparams, summary, filename, epoch)
+  raster_plots(hparams, summary, filename, epoch)
 
   firing_rate_metrics(hparams, summary, filename, epoch)
 
