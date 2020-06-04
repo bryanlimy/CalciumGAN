@@ -33,7 +33,7 @@ def get_pickle_data(filename):
     data = pickle.load(file)
 
   spikes, write_data = data['spikes'], False
-  if 'unique' in data and 'count' in data:
+  if not hparams.recompute and 'unique' in data and 'count' in data:
     unique, count = data['unique'], data['count']
   else:
     unique, count = np.unique(spikes, return_counts=True, axis=0)
@@ -58,17 +58,17 @@ def get_generate_data(hparams):
     data = pickle.load(file)
 
   signals, write_data = data['signals'], False
-  if 'spikes' in data:
+  if not hparams.recompute and 'spikes' in data:
     spikes = data['spikes']
   else:
     signals = utils.set_array_format(
         signals, data_format='NCW', hparams=hparams)
     spikes = np.zeros(signals.shape, dtype=np.float32)
     for i in tqdm(range(len(signals)), desc='Deconvolution'):
-      spikes[i] = spike_helper.deconvolve_signals(signals[i], threshold=0.5)
+      spikes[i] = spike_helper.deconvolve_signals(signals[i], threshold=0.25)
     write_data = True
 
-  if 'unique' in data and 'count' in data:
+  if not hparams.recompute and 'unique' in data and 'count' in data:
     unique, count = data['unique'], data['count']
   else:
     unique, count = np.unique(spikes, return_counts=True, axis=0)
@@ -104,7 +104,7 @@ def get_probabilities(joint_unique_samples, data):
   for i in tqdm(range(len(joint_unique_samples)), desc='Count unqiue'):
     for j in range(len(unique_count)):
       if np.array_equal(joint_unique_samples[i], unique_samples[j]):
-        counts[i] = unique_count[i]
+        counts[i] = unique_count[j]
 
   probabilities = counts / len(data['spikes'])
   return probabilities
@@ -143,12 +143,12 @@ def main(hparams):
 
   filename = 'diagrams/numerical_probabilities.pdf'
 
-  ground_truth_prob = np.log10(ground_truth_prob)
-  surrogate_prob = np.log10(surrogate_prob)
-  generated_prob = np.log10(generated_prob)
+  # ground_truth_prob = np.log10(ground_truth_prob)
+  # surrogate_prob = np.log10(surrogate_prob)
+  # generated_prob = np.log10(generated_prob)
 
   # plt.figure(figsize=(8, 8))
-  sns.kdeplot(
+  ax = sns.kdeplot(
       data=surrogate_prob,
       data2=ground_truth_prob,
       shade=True,

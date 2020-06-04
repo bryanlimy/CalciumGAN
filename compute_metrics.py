@@ -152,7 +152,10 @@ def plot_signals(hparams, summary, filename, epoch):
       real_spikes,
       indexes=hparams.neurons[:6],
       ylims=ylims,
-      step=epoch)
+      step=epoch,
+      is_real=True,
+      signal_label='recorded signal',
+      spike_label='recorded spike')
 
   summary.plot_traces(
       'fake',
@@ -160,7 +163,10 @@ def plot_signals(hparams, summary, filename, epoch):
       fake_spikes,
       indexes=hparams.neurons[:6],
       ylims=ylims,
-      step=epoch)
+      step=epoch,
+      is_real=False,
+      signal_label='synthetic signal',
+      spike_label='synthetic spike')
 
 
 def raster_plots(hparams, summary, filename, epoch, trial=1):
@@ -177,9 +183,9 @@ def raster_plots(hparams, summary, filename, epoch, trial=1):
       'raster_plot_trial',
       real_spikes=real_spikes,
       fake_spikes=fake_spikes,
-      xlabel='Time bins',
+      xlabel='Time (s)',
       ylabel='Neuron',
-      title='Sample #{}'.format(trial),
+      legend_labels=['recorded', 'synthetic'],
       step=epoch)
 
 
@@ -223,7 +229,8 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       xlabel='Hz',
       ylabel='Count',
       titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons],
-      step=epoch)
+      step=epoch,
+      legend_labels=['recorded', 'synthetic'])
 
   kl_divergence = pairs_kl_divergence(firing_rate_pairs)
   summary.plot_distribution(
@@ -274,7 +281,8 @@ def covariance_metrics(hparams, summary, filename, epoch):
       xlabel='Covariance',
       ylabel='Count',
       titles=['Sample #{:03d}'.format(i) for i in hparams.trials],
-      step=epoch)
+      step=epoch,
+      legend_labels=['recorded', 'synthetic'])
 
   kl_divergence = pairs_kl_divergence(covariances)
   summary.plot_distribution(
@@ -326,7 +334,8 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       xlabel='Correlation',
       ylabel='Count',
       titles=['Sample #{:03d}'.format(i) for i in hparams.trials],
-      step=epoch)
+      step=epoch,
+      legend_labels=['recorded', 'synthetic'])
 
   kl_divergence = pairs_kl_divergence(correlations)
   summary.plot_distribution(

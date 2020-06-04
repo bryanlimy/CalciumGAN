@@ -63,6 +63,7 @@ class Summary(object):
     plt.rc('legend', fontsize=legend_size)
 
     self.dpi = hparams.dpi
+    self.framerate = 24
 
     self.real_color = 'dodgerblue'
     self.fake_color = 'orangered'
@@ -123,9 +124,12 @@ class Summary(object):
                   spikes,
                   indexes,
                   ylims=[],
-                  xlabel='Time bins',
+                  xlabel='Time (s)',
                   step=0,
-                  training=True):
+                  training=True,
+                  is_real=True,
+                  signal_label='signal',
+                  spike_label='spike'):
     assert len(signals.shape) == 2 and len(spikes.shape) == 2
 
     images = []
@@ -140,15 +144,26 @@ class Summary(object):
     if rem > 0:
       num_rows += 1
 
-    fig = plt.figure(figsize=(32, int(4.5 * num_rows)))
+    fig = plt.figure(figsize=(32, int(5 * num_rows)))
     fig.patch.set_facecolor('white')
 
     plt.tick_params(axis='both', which='minor', labelsize=20)
 
     for i, neuron in enumerate(indexes):
       plt.subplot(num_rows, 3, i + 1)
+
+      color = self.real_color if is_real else self.fake_color
+
       # plot signal
-      plt.plot(signals[neuron], label='signal', alpha=0.6, color='dodgerblue')
+      plt.plot(
+          signals[neuron],
+          label=signal_label,
+          alpha=0.6,
+          color=color,
+      )
+      # rescale x-axis to seconds
+      x_axis = np.arange(0, len(signals[neuron]), 200)
+      plt.xticks(ticks=x_axis, labels=x_axis // self.framerate, fontsize=25)
       # plot spike
       x = np.nonzero(spikes[neuron])[0]
       fill_value = ylims[neuron][0] + (
@@ -160,14 +175,15 @@ class Summary(object):
           s=350,
           marker='|',
           linewidth=3,
-          label='spike',
-          color='orangered')
+          label=spike_label,
+          color='dimgray')
 
-      if i == 2:
-        plt.legend(ncol=1, frameon=False, loc=(0.75, 0.75))
+      if i == 1:
+        plt.legend(ncol=1, frameon=False, loc=(0, 0.7))
 
       plt.title('Neuron #{:03d}'.format(neuron))
-      plt.xlabel(xlabel)
+      if i == 4:
+        plt.xlabel(xlabel)
 
       axis = plt.gca()
       if ylims:
@@ -190,7 +206,7 @@ class Summary(object):
                   fake_spikes,
                   xlabel='',
                   ylabel='',
-                  title=None,
+                  legend_labels=None,
                   step=0,
                   training=True):
     images = []
@@ -232,9 +248,9 @@ class Summary(object):
     ax.set_ylabel(ylabel)
     ax.set_ylim([-2, 104])
 
-    # time_steps = np.arange(real_spikes.shape[1])
-    # time_steps = (time_steps / 24).astype(np.int32)
-    # ax.set_xticklabels(labels=time_steps)
+    # set x-axis to second
+    ax.set_xticklabels(
+        labels=(ax.get_xticks() // self.framerate).astype(np.int32))
 
     hist_kws = {"rwidth": 0.85, "alpha": 0.6}
 
@@ -276,14 +292,15 @@ class Summary(object):
         vertical=True)
     ax.set(xlabel='', ylabel='')
 
-    g.ax_joint.legend(
-        labels=['real', 'fake'],
-        ncol=2,
-        frameon=True,
-        prop={'weight': 'regular'},
-        loc=(0.02, 0.95),
-        fancybox=True,
-        framealpha=1)
+    if legend_labels is not None:
+      g.ax_joint.legend(
+          labels=legend_labels,
+          ncol=2,
+          frameon=True,
+          prop={'weight': 'regular'},
+          loc=(0.02, 0.95),
+          fancybox=True,
+          framealpha=1)
 
     plt.tight_layout()
     images.append(self._plot_to_png())
@@ -326,7 +343,8 @@ class Summary(object):
                      ylabel='',
                      title=None,
                      step=0,
-                     training=False):
+                     training=False,
+                     legend_labels=None):
     assert type(data) == tuple
     images = []
 
@@ -356,7 +374,8 @@ class Summary(object):
         color=self.fake_color,
         label="Fake")
 
-    ax.legend()
+    if legend_labels is not None:
+      ax.legend(labels=legend_labels)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.spines['top'].set_visible(False)
@@ -376,7 +395,8 @@ class Summary(object):
                            ylabel='',
                            titles=None,
                            step=0,
-                           training=False):
+                           training=False,
+                           legend_labels=None):
     assert type(data) == list and type(data[0]) == tuple
     images = []
 
@@ -419,7 +439,7 @@ class Summary(object):
           label="Fake")
 
       if i == 2:
-        ax.legend(frameon=False)
+        ax.legend(labels=legend_labels, frameon=False)
       ax.set_xlabel(xlabel)
       ax.set_ylabel(ylabel)
       ax.set_title(titles[i])

@@ -20,7 +20,7 @@ plt.style.use('seaborn-deep')
 
 import seaborn as sns
 
-tick_size = 26
+tick_size = 24
 label_size = 35
 legend_size = 25
 plt.rc('xtick', labelsize=tick_size)
@@ -105,7 +105,7 @@ def plot_covariance(hparams, filename, real, fake):
 
   # sort covariance by the mean of num_trials trials
   pair_order = np.argsort(np.mean(real, axis=-1))
-  # plot every 15th pair so that the graph won't be too clustered
+  # plot every 10th pair so that the graph won't be too clustered
   pair_order = pair_order[::10]
   real = real[pair_order].flatten('F')
   fake = fake[pair_order].flatten('F')
@@ -129,7 +129,7 @@ def plot_covariance(hparams, filename, real, fake):
       color='orangered',
       scatter_kws={'alpha': 0.7})
 
-  plt.xticks(ticks=list(range(0, len(x), 10)), labels=pair_order, rotation=90)
+  plt.xticks(ticks=list(range(0, len(x), 12)), labels=pair_order, rotation=90)
   ax.spines['top'].set_visible(False)
   ax.spines['right'].set_visible(False)
   ax.set_xlabel('Neuron Pair')
@@ -160,12 +160,12 @@ def main(hparams):
 
   plot_firing_rate(
       hparams,
-      filename='diagrams/dg_firing_rate_test.pdf',
+      filename='diagrams/dg_firing_rate.pdf',
       real=real_firing_rate,
       fake=fake_firing_rate)
   plot_covariance(
       hparams,
-      filename='diagrams/dg_covariance_test.pdf',
+      filename='diagrams/dg_covariance.pdf',
       real=real_covariance,
       fake=fake_covariance)
 

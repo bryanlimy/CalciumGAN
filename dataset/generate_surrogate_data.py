@@ -53,7 +53,6 @@ def main(hparams):
   os.makedirs(hparams.output_dir)
 
   hparams.num_neurons = 2
-  hparams.sequence_length = 32
   mean = np.array([[0.6, 0.8]], dtype=np.float32)
   covariance = np.array([[1., 0.3], [0.3, 1.]], dtype=np.float32)
 
@@ -80,7 +79,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='surrogate', type=str)
   parser.add_argument('--num_samples', default=2 * 10**6, type=int)
-  parser.add_argument('--training_size', default=9754, type=int)
+  parser.add_argument('--training_size', default=9192, type=int)
+  parser.add_argument('--sequence_length', default=6, type=int)
   hparams = parser.parse_args()
 
   hparams.surrogate_path = os.path.join(hparams.output_dir, 'surrogate.pkl')
