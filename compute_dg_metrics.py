@@ -158,6 +158,11 @@ def main(hparams):
   fake_firing_rate, fake_covariance = get_data_statistics(
       hparams, filename=info[epochs[-1]]['filename'])
 
+  print('mean firing rate MAE {:.04f} MSE {:.04f} RMSE {:.04f}'.format(
+      np.mean(np.abs(real_firing_rate - fake_firing_rate)),
+      np.mean(np.square(real_firing_rate - fake_firing_rate)),
+      np.sqrt(np.mean(np.square(real_firing_rate - fake_firing_rate)))))
+
   plot_firing_rate(
       hparams,
       filename='diagrams/dg_firing_rate.pdf',

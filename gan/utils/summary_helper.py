@@ -129,7 +129,8 @@ class Summary(object):
                   training=True,
                   is_real=True,
                   signal_label='signal',
-                  spike_label='spike'):
+                  spike_label='spike',
+                  plots_per_row=3):
     assert len(signals.shape) == 2 and len(spikes.shape) == 2
 
     images = []
@@ -140,17 +141,17 @@ class Summary(object):
       spikes = spikes.numpy()
 
     # calculate the number of rows needed in subplots
-    num_rows, rem = divmod(len(indexes), 3)
+    num_rows, rem = divmod(len(indexes), plots_per_row)
     if rem > 0:
       num_rows += 1
 
-    fig = plt.figure(figsize=(32, int(5 * num_rows)))
+    fig = plt.figure(figsize=(int(10 * plots_per_row), int(4.5 * num_rows)))
     fig.patch.set_facecolor('white')
 
     plt.tick_params(axis='both', which='minor', labelsize=20)
 
     for i, neuron in enumerate(indexes):
-      plt.subplot(num_rows, 3, i + 1)
+      plt.subplot(num_rows, plots_per_row, i + 1)
 
       color = self.real_color if is_real else self.fake_color
 
@@ -178,12 +179,11 @@ class Summary(object):
           label=spike_label,
           color='dimgray')
 
-      if i == 1:
-        plt.legend(ncol=1, frameon=False, loc=(0, 0.7))
+      if i == 0:
+        plt.legend(ncol=1, frameon=False, loc=(0.6, 0.55))
 
       plt.title('Neuron #{:03d}'.format(neuron))
-      if i == 4:
-        plt.xlabel(xlabel)
+      plt.xlabel(xlabel)
 
       axis = plt.gca()
       if ylims:
@@ -328,7 +328,8 @@ class Summary(object):
     ax.set_ylabel(ylabel)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-
+    if title:
+      ax.set_title(title)
     plt.tight_layout()
     images.append(self._plot_to_png())
     self.save_vector_plot(tag)

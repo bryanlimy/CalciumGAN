@@ -146,27 +146,30 @@ def plot_signals(hparams, summary, filename, epoch):
                 np.max(fake_signals[i])])
     ])
 
+  num_neuron_plots, plots_per_row = 2, 2
   summary.plot_traces(
       'real',
       real_signals,
       real_spikes,
-      indexes=hparams.neurons[:6],
+      indexes=hparams.neurons[:num_neuron_plots],
       ylims=ylims,
       step=epoch,
       is_real=True,
       signal_label='recorded signal',
-      spike_label='recorded spike')
+      spike_label='inferred spike',
+      plots_per_row=plots_per_row)
 
   summary.plot_traces(
       'fake',
       fake_signals,
       fake_spikes,
-      indexes=hparams.neurons[:6],
+      indexes=hparams.neurons[:num_neuron_plots],
       ylims=ylims,
       step=epoch,
       is_real=False,
       signal_label='synthetic signal',
-      spike_label='synthetic spike')
+      spike_label='inferred spike',
+      plots_per_row=plots_per_row)
 
 
 def raster_plots(hparams, summary, filename, epoch, trial=1):
@@ -238,7 +241,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
-      title='Firing rate KL divergence',
+      title='Mean firing rate',
       step=epoch)
 
   if hparams.verbose:
@@ -246,6 +249,11 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
         '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
             np.min(kl_divergence), np.max(kl_divergence),
             np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
+    print(
+        '\tKL divergence of neuron {:03d}: {:.02f}, neuron {:03d}: {:.02f}, neuron {:03d}: {:.02f}'
+        .format(hparams.neurons[0], kl_divergence[hparams.neurons[0]],
+                hparams.neurons[1], kl_divergence[hparams.neurons[1]],
+                hparams.neurons[2], kl_divergence[hparams.neurons[2]]))
 
 
 def covariance(hparams, filename, trial):
@@ -290,7 +298,7 @@ def covariance_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
-      title='Covariance KL divergence',
+      title='Covariance',
       step=epoch)
 
   if hparams.verbose:
@@ -343,7 +351,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
-      title='Correlation coefficient KL divergence',
+      title='Correlation',
       step=epoch)
 
   if hparams.verbose:
@@ -454,8 +462,8 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   summary.plot_heatmaps_grid(
       'van_rossum_heatmap',
       matrix=heatmaps,
-      xlabel='Fake trials',
-      ylabel='Real trials',
+      xlabel='synthetic trial',
+      ylabel='recorded trial',
       xticklabels=xticklabels,
       yticklabels=yticklabels,
       titles=titles,
@@ -474,7 +482,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
-      title='van-Rossum distance KL divergence',
+      title='van-Rossum distance',
       step=epoch)
 
   if hparams.verbose:

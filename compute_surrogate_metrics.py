@@ -65,7 +65,7 @@ def get_generate_data(hparams):
         signals, data_format='NCW', hparams=hparams)
     spikes = np.zeros(signals.shape, dtype=np.float32)
     for i in tqdm(range(len(signals)), desc='Deconvolution'):
-      spikes[i] = spike_helper.deconvolve_signals(signals[i], threshold=0.25)
+      spikes[i] = spike_helper.deconvolve_signals(signals[i], threshold=0.5)
     write_data = True
 
   if not hparams.recompute and 'unique' in data and 'count' in data:
@@ -143,17 +143,17 @@ def main(hparams):
 
   filename = 'diagrams/numerical_probabilities.pdf'
 
-  # ground_truth_prob = np.log10(ground_truth_prob)
-  # surrogate_prob = np.log10(surrogate_prob)
-  # generated_prob = np.log10(generated_prob)
+  ground_truth_prob = np.log10(ground_truth_prob)
+  surrogate_prob = np.log10(surrogate_prob)
+  generated_prob = np.log10(generated_prob)
 
   # plt.figure(figsize=(8, 8))
-  ax = sns.kdeplot(
-      data=surrogate_prob,
-      data2=ground_truth_prob,
-      shade=True,
-      shade_lowest=False,
-      cmap="Blues")
+  # ax = sns.kdeplot(
+  #     data=surrogate_prob,
+  #     data2=ground_truth_prob,
+  #     shade=True,
+  #     shade_lowest=False,
+  #     cmap="Blues")
   ax = sns.kdeplot(
       data=generated_prob,
       data2=ground_truth_prob,
