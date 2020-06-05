@@ -20,9 +20,9 @@ plt.style.use('seaborn-deep')
 
 import seaborn as sns
 
-tick_size = 24
-label_size = 35
-legend_size = 25
+tick_size = 14
+label_size = 16
+legend_size = 14
 plt.rc('xtick', labelsize=tick_size)
 plt.rc('ytick', labelsize=tick_size)
 plt.rc('axes', titlesize=label_size)
@@ -68,25 +68,26 @@ def plot_firing_rate(hparams, filename, real, fake):
   fake = fake[neuron_order].flatten('F')
   x = list(range(len(neuron_order)))
 
-  fig = plt.figure(figsize=(16, 10))
-  fig.patch.set_facecolor('white')
+  # fig = plt.figure(figsize=(16, 10))
+  # fig.patch.set_facecolor('white')
 
+  scatter_kws = {'alpha': 0.6}
   sns.regplot(
       x=x * hparams.num_trials,
       y=real,
       marker='o',
       fit_reg=False,
       color='dodgerblue',
-      scatter_kws={'alpha': 0.7})
+      scatter_kws=scatter_kws)
   ax = sns.regplot(
       x=x * hparams.num_trials,
       y=fake,
       marker='x',
       fit_reg=False,
       color='orangered',
-      scatter_kws={'alpha': 0.7})
+      scatter_kws=scatter_kws)
 
-  plt.xticks(ticks=list(range(0, len(x), 3)), labels=neuron_order, rotation=90)
+  plt.xticks(ticks=list(range(0, len(x), 5)), labels=neuron_order, rotation=90)
   ax.spines['top'].set_visible(False)
   ax.spines['right'].set_visible(False)
   ax.set_xlabel('Neuron')
@@ -111,25 +112,26 @@ def plot_covariance(hparams, filename, real, fake):
   fake = fake[pair_order].flatten('F')
   x = list(range(len(pair_order)))
 
-  fig = plt.figure(figsize=(16, 10))
-  fig.patch.set_facecolor('white')
+  # fig = plt.figure(figsize=(16, 10))
+  # fig.patch.set_facecolor('white')
 
+  scatter_kws = {'alpha': 0.6}
   sns.regplot(
       x=x * hparams.num_trials,
       y=real,
       fit_reg=False,
       marker='o',
       color='dodgerblue',
-      scatter_kws={'alpha': 0.7})
+      scatter_kws=scatter_kws)
   ax = sns.regplot(
       x=x * hparams.num_trials,
       y=fake,
       fit_reg=False,
       marker='x',
       color='orangered',
-      scatter_kws={'alpha': 0.7})
+      scatter_kws=scatter_kws)
 
-  plt.xticks(ticks=list(range(0, len(x), 12)), labels=pair_order, rotation=90)
+  plt.xticks(ticks=list(range(0, len(x), 20)), labels=pair_order, rotation=90)
   ax.spines['top'].set_visible(False)
   ax.spines['right'].set_visible(False)
   ax.set_xlabel('Neuron Pair')

@@ -52,7 +52,7 @@ class Summary(object):
         shutil.rmtree(self._vector_dir)
       os.makedirs(self._vector_dir)
 
-    tick_size = 30
+    tick_size = 35
     label_size = 35
     legend_size = 25
     plt.rc('xtick', labelsize=tick_size)
@@ -164,7 +164,8 @@ class Summary(object):
       )
       # rescale x-axis to seconds
       x_axis = np.arange(0, len(signals[neuron]), 200)
-      plt.xticks(ticks=x_axis, labels=x_axis // self.framerate, fontsize=25)
+      plt.xticks(ticks=x_axis, labels=x_axis // self.framerate, fontsize=30)
+      plt.yticks(fontsize=30)
       # plot spike
       x = np.nonzero(spikes[neuron])[0]
       fill_value = ylims[neuron][0] + (
