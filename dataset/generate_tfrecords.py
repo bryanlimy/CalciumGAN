@@ -56,8 +56,9 @@ def get_segments(hparams):
   raw_spikes = np.array(data['oasis'], dtype=np.float32)
 
   # remove first two rows in signals
-  raw_signals = raw_signals[2:]
-  raw_spikes = raw_spikes[2:]
+  if not hparams.is_dg_data:
+    raw_signals = raw_signals[2:]
+    raw_spikes = raw_spikes[2:]
 
   assert raw_signals.shape == raw_spikes.shape
 
@@ -125,7 +126,7 @@ def get_record_filename(hparams, mode, shard_id, num_shards):
 
 def write_to_record(hparams, mode, shard, num_shards, signals, spikes, indexes):
   record_filename = get_record_filename(hparams, mode, shard, num_shards)
-  print('writing {} segments to {}...'.format(len(signals), record_filename))
+  print('writing {} segments to {}...'.format(len(indexes), record_filename))
 
   with tf.io.TFRecordWriter(record_filename) as writer:
     for i in indexes:
@@ -181,8 +182,7 @@ def main(hparams):
   indexes = np.arange(len(signals))
   np.random.shuffle(indexes)
 
-  hparams.train_size = int(len(signals) * hparams.train_percentage)
-  hparams.validation_size = len(signals) - hparams.train_size
+  hparams.train_size = len(signals) - hparams.validation_size
   hparams.signal_shape = signals.shape[1:]
   hparams.spike_shape = spikes.shape[1:]
 
@@ -237,15 +237,16 @@ if __name__ == '__main__':
   parser.add_argument(
       '--input', default='raw_data/ST260_Day4_signals4Bryan.pkl', type=str)
   parser.add_argument('--output_dir', default='tfrecords', type=str)
-  parser.add_argument('--sequence_length', default=1024, type=int)
-  parser.add_argument('--stride', default=1, type=int)
+  parser.add_argument('--sequence_length', default=2048, type=int)
+  parser.add_argument('--stride', default=2, type=int)
   parser.add_argument('--normalize', action='store_true')
   parser.add_argument('--fft', action='store_true')
   parser.add_argument('--replace', action='store_true')
-  parser.add_argument('--train_percentage', default=0.7, type=float)
+  parser.add_argument('--validation_size', default=1000, type=float)
+  parser.add_argument('--is_dg_data', action='store_true')
   parser.add_argument(
       '--target_shard_size',
-      default=0.25,
+      default=0.5,
       type=float,
       help='target size in GB for each TFRecord file.')
   hparams = parser.parse_args()

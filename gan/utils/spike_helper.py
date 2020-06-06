@@ -5,20 +5,19 @@ from neo.core import SpikeTrain
 from oasis.oasis_methods import oasisAR1
 
 
-def train_to_neo(train, t_stop=None):
-  ''' convert a single spike train to Neo SpikeTrain in sec scale '''
-  return SpikeTrain(
-      np.nonzero(train)[0] * pq.ms,
-      units=pq.s,
-      t_stop=train.shape[-1] * pq.ms if t_stop is None else t_stop,
-      dtype=np.float32)
+def train_to_neo(train, framerate=24):
+  ''' convert a single spike train to Neo SpikeTrain '''
+  times = np.nonzero(train)[0]
+  times = times / framerate * pq.s
+  t_stop = train.shape[-1] / framerate * pq.s
+  spike_train = SpikeTrain(times=times, units=pq.s, t_stop=t_stop)
+  return spike_train
 
 
 def trains_to_neo(trains):
   ''' convert array of spike trains to list of  Neo SpikeTrains in sec scale '''
   assert trains.ndim == 2
-  t_stop = trains.shape[-1] * pq.ms
-  return [train_to_neo(trains[i], t_stop=t_stop) for i in range(len(trains))]
+  return [train_to_neo(trains[i]) for i in range(len(trains))]
 
 
 def oasis_function(signal, threshold=0.5):

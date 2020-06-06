@@ -35,9 +35,9 @@ def cache_validation_set(hparams, validation_ds):
       })
 
 
-def plot_real_signals(hparams, summary, validation_ds):
+def plot_real_signals(hparams, summary, ds, indexes=None):
   # plot signals and spikes from validation set
-  signals, spikes = next(iter(validation_ds))
+  signals, spikes = next(iter(ds))
 
   signals, spikes = signals[0].numpy(), spikes[0].numpy()
 
@@ -55,7 +55,7 @@ def plot_real_signals(hparams, summary, validation_ds):
       'real',
       signals,
       spikes,
-      indexes=hparams.focus_neurons,
+      indexes=indexes if indexes is not None else hparams.focus_neurons,
       step=0,
       training=False)
 
@@ -82,6 +82,64 @@ def get_fashion_mnist(hparams):
   eval_ds = eval_ds.batch(hparams.batch_size)
 
   return train_ds, eval_ds
+
+
+def get_surrogate_dataset(hparams):
+  filename = os.path.join(hparams.input_dir, 'training.pkl')
+  if not os.path.exists(filename):
+    print('training dataset {} not found'.format(filename))
+    exit()
+
+  with open(filename, 'rb') as file:
+    data = pickle.load(file)
+
+  def normalize(x):
+    hparams.signals_min = float(np.min(x))
+    hparams.signals_max = float(np.max(x))
+
+    shape = x.shape
+    x = np.reshape(x, newshape=(shape[0], shape[1] * shape[2]))
+    x = (x - hparams.signals_min) / (hparams.signals_max - hparams.signals_min)
+    x = np.reshape(x, newshape=shape)
+
+    return x
+
+  # set shape to (num trials, sequence length, num neurons)
+  signals = np.transpose(data['signals'], axes=[0, 2, 1])
+
+  signals, spikes = normalize(signals), data['spikes']
+  train_size = 8192
+  train_signals, train_spikes = signals[:train_size], spikes[:train_size]
+  test_signals, test_spikes = signals[train_size:], spikes[train_size:]
+
+  hparams.train_size = len(train_signals)
+  hparams.validation_size = len(test_signals)
+  hparams.signal_shape = train_signals.shape[1:]
+  hparams.spike_shape = data['spikes'].shape[1:]
+  hparams.sequence_length = train_signals.shape[1]
+  hparams.num_neurons = train_signals.shape[-1]
+  hparams.num_channels = train_signals.shape[-1]
+  hparams.normalize = True
+  hparams.fft = False
+
+  if hparams.save_generated:
+    hparams.generated_dir = os.path.join(hparams.output_dir, 'generated')
+    if not os.path.exists(hparams.generated_dir):
+      os.makedirs(hparams.generated_dir)
+
+    hparams.validation_cache = os.path.join(hparams.generated_dir,
+                                            'validation.h5')
+
+  train_ds = tf.data.Dataset.from_tensor_slices((train_signals, train_spikes))
+  train_ds = train_ds.shuffle(buffer_size=2048)
+  train_ds = train_ds.batch(hparams.batch_size)
+  train_ds = train_ds.prefetch(4)
+
+  validation_ds = tf.data.Dataset.from_tensor_slices((test_signals,
+                                                      test_spikes))
+  validation_ds = validation_ds.batch(hparams.batch_size)
+
+  return train_ds, validation_ds
 
 
 def get_dataset_info(hparams):
@@ -117,7 +175,7 @@ def get_dataset_info(hparams):
                                             'validation.h5')
 
 
-def get_calcium_signals(hparams):
+def get_tfrecords(hparams):
   if not os.path.exists(hparams.input_dir):
     print('input directory {} cannot be found'.format(hparams.input_dir))
     exit()
@@ -160,8 +218,15 @@ def get_dataset(hparams, summary):
 
   if hparams.input_dir == 'fashion_mnist':
     train_ds, validation_ds = get_fashion_mnist(hparams)
+  elif hparams.surrogate_ds:
+    train_ds, validation_ds = get_surrogate_dataset(hparams)
+    plot_real_signals(
+        hparams,
+        summary,
+        validation_ds,
+        indexes=list(range(hparams.num_neurons)))
   else:
-    train_ds, validation_ds = get_calcium_signals(hparams)
+    train_ds, validation_ds = get_tfrecords(hparams)
 
     if hparams.save_generated:
       cache_validation_set(hparams, validation_ds)

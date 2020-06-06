@@ -1,2 +1,4 @@
 raw_data/
 *.record
+dg/*.pkl
+

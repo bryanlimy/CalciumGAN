@@ -1,6 +1,6 @@
 import os
-import json
 import pickle
+import random
 import argparse
 import warnings
 import numpy as np
@@ -8,8 +8,6 @@ import pandas as pd
 from tqdm import tqdm
 from time import time
 from multiprocessing import Pool
-
-np.random.seed(1234)
 
 # use CPU only
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -19,6 +17,11 @@ from gan.utils import h5_helper
 from gan.utils import spike_metrics
 from gan.utils import spike_helper
 from gan.utils.summary_helper import Summary
+
+
+def set_seed(seed):
+  random.seed(seed)
+  np.random.seed(seed)
 
 
 def load_info(hparams):
@@ -34,8 +37,9 @@ def deconvolve_neuron(hparams, filename, neuron):
   return spike_helper.deconvolve_signals(signals, threshold=0.5)
 
 
-def deconvolve_from_file(hparams, filename):
-  print('\tDeconvolve {}'.format(filename))
+def deconvolve_from_file(hparams, filename, return_spikes=False):
+  if hparams.verbose:
+    print('\tDeconvolve {}'.format(filename))
 
   pool = Pool(hparams.num_processors)
   fake_spikes = pool.starmap(
@@ -48,55 +52,8 @@ def deconvolve_from_file(hparams, filename):
 
   h5_helper.write(filename, {'spikes': fake_spikes})
 
-
-def raster_plots(hparams, summary, filename, epoch):
-  real_spikes = h5_helper.get(hparams.validation_cache, name='spikes')
-  real_spikes = utils.set_array_format(real_spikes, 'NCW', hparams)
-  fake_spikes = h5_helper.get(filename, name='spikes')
-  fake_spikes = utils.set_array_format(fake_spikes, 'NCW', hparams)
-
-  summary.raster_plot(
-      'raster_plot_trial',
-      real_spikes=real_spikes[0],
-      fake_spikes=fake_spikes[0],
-      xlabel='Time (ms)',
-      ylabel='Neuron',
-      title='Trial #001',
-      step=epoch)
-
-  summary.raster_plot(
-      'raster_plot_neuron',
-      real_spikes=real_spikes[:100, 5, :],
-      fake_spikes=fake_spikes[:100, 5, :],
-      xlabel='Time (ms)',
-      ylabel='Trial',
-      title='Neuron #005',
-      step=epoch)
-
-
-def plot_signals(hparams, summary, filename, epoch):
-  real_signals = h5_helper.get(
-      hparams.validation_cache, name='signals', trial=0)
-  real_spikes = h5_helper.get(hparams.validation_cache, name='spikes', trial=0)
-
-  real_signals = utils.set_array_format(
-      real_signals, data_format='CW', hparams=hparams)
-  real_spikes = utils.set_array_format(
-      real_spikes, data_format='CW', hparams=hparams)
-
-  summary.plot_traces(
-      'real', real_signals, real_spikes, indexes=hparams.neurons, step=epoch)
-
-  fake_signals = h5_helper.get(filename, name='signals', trial=0)
-  fake_spikes = h5_helper.get(filename, name='spikes', trial=0)
-
-  fake_signals = utils.set_array_format(
-      fake_signals, data_format='CW', hparams=hparams)
-  fake_spikes = utils.set_array_format(
-      fake_spikes, data_format='CW', hparams=hparams)
-
-  summary.plot_traces(
-      'fake', fake_signals, fake_spikes, indexes=hparams.neurons, step=epoch)
+  if return_spikes:
+    return fake_spikes
 
 
 def get_neo_trains(hparams,
@@ -121,7 +78,121 @@ def mse(x, y):
   return np.nanmean(np.square(x - y), dtype=np.float32)
 
 
-def firing_rate_neuron(hparams, filename, neuron):
+def kl_divergence(p, q):
+  # replace entries with 0 probability with 1e-10
+  p = np.where(p == 0, 1e-10, p)
+  q = np.where(q == 0, 1e-10, q)
+  return np.sum(p * np.log(p / q))
+
+
+def pairs_kl_divergence(pairs):
+  kl = np.zeros((len(pairs),), dtype=np.float32)
+  for i in range(len(pairs)):
+    real, fake = pairs[i]
+
+    df = pd.DataFrame({
+        'data': np.concatenate([real, fake]),
+        'is_real': [True] * len(real) + [False] * len(fake)
+    })
+
+    num_bins = 30
+    df['bins'] = pd.cut(df.data, bins=num_bins, labels=np.arange(num_bins))
+
+    real_pdf = np.array([
+        len(df[(df.bins == i) & (df.is_real == True)]) for i in range(num_bins)
+    ],
+                        dtype=np.float32) / len(real)
+    fake_pdf = np.array([
+        len(df[(df.bins == i) & (df.is_real == False)]) for i in range(num_bins)
+    ],
+                        dtype=np.float32) / len(fake)
+
+    kl[i] = kl_divergence(real_pdf, fake_pdf)
+  return kl
+
+
+def plot_signals(hparams, summary, filename, epoch):
+  trial = random.randint(0, hparams.num_samples)
+
+  if hparams.verbose:
+    print('\tPlotting traces for trial #{}'.format(trial))
+
+  real_signals = h5_helper.get(
+      hparams.validation_cache, name='signals', trial=trial)
+  real_spikes = h5_helper.get(
+      hparams.validation_cache, name='spikes', trial=trial)
+
+  real_signals = utils.set_array_format(
+      real_signals, data_format='CW', hparams=hparams)
+  real_spikes = utils.set_array_format(
+      real_spikes, data_format='CW', hparams=hparams)
+
+  fake_signals = h5_helper.get(filename, name='signals', trial=trial)
+  fake_spikes = h5_helper.get(filename, name='spikes', trial=trial)
+
+  fake_signals = utils.set_array_format(
+      fake_signals, data_format='CW', hparams=hparams)
+  fake_spikes = utils.set_array_format(
+      fake_spikes, data_format='CW', hparams=hparams)
+
+  # get the y axis range for each neuron
+  assert real_signals.shape == fake_signals.shape
+  ylims = []
+  for i in range(len(real_signals)):
+    ylims.append([
+        np.min([np.min(real_signals[i]),
+                np.min(fake_signals[i])]),
+        np.max([np.max(real_signals[i]),
+                np.max(fake_signals[i])])
+    ])
+
+  num_neuron_plots, plots_per_row = 2, 2
+  summary.plot_traces(
+      'real',
+      real_signals,
+      real_spikes,
+      indexes=hparams.neurons[:num_neuron_plots],
+      ylims=ylims,
+      step=epoch,
+      is_real=True,
+      signal_label='recorded signal',
+      spike_label='inferred spike',
+      plots_per_row=plots_per_row)
+
+  summary.plot_traces(
+      'fake',
+      fake_signals,
+      fake_spikes,
+      indexes=hparams.neurons[:num_neuron_plots],
+      ylims=ylims,
+      step=epoch,
+      is_real=False,
+      signal_label='synthetic signal',
+      spike_label='inferred spike',
+      plots_per_row=plots_per_row)
+
+
+def raster_plots(hparams, summary, filename, epoch, trial=1):
+  if hparams.verbose:
+    print('\tPlotting raster plot for trial #{}'.format(trial))
+
+  real_spikes = h5_helper.get(
+      hparams.validation_cache, name='spikes', trial=trial)
+  real_spikes = utils.set_array_format(real_spikes, 'CW', hparams)
+  fake_spikes = h5_helper.get(filename, name='spikes', trial=trial)
+  fake_spikes = utils.set_array_format(fake_spikes, 'CW', hparams)
+
+  summary.raster_plot(
+      'raster_plot_trial',
+      real_spikes=real_spikes,
+      fake_spikes=fake_spikes,
+      xlabel='Time (s)',
+      ylabel='Neuron',
+      legend_labels=['recorded', 'synthetic'],
+      step=epoch)
+
+
+def firing_rate(hparams, filename, neuron, num_trials=200):
   if hparams.verbose == 2:
     print('\tComputing firing rate for neuron #{}'.format(neuron))
 
@@ -130,63 +201,19 @@ def firing_rate_neuron(hparams, filename, neuron):
       hparams.validation_cache,
       neuron=neuron,
       data_format='NW',
-  )
+      num_trials=num_trials)
   fake_spikes = get_neo_trains(
       hparams,
       filename,
       neuron=neuron,
       data_format='NW',
+      num_trials=num_trials,
   )
 
   real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
   fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
-  firing_rate_error = mse(real_firing_rate, fake_firing_rate)
 
-  return {
-      'firing_rate_error': firing_rate_error,
-      'firing_rate_pair': (real_firing_rate, fake_firing_rate)
-  }
-
-
-def firing_rate_kl(firing_rate_pairs):
-
-  def kl_divergence(p, q):
-    return np.sum(
-        np.where(
-            np.logical_or(np.equal(p, 0), np.equal(q, 0)),
-            0,
-            p * np.log(p / q),
-        ))
-
-  kl = []
-  for i in range(len(firing_rate_pairs)):
-    real_firing_rate, fake_firing_rate = firing_rate_pairs[i]
-    assert real_firing_rate.shape == fake_firing_rate.shape
-
-    df = pd.DataFrame({
-        'firing_rate':
-        np.concatenate([real_firing_rate, fake_firing_rate]),
-        'real_data':
-        [True] * len(real_firing_rate) + [False] * len(fake_firing_rate)
-    })
-
-    num_bins = 30
-    df['bins'] = pd.cut(
-        df.firing_rate, bins=num_bins, labels=np.arange(num_bins))
-
-    real_pdf = np.array([
-        len(df[(df.bins == i) & (df.real_data == True)])
-        for i in range(num_bins)
-    ],
-                        dtype=np.float32) / len(real_firing_rate)
-    fake_pdf = np.array([
-        len(df[(df.bins == i) & (df.real_data == False)])
-        for i in range(num_bins)
-    ],
-                        dtype=np.float32) / len(fake_firing_rate)
-
-    kl.append(kl_divergence(real_pdf, fake_pdf))
-  return kl
+  return (real_firing_rate, fake_firing_rate)
 
 
 def firing_rate_metrics(hparams, summary, filename, epoch):
@@ -194,101 +221,96 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
     print('\tComputing firing rate')
 
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(firing_rate_neuron,
-                         [(hparams, filename, n) for n in hparams.neurons])
+  firing_rate_pairs = pool.starmap(firing_rate,
+                                   [(hparams, filename, n, hparams.num_samples)
+                                    for n in range(hparams.num_neurons)])
   pool.close()
 
-  firing_rate_errors, firing_rate_pairs = [], []
-  for result in results:
-    firing_rate_errors.append(result['firing_rate_error'])
-    firing_rate_pairs.append(result['firing_rate_pair'])
-
-  summary.scalar(
-      'spike_metrics/firing_rate_error',
-      np.mean(firing_rate_errors),
-      step=epoch)
-
   summary.plot_histograms_grid(
-      'firing_rate_histograms',
-      firing_rate_pairs,
+      'firing_rate_histogram',
+      data=[firing_rate_pairs[n] for n in hparams.neurons],
       xlabel='Hz',
       ylabel='Count',
       titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons],
-      step=epoch)
+      step=epoch,
+      legend_labels=['recorded', 'synthetic'])
 
-  # get firing rate for all neurons
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(
-      firing_rate_neuron,
-      [(hparams, filename, n) for n in range(hparams.num_neurons)])
-  pool.close()
-
-  firing_rate_pairs = [result['firing_rate_pair'] for result in results]
-  kl = firing_rate_kl(firing_rate_pairs)
-
+  kl_divergence = pairs_kl_divergence(firing_rate_pairs)
   summary.plot_distribution(
-      'firing_rate_kl_histogram',
-      kl,
+      'firing_rate_kl',
+      data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
-      title='KL divergence histogram of {} neurons'.format(
-          len(firing_rate_pairs)),
+      title='Mean firing rate',
       step=epoch)
 
+  if hparams.verbose:
+    print(
+        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
+            np.min(kl_divergence), np.max(kl_divergence),
+            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
+    print(
+        '\tKL divergence of neuron {:03d}: {:.02f}, neuron {:03d}: {:.02f}, neuron {:03d}: {:.02f}'
+        .format(hparams.neurons[0], kl_divergence[hparams.neurons[0]],
+                hparams.neurons[1], kl_divergence[hparams.neurons[1]],
+                hparams.neurons[2], kl_divergence[hparams.neurons[2]]))
 
-def neuron_covariance(hparams, filename, neuron, num_trials):
+
+def covariance(hparams, filename, trial):
   if hparams.verbose == 2:
-    print('\t\tComputing covariance for neuron #{}'.format(neuron))
+    print('\t\tComputing covariance for sample #{}'.format(trial))
+
+  diag_indices = np.triu_indices(hparams.num_neurons, k=1)
 
   real_spikes = get_neo_trains(
-      hparams,
-      hparams.validation_cache,
-      neuron=neuron,
-      data_format='NW',
-      num_trials=num_trials)
-  fake_spikes = get_neo_trains(
-      hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
+      hparams, hparams.validation_cache, trial=trial, data_format='CW')
+  real_covariance = spike_metrics.covariance(real_spikes, None)
+  real_covariance = utils.remove_nan(real_covariance[diag_indices])
 
-  return np.mean(spike_metrics.covariance(real_spikes, fake_spikes))
+  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
+  fake_covariance = spike_metrics.covariance(fake_spikes, None)
+  fake_covariance = utils.remove_nan(fake_covariance[diag_indices])
+
+  return (real_covariance, fake_covariance)
 
 
 def covariance_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing covariance')
 
-  # compute neuron-wise covariance with 200 trials
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(neuron_covariance,
-                         [(hparams, filename, n, 200) for n in hparams.neurons])
+  covariances = pool.starmap(
+      covariance, [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
 
-  summary.scalar(
-      'spike_metrics/neuron_covariance', np.mean(results), step=epoch)
+  summary.plot_histograms_grid(
+      'covariance_histogram',
+      data=[covariances[i] for i in hparams.trials],
+      xlabel='Covariance',
+      ylabel='Count',
+      titles=['Sample #{:03d}'.format(i) for i in hparams.trials],
+      step=epoch,
+      legend_labels=['recorded', 'synthetic'])
+
+  kl_divergence = pairs_kl_divergence(covariances)
+  summary.plot_distribution(
+      'covariance_kl',
+      data=kl_divergence,
+      xlabel='KL divergence',
+      ylabel='Count',
+      title='Covariance',
+      step=epoch)
+
+  if hparams.verbose:
+    print(
+        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
+            np.min(kl_divergence), np.max(kl_divergence),
+            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
 
 
-def correlation_coefficient_error(hparams, filename, trial):
+def correlation_coefficient(hparams, filename, trial):
   if hparams.verbose == 2:
-    print('\t\tComputing correlation coefficient error for trial #{}'.format(
-        trial))
-
-  diag_indices = np.triu_indices(hparams.num_neurons, k=1)
-
-  real_spikes = get_neo_trains(
-      hparams, hparams.validation_cache, trial=trial, data_format='CW')
-  real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
-  real_corrcoef = real_corrcoef[diag_indices]
-
-  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
-  fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
-  fake_corrcoef = fake_corrcoef[diag_indices]
-
-  return mse(real_corrcoef, fake_corrcoef)
-
-
-def correlation_coefficient_trial_histogram(hparams, filename, trial):
-  if hparams.verbose == 2:
-    print('\t\tComputing correlation coefficient histogram for sample #{}'.
-          format(trial))
+    print('\t\tComputing correlation coefficient for sample #{}'.format(trial))
 
   diag_indices = np.triu_indices(hparams.num_neurons, k=1)
 
@@ -304,86 +326,39 @@ def correlation_coefficient_trial_histogram(hparams, filename, trial):
   return (real_corrcoef, fake_corrcoef)
 
 
-def correlation_coefficient_trials_mean_histogram(hparams, filename, trial):
-  if hparams.verbose == 2:
-    print('\t\tComputing mean correlation coefficient histogram for trial #{}'.
-          format(trial))
-
-  diag_indices = np.triu_indices(hparams.num_neurons, k=1)
-
-  real_spikes = get_neo_trains(
-      hparams, hparams.validation_cache, trial=trial, data_format='CW')
-  real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
-  real_corrcoef = np.nanmean(real_corrcoef[diag_indices], dtype=np.float32)
-
-  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
-  fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
-  fake_corrcoef = np.nanmean(fake_corrcoef[diag_indices], dtype=np.float32)
-
-  return [real_corrcoef, fake_corrcoef]
-
-
 def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
 
-  # compute trial-wise covariance for the first 200 trials
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(correlation_coefficient_error,
-                         [(hparams, filename, i) for i in range(200)])
-  pool.close()
-
-  summary.scalar(
-      'spike_metrics/correlation_error',
-      np.nanmean(results, dtype=np.float32),
-      step=epoch)
-
-  # compute sample-wise correlation histogram
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(correlation_coefficient_trial_histogram,
-                         [(hparams, filename, i) for i in hparams.trials])
+  correlations = pool.starmap(
+      correlation_coefficient,
+      [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
 
   summary.plot_histograms_grid(
-      'correlation_coefficient_trial_histogram',
-      results,
+      'correlation_histogram',
+      data=[correlations[i] for i in hparams.trials],
       xlabel='Correlation',
       ylabel='Count',
-      titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
-      step=epoch)
+      titles=['Sample #{:03d}'.format(i) for i in hparams.trials],
+      step=epoch,
+      legend_labels=['recorded', 'synthetic'])
 
-  # compute mean trial-wise correlation histogram
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(correlation_coefficient_trials_mean_histogram,
-                         [(hparams, filename, i) for i in range(200)])
-  pool.close()
-
-  results = np.array(results, dtype=np.float32)
-
-  summary.plot_histogram(
-      'correlation_coefficient_mean_trials_histogram',
-      (results[:, 0], results[:, 1]),
-      xlabel='Mean correlation',
+  kl_divergence = pairs_kl_divergence(correlations)
+  summary.plot_distribution(
+      'correlation_kl',
+      data=kl_divergence,
+      xlabel='KL divergence',
       ylabel='Count',
-      title='Mean correlation over {} trials'.format(len(results)),
+      title='Correlation',
       step=epoch)
 
-
-def neuron_van_rossum_distance(hparams, filename, neuron, num_trials):
-  ''' compute van rossum distance for neuron with num_trials'''
-  if hparams.verbose == 2:
-    print('\t\tComputing van-rossum distance for neuron #{}'.format(neuron))
-
-  real_spikes = get_neo_trains(
-      hparams,
-      hparams.validation_cache,
-      neuron=neuron,
-      data_format='NW',
-      num_trials=num_trials)
-  fake_spikes = get_neo_trains(
-      hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
-
-  return np.mean(spike_metrics.van_rossum_distance(real_spikes, fake_spikes))
+  if hparams.verbose:
+    print(
+        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
+            np.min(kl_divergence), np.max(kl_divergence),
+            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
 
 
 def sort_heatmap(matrix):
@@ -412,26 +387,7 @@ def sort_heatmap(matrix):
   return heatmap, row_order, column_order
 
 
-def van_rossum_trial_heatmap(hparams, filename, trial):
-  ''' compute van rossum heatmap for trial '''
-  if hparams.verbose == 2:
-    print('\t\tComputing van-rossum heatmap for trial #{}'.format(trial))
-
-  real_spikes = get_neo_trains(
-      hparams, hparams.validation_cache, trial=trial, data_format='CW')
-  fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
-
-  distances = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
-  heatmap, row_order, column_order = sort_heatmap(distances)
-
-  return {
-      'heatmap': heatmap,
-      'xticklabels': row_order,
-      'yticklabels': column_order
-  }
-
-
-def van_rossum_neuron_heatmap(hparams, filename, neuron, num_trials):
+def neuron_van_rossum(hparams, filename, neuron, num_trials=50):
   ''' compute van rossum heatmap for neuron with num_trials '''
   if hparams.verbose == 2:
     print('\t\tComputing van-rossum heatmap for neuron #{}'.format(neuron))
@@ -455,8 +411,8 @@ def van_rossum_neuron_heatmap(hparams, filename, neuron, num_trials):
   }
 
 
-def van_rossum_trial_histogram(hparams, filename, trial):
-  ''' compute van rossum distance for trial '''
+def trial_van_rossum(hparams, filename, trial):
+  ''' compute van rossum distance for a given trial '''
   if hparams.verbose == 2:
     print('\t\tComputing van-rossum histograms for trial #{}'.format(trial))
 
@@ -486,70 +442,13 @@ def van_rossum_trial_histogram(hparams, filename, trial):
   return (real_van_rossum, fake_van_rossum)
 
 
-def van_rossum_neuron_histogram(hparams, filename, neuron, num_trials):
-  ''' compute van rossum distance for neuron '''
-  if hparams.verbose == 2:
-    print('\t\tComputing van-rossum histograms for neuron #{}'.format(neuron))
-
-  real_spikes = get_neo_trains(
-      hparams,
-      hparams.validation_cache,
-      neuron=neuron,
-      data_format='NW',
-      num_trials=num_trials)
-  real_van_rossum = spike_metrics.van_rossum_distance(real_spikes, None)
-
-  fake_spikes = get_neo_trains(
-      hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
-  fake_van_rossum = spike_metrics.van_rossum_distance(fake_spikes, None)
-
-  diag_indices = np.triu_indices(len(real_van_rossum), k=1)
-
-  real_van_rossum = real_van_rossum[diag_indices]
-  fake_van_rossum = fake_van_rossum[diag_indices]
-
-  return (real_van_rossum, fake_van_rossum)
-
-
 def van_rossum_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing van-rossum distance')
 
-  # compute neuron-wise van rossum distance error with 200 trials
+  # compute van-Rossum distance heatmap
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(neuron_van_rossum_distance,
-                         [(hparams, filename, n, 200) for n in hparams.neurons])
-  pool.close()
-
-  summary.scalar(
-      'spike_metrics/van_rossum_neuron', np.mean(results), step=epoch)
-
-  # # compute trial-wise van rossum heat-map
-  # pool = Pool(hparams.num_processors)
-  # results = pool.starmap(van_rossum_trial_heatmap,
-  #                        [(hparams, filename, i) for i in range(6)])
-  # pool.close()
-  #
-  # heatmaps, xticklabels, yticklabels, titles = [], [], [], []
-  # for i in range(len(results)):
-  #   heatmaps.append(results[i]['heatmap'])
-  #   xticklabels.append(results[i]['xticklabels'])
-  #   yticklabels.append(results[i]['yticklabels'])
-  #   titles.append('Trial #{:03d}'.format(i))
-  #
-  # summary.plot_heatmaps_grid(
-  #     'van_rossum_trial_heatmaps',
-  #     heatmaps,
-  #     xlabel='Fake neurons',
-  #     ylabel='Real neurons',
-  #     xticklabels=xticklabels,
-  #     yticklabels=yticklabels,
-  #     titles=titles,
-  #     step=epoch)
-
-  # compute neuron-wise van rossum heat-map for 50 trials
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(van_rossum_neuron_heatmap,
+  results = pool.starmap(neuron_van_rossum,
                          [(hparams, filename, n, 50) for n in hparams.neurons])
   pool.close()
 
@@ -561,42 +460,36 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     titles.append('Neuron #{:03d}'.format(hparams.neurons[i]))
 
   summary.plot_heatmaps_grid(
-      'van_rossum_neuron_heatmaps',
-      heatmaps,
-      xlabel='Fake trials',
-      ylabel='Real trials',
+      'van_rossum_heatmap',
+      matrix=heatmaps,
+      xlabel='synthetic trial',
+      ylabel='recorded trial',
       xticklabels=xticklabels,
       yticklabels=yticklabels,
       titles=titles,
       step=epoch)
 
-  # compute trial-wise van rossum distance histogram
+  # compute van rossum distance KL divergence
   pool = Pool(hparams.num_processors)
-  results = pool.starmap(van_rossum_trial_histogram,
-                         [(hparams, filename, i) for i in hparams.trials])
+  van_rossum_pairs = pool.starmap(
+      trial_van_rossum,
+      [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
 
-  summary.plot_histograms_grid(
-      'van_rossum_trial_histograms',
-      results,
-      xlabel='Distance',
+  kl_divergence = pairs_kl_divergence(van_rossum_pairs)
+  summary.plot_distribution(
+      'van_rossum_kl',
+      data=kl_divergence,
+      xlabel='KL divergence',
       ylabel='Count',
-      titles=['Trial #{:03d}'.format(i) for i in hparams.trials],
+      title='van-Rossum distance',
       step=epoch)
 
-  # compute neuron-wise van rossum distance histogram for 200 trials
-  pool = Pool(hparams.num_processors)
-  results = pool.starmap(van_rossum_neuron_histogram,
-                         [(hparams, filename, n, 200) for n in hparams.neurons])
-  pool.close()
-
-  summary.plot_histograms_grid(
-      'van_rossum_neuron_histograms',
-      results,
-      xlabel='Distance',
-      ylabel='Count',
-      titles=['Neuron #{:03d}'.format(i) for i in hparams.neurons],
-      step=epoch)
+  if hparams.verbose:
+    print(
+        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
+            np.min(kl_divergence), np.max(kl_divergence),
+            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
 
 
 def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
@@ -621,17 +514,21 @@ def main(hparams):
     print('{} not found'.format(hparams.output_dir))
     exit()
 
+  set_seed(hparams.seed)
+
   utils.load_hparams(hparams)
   info = load_info(hparams)
 
-  hparams.num_samples = h5_helper.get_dataset_length(hparams.validation_cache,
-                                                     'signals')
+  hparams.num_samples = min(
+      h5_helper.get_dataset_length(hparams.validation_cache, 'signals'), 1000)
 
   # randomly select neurons and trials to plot
   hparams.neurons = list(
-      np.random.choice(hparams.num_neurons, hparams.num_neurons_plot))
+      range(hparams.num_neurons
+           ) if hparams.num_neuron_plots >= hparams.num_neurons else np.random.
+      choice(hparams.num_neurons, hparams.num_neuron_plots))
   hparams.trials = list(
-      np.random.choice(hparams.num_samples, hparams.num_trials_plot))
+      np.random.choice(hparams.num_samples, hparams.num_trial_plots))
 
   summary = Summary(hparams, spike_metrics=True)
 
@@ -651,8 +548,9 @@ def main(hparams):
 
     summary.scalar('elapse/spike_metrics', end - start, step=epoch)
 
-    print('{} took {:.02f} mins'.format(info[epoch]['filename'],
-                                        (end - start) / 60))
+    if hparams.verbose:
+      print('{} took {:.02f} mins'.format(info[epoch]['filename'],
+                                          (end - start) / 60))
 
 
 if __name__ == '__main__':
@@ -660,10 +558,11 @@ if __name__ == '__main__':
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--num_processors', default=6, type=int)
   parser.add_argument('--all_epochs', action='store_true')
-  parser.add_argument('--num_neurons_plot', default=6, type=int)
-  parser.add_argument('--num_trials_plot', default=6, type=int)
+  parser.add_argument('--num_neuron_plots', default=6, type=int)
+  parser.add_argument('--num_trial_plots', default=6, type=int)
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
+  parser.add_argument('--seed', default=12, type=int)
   hparams = parser.parse_args()
 
   warnings.simplefilter(action='ignore', category=UserWarning)

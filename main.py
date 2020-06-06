@@ -145,11 +145,13 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
       fake_signals = utils.set_array_format(
           fake_signals[0], data_format='CW', hparams=hparams)
       fake_spikes = spike_helper.deconvolve_signals(fake_signals)
+
       summary.plot_traces(
           'fake',
           fake_signals,
           fake_spikes,
-          indexes=hparams.focus_neurons,
+          indexes=list(range(hparams.num_neurons))
+          if hparams.surrogate_ds else hparams.focus_neurons,
           step=epoch,
           training=False)
       if not hparams.skip_checkpoints:
@@ -187,6 +189,8 @@ def main(hparams, return_metrics=False):
 
   tf.keras.backend.clear_session()
 
+  hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
+
   policy = set_precision_policy(hparams)
 
   summary = Summary(hparams, policy=policy)
@@ -214,6 +218,10 @@ def main(hparams, return_metrics=False):
 
   summary.scalar('elapse/total', end - start)
 
+  # generate dataset for surrogate metrics
+  if hparams.surrogate_ds:
+    utils.generate_dataset(hparams, gan=gan, num_samples=2 * 10**6)
+
   if return_metrics:
     return test(validation_ds, gan)
 
@@ -223,15 +231,20 @@ if __name__ == '__main__':
   parser.add_argument('--input_dir', default='dataset/tfrecords')
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--batch_size', default=64, type=int)
+  parser.add_argument('--num_units', default=32, type=int)
+  parser.add_argument('--kernel_size', default=24, type=int)
+  parser.add_argument('--strides', default=2, type=int)
+  parser.add_argument('--phase_shuffle', default=2, type=int)
   parser.add_argument('--epochs', default=20, type=int)
   parser.add_argument('--dropout', default=0.2, type=float)
   parser.add_argument('--learning_rate', default=0.0001, type=float)
-  parser.add_argument('--noise_dim', default=128, type=int)
+  parser.add_argument('--noise_dim', default=32, type=int)
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
-  parser.add_argument('--model', default='mlp', type=str)
-  parser.add_argument('--activation', default='linear', type=str)
-  parser.add_argument('--no_batch_norm', action='store_true')
-  parser.add_argument('--algorithm', default='gan', type=str)
+  parser.add_argument('--model', default='wavegan', type=str)
+  parser.add_argument('--activation', default='leakyrelu', type=str)
+  parser.add_argument('--batch_norm', action='store_true')
+  parser.add_argument('--layer_norm', action='store_true')
+  parser.add_argument('--algorithm', default='wgan-gp', type=str)
   parser.add_argument(
       '--n_critic',
       default=5,
@@ -245,15 +258,11 @@ if __name__ == '__main__':
   parser.add_argument('--mixed_precision', action='store_true')
   parser.add_argument(
       '--profile', action='store_true', help='enable TensorBoard profiling')
-  parser.add_argument('--focus_neurons', action='store_true')
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   hparams = parser.parse_args()
 
-  # hand picked neurons to plots
-  if hparams.focus_neurons:
-    hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
-
   hparams.global_step = 0
+  hparams.surrogate_ds = True if 'surrogate' in hparams.input_dir else False
 
   main(hparams)
