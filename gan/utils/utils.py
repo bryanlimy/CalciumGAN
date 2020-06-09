@@ -175,7 +175,10 @@ def remove_nan(array):
 def generate_dataset(hparams, gan, num_samples=1000):
   generated = np.zeros((num_samples,) + hparams.signal_shape, dtype=np.float32)
   batch_size = 100
-  for i in tqdm(range(0, num_samples, batch_size), desc='Surrogate'):
+  for i in tqdm(
+      range(0, num_samples, batch_size),
+      desc='Surrogate',
+      disable=not bool(hparams.verbose)):
     noise = gan.get_noise(batch_size)
     signals = gan.generate(noise, denorm=True)
     generated[i:i + batch_size] = signals
