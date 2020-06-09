@@ -54,7 +54,7 @@ def main(hparams):
 
   hparams.num_neurons = 2
   mean = np.array([[0.6, 0.8]], dtype=np.float32)
-  covariance = np.array([[1., 0.6], [0.6, 1.]], dtype=np.float32)
+  covariance = np.array([[1., 0.3], [0.3, 1.]], dtype=np.float32)
 
   # generate surrogate dataset
   surrogate = generate_dg_spikes(hparams, mean, covariance)
