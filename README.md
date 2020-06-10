@@ -129,6 +129,8 @@ tensorboard --logdir runs/001
 [TensorFlow Profiler](https://www.tensorflow.org/tensorboard/tensorboard_profiling_keras) support.
 You can enable profiling with `--profile` flag when training the model with `main.py`.
 
+---
+
 ### 6. Hyper-parameters Search
 - We have incorporated the [Hyperparameter Turning with Keras](https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams) feature. 
 Modify the hyper-parameters you would like to test in `seasrch.py` and run
