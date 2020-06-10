@@ -68,8 +68,8 @@ def plot_firing_rate(hparams, filename, real, fake):
   fake = fake[neuron_order].flatten('F')
   x = list(range(len(neuron_order)))
 
-  # fig = plt.figure(figsize=(16, 10))
-  # fig.patch.set_facecolor('white')
+  fig = plt.figure(figsize=(16, 10))
+  fig.patch.set_facecolor('white')
 
   scatter_kws = {'alpha': 0.6}
   sns.regplot(

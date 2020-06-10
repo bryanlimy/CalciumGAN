@@ -153,15 +153,13 @@ def main(hparams):
       data2=ground_truth_prob,
       shade=True,
       shade_lowest=False,
-      cmap="Blues",
-      clip=clip)
+      cmap="Blues")
   ax = sns.kdeplot(
-      data=generated_prob,
+      data=surrogate_prob,
       data2=ground_truth_prob,
       shade=True,
       shade_lowest=False,
-      cmap="Reds",
-      clip=clip)
+      cmap="Reds")
   ax.set_xlabel('log probabilities of surrogate and generated data')
   ax.set_ylabel('log probabilities of ground truth data')
   # ax.legend(
