@@ -8,8 +8,8 @@ from neo.core import SpikeTrain
 
 np.random.seed(1234)
 
-from dg.dichot_gauss import DichotGauss
-from dg.optim_dichot_gauss import DGOptimise
+from .dg.dichot_gauss import DichotGauss
+from .dg.optim_dichot_gauss import DGOptimise
 
 
 def get_recorded_data_statistics(hparams):

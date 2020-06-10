@@ -10,8 +10,8 @@ from neo.core import SpikeTrain
 
 np.random.seed(1234)
 
-from dg.dichot_gauss import DichotGauss
-from dg.optim_dichot_gauss import DGOptimise
+from .dg.dichot_gauss import DichotGauss
+from .dg.optim_dichot_gauss import DGOptimise
 
 
 def generate_dg_spikes(hparams, mean, corr):
@@ -30,7 +30,7 @@ def generate_dg_spikes(hparams, mean, corr):
   return spike_trains
 
 
-def spikes_to_signals(hparams, spikes, g=[.95], sn=.3, b=0):
+def spikes_to_signals(spikes, g=[.95], sn=.3, b=0):
   ''' Convert spike trains to calcium signals 
   Code extracted from https://github.com/j-friedrich/OASIS/blob/e62063cfd8bc0f06625aebd3ea3e09133665b409/oasis/functions.py#L17
   '''
@@ -70,7 +70,7 @@ def main(hparams):
   # select subset for training
   indices = np.random.choice(len(ground_truth), size=hparams.training_size)
   training_spikes = ground_truth[indices]
-  training_signals = spikes_to_signals(hparams, training_spikes)
+  training_signals = spikes_to_signals(training_spikes)
   with open(hparams.training_path, 'wb') as file:
     pickle.dump({'spikes': training_spikes, 'signals': training_signals}, file)
 

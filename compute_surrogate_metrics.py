@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from gan.utils import utils
 from gan.utils import spike_helper
+from dataset.generate_surrogate_data import spikes_to_signals
 
 import matplotlib
 
@@ -27,22 +28,28 @@ def load_info(hparams):
   return info
 
 
+def deconvolution(signals):
+  spikes = np.zeros(signals.shape, dtype=np.int32)
+  for i in tqdm(range(len(signals)), desc='Deconvolution'):
+    spikes[i] = spike_helper.deconvolve_signals(signals[i])
+  return spikes
+
+
+def spikes_conversion(data):
+  data['signals'] = spikes_to_signals(data['spikes'])
+  data['spikes'] = deconvolution(data['signals'])
+  return data
+
+
 def get_pickle_data(filename):
   print('reading from {}...'.format(filename))
   with open(filename, 'rb') as file:
     data = pickle.load(file)
 
-  spikes, write_data = data['spikes'], False
-  if not hparams.recompute and 'unique' in data and 'count' in data:
-    unique, count = data['unique'], data['count']
-  else:
-    unique, count = np.unique(spikes, return_counts=True, axis=0)
-    write_data = True
+  data = spikes_conversion(data)
+  data['unique'], data['count'] = np.unique(
+      data['spikes'], return_counts=True, axis=0)
 
-  data = {'spikes': spikes, 'unique': unique, 'count': count}
-  if write_data:
-    with open(filename, 'wb') as file:
-      pickle.dump(data, file)
   return data
 
 
@@ -57,32 +64,11 @@ def get_generate_data(hparams):
   with open(filename, 'rb') as file:
     data = pickle.load(file)
 
-  signals, write_data = data['signals'], False
-  if not hparams.recompute and 'spikes' in data:
-    spikes = data['spikes']
-  else:
-    signals = utils.set_array_format(
-        signals, data_format='NCW', hparams=hparams)
-    spikes = np.zeros(signals.shape, dtype=np.float32)
-    for i in tqdm(range(len(signals)), desc='Deconvolution'):
-      spikes[i] = spike_helper.deconvolve_signals(signals[i], threshold=0.5)
-    write_data = True
-
-  if not hparams.recompute and 'unique' in data and 'count' in data:
-    unique, count = data['unique'], data['count']
-  else:
-    unique, count = np.unique(spikes, return_counts=True, axis=0)
-    write_data = True
-
-  data = {
-      'signals': signals,
-      'spikes': spikes,
-      'unique': unique,
-      'count': count
-  }
-  if write_data:
-    with open(filename, 'wb') as file:
-      pickle.dump(data, file)
+  data['signals'] = utils.set_array_format(
+      data['signals'], data_format='NCW', hparams=hparams)
+  data['spikes'] = deconvolution(data['signals'])
+  data['unique'], data['count'] = np.unique(
+      data['spikes'], return_counts=True, axis=0)
 
   return data
 
@@ -101,12 +87,13 @@ def get_probabilities(joint_unique_samples, data):
 
   counts = np.zeros((joint_unique_samples.shape[0],), dtype=np.int32)
 
-  for i in tqdm(range(len(joint_unique_samples)), desc='Count unqiue'):
+  for i in tqdm(range(len(joint_unique_samples)), desc='Count unique'):
     for j in range(len(unique_count)):
       if np.array_equal(joint_unique_samples[i], unique_samples[j]):
         counts[i] = unique_count[j]
+        break
 
-  probabilities = counts / len(data['spikes'])
+  probabilities = counts / len(data['spikes']) + 1e-5
   return probabilities
 
 
@@ -137,33 +124,44 @@ def main(hparams):
   surrogate_prob = get_probabilities(joint_unique_samples, surrogate_data)
   generated_prob = get_probabilities(joint_unique_samples, generated_data)
 
-  def print_min_max(array):
-    print('min: {:.04f}, max: {:.04f}, mean: {:.04f}'.format(
-        np.min(array), np.max(array), np.mean(array)))
-
   filename = 'diagrams/numerical_probabilities.pdf'
 
   ground_truth_prob = np.log10(ground_truth_prob)
   surrogate_prob = np.log10(surrogate_prob)
   generated_prob = np.log10(generated_prob)
 
-  clip = (min(np.min(surrogate_prob), np.min(ground_truth_prob)),
-          max(np.max(surrogate_prob), np.max(ground_truth_prob)))
-  print(clip)
+  print('min {:.04f}\tmax {:.04f}'.format(
+      min(
+          np.min(ground_truth_prob), np.min(surrogate_prob),
+          np.min(generated_prob)),
+      max(
+          np.max(surrogate_prob), np.max(ground_truth_prob),
+          np.max(generated_prob))))
+
+  clip = (min(
+      np.min(surrogate_prob), np.min(ground_truth_prob),
+      np.min(generated_prob)),
+          max(
+              np.max(surrogate_prob), np.max(ground_truth_prob),
+              np.max(generated_prob)))
+
+  # clip = (0.0, 0.01)
+
   plt.figure(figsize=(8, 8))
   ax = sns.kdeplot(
       data=surrogate_prob,
       data2=ground_truth_prob,
-      clip=clip,
       shade=True,
       shade_lowest=False,
-      cmap="Blues")
+      cmap="Blues",
+      clip=clip)
   ax = sns.kdeplot(
       data=generated_prob,
       data2=ground_truth_prob,
       shade=True,
       shade_lowest=False,
-      cmap="Reds")
+      cmap="Reds",
+      clip=clip)
   ax.set_xlabel('log probabilities of surrogate and generated data')
   ax.set_ylabel('log probabilities of ground truth data')
   # ax.legend(
