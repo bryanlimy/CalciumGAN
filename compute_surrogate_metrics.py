@@ -126,9 +126,9 @@ def main(hparams):
 
   filename = 'diagrams/numerical_probabilities.pdf'
 
-  ground_truth_prob = np.log10(ground_truth_prob)
-  surrogate_prob = np.log10(surrogate_prob)
-  generated_prob = np.log10(generated_prob)
+  # ground_truth_prob = np.log10(ground_truth_prob)
+  # surrogate_prob = np.log10(surrogate_prob)
+  # generated_prob = np.log10(generated_prob)
 
   print('min {:.04f}\tmax {:.04f}'.format(
       min(
@@ -138,12 +138,14 @@ def main(hparams):
           np.max(surrogate_prob), np.max(ground_truth_prob),
           np.max(generated_prob))))
 
-  clip = (min(
-      np.min(surrogate_prob), np.min(ground_truth_prob),
-      np.min(generated_prob)),
-          max(
-              np.max(surrogate_prob), np.max(ground_truth_prob),
-              np.max(generated_prob)))
+  clip = (
+      min(
+          np.min(ground_truth_prob), np.min(surrogate_prob),
+          np.min(generated_prob)),
+      max(
+          np.max(surrogate_prob), np.max(ground_truth_prob),
+          np.max(generated_prob)),
+  )
 
   # clip = (0.0, 0.01)
 
@@ -153,13 +155,15 @@ def main(hparams):
       data2=ground_truth_prob,
       shade=True,
       shade_lowest=False,
-      cmap="Blues")
+      cmap="Blues",
+      clip=clip)
   ax = sns.kdeplot(
-      data=surrogate_prob,
+      data=generated_prob,
       data2=ground_truth_prob,
       shade=True,
       shade_lowest=False,
-      cmap="Reds")
+      cmap="Reds",
+      clip=clip)
   ax.set_xlabel('log probabilities of surrogate and generated data')
   ax.set_ylabel('log probabilities of ground truth data')
   # ax.legend(
