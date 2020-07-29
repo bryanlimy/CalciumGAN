@@ -31,11 +31,14 @@ sh setup.sh
 ```
 
 ### 1.3 Manual setup
-Install the following packages on your system:
+Install the following packages:
 - [TensorFlow](https://tensorflow.org)
 - [j-friedrich/OASIS](https://github.com/j-friedrich/OASIS)
-- [Gurobi](https://www.gurobi.com/)
-- [MOSEK](https://www.mosek.com/)
+- [Neo](https://github.com/NeuralEnsemble/python-neo)
+- [Elephant](https://github.com/NeuralEnsemble/elephant)
+- packages in `requirements.txt`
+- code from [dg_python](https://github.com/mackelab/dg_python) are also being 
+used for the dichotomized Gaussian model
 
 ---
 
@@ -46,14 +49,10 @@ cd dataset
 ```
 
 #### 2.1 Recorded Calcium Imaging Data
-- Navigate to `dataset`
-```bash
-cd dataset
-```
 - Place all raw calcium imaging data under `dataset/raw_data`
 - Apply OASIS to infer spike train
 ```bash
-python dataset/spike_train_inference.py --input_dir dataset/raw_data
+python spike_train_inference.py --input_dir raw_data
 ```
 - Generate `TFRecords` from a specific pickle file `--input`, normalize the 
 data, preform segmentation and store the `TFrecords` in `output_dir`. 
@@ -63,10 +62,6 @@ python generate_tfrecords.py --input raw_data/signals.pkl --output_dir tfrecords
 ```
 
 #### 2.2 Dichotomized Gaussian Artificial Data
-- Navigate to `dataset`
-```bash
-cd dataset
-```
 - Generate artificial spike trains and calcium-like signals from the 
 Dichomotized Gaussian distribution with the mean and covariance of data in 
 `--input`, save the the output pickle file to `--output`. `TFRecords` in `--output_dir`. Use `--help` to 
