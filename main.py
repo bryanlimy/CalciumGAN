@@ -82,6 +82,7 @@ def validate(hparams, validation_ds, gan, summary, epoch):
                     (epoch % 10 == 0 or epoch == hparams.epochs - 1)) or (
                         hparams.save_generated == 'last' and
                         epoch == hparams.epochs - 1)
+
   start = time()
 
   for signal, _ in tqdm(
@@ -140,12 +141,10 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
     if epoch % 10 == 0 or epoch == hparams.epochs - 1:
       # test generated data and plot in TensorBoard
       fake_signals = gan.generate(test_noise, denorm=hparams.normalize)
-      if hparams.fft:
-        fake_signals = utils.ifft(fake_signals)
+      fake_signals = utils.reverse_preprocessing(hparams, fake_signals)
       fake_signals = utils.set_array_format(
           fake_signals[0], data_format='CW', hparams=hparams)
       fake_spikes = spike_helper.deconvolve_signals(fake_signals)
-
       summary.plot_traces(
           'fake',
           fake_signals,
@@ -260,9 +259,9 @@ if __name__ == '__main__':
       '--profile', action='store_true', help='enable TensorBoard profiling')
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
-  hparams = parser.parse_args()
+  params = parser.parse_args()
 
-  hparams.global_step = 0
-  hparams.surrogate_ds = True if 'surrogate' in hparams.input_dir else False
+  params.global_step = 0
+  params.surrogate_ds = True if 'surrogate' in params.input_dir else False
 
-  main(hparams)
+  main(params)
