@@ -89,7 +89,7 @@ class WGAN_GP(GAN):
 
     gen_loss, metrics = self._train_generator(inputs)
 
-    dis_loss = tf.reduce_mean(dis_loss)
+    dis_loss = tf.reduce_mean(dis_losses)
     gradient_penalty = tf.reduce_mean(gradient_penalties)
 
     return gen_loss, dis_loss, gradient_penalty, metrics
