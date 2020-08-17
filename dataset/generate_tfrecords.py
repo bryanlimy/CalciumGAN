@@ -104,7 +104,7 @@ def get_segments(hparams):
     print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
         np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
 
-  print('segmentation with stride {}'.format(hparams.stride))
+  print('\nsegmentation with stride {}'.format(hparams.stride))
 
   signals, spikes = [], []
 
@@ -205,7 +205,7 @@ def main(hparams):
 
   hparams.num_per_shard = calculate_num_per_shard(hparams)
 
-  print('{} segments in each shard with target shard size {}'.format(
+  print('\n{} segments in each shard with target shard size {}'.format(
       hparams.num_per_shard, hparams.target_shard_size))
 
   write_to_records(

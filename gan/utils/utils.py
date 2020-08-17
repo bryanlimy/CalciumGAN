@@ -49,9 +49,7 @@ def reverse_preprocessing(hparams, x):
 
   if hparams.conv2d:
     if hparams.fft:
-      real = np.squeeze(x[..., 0], axis=-1)
-      imaginary = np.squeeze(x[..., 1], axis=-1)
-      x = np.concatenate((real, imaginary), axis=-1)
+      x = np.concatenate((x[..., 0], x[..., 1]), axis=-1)
     else:
       x = np.squeeze(x, axis=-1)
 
