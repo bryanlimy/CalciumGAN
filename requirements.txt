@@ -1,5 +1,5 @@
 tqdm
-matplotlib
+matplotlib==3.2.2
 sklearn
 scipy==1.4.1
 cython==0.29.14

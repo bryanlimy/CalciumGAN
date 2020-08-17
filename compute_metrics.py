@@ -145,12 +145,12 @@ def plot_signals(hparams, summary, filename, epoch):
                 np.max(fake_signals[i])])
     ])
 
-  num_neuron_plots, plots_per_row = 2, 2
+  plots_per_row = 2
   summary.plot_traces(
       'real',
       real_signals,
       real_spikes,
-      indexes=hparams.neurons[:num_neuron_plots],
+      indexes=hparams.neurons[:hparams.num_neuron_plots],
       ylims=ylims,
       step=epoch,
       is_real=True,
@@ -162,7 +162,7 @@ def plot_signals(hparams, summary, filename, epoch):
       'fake',
       fake_signals,
       fake_spikes,
-      indexes=hparams.neurons[:num_neuron_plots],
+      indexes=hparams.neurons[:hparams.num_neuron_plots],
       ylims=ylims,
       step=epoch,
       is_real=False,
