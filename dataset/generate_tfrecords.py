@@ -62,20 +62,6 @@ def get_segments(hparams):
 
   assert raw_signals.shape == raw_spikes.shape
 
-  # max and min value of signals
-  hparams.signals_min = np.min(raw_signals)
-  hparams.signals_max = np.max(raw_signals)
-
-  print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
-      np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
-
-  if hparams.normalize:
-    print('apply normalization')
-    raw_signals = normalize(raw_signals, hparams.signals_min,
-                            hparams.signals_max)
-    print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
-        np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
-
   # set signals and spikes to WC [sequence, num. neurons]
   raw_signals = np.swapaxes(raw_signals, 0, 1)
   raw_spikes = np.swapaxes(raw_spikes, 0, 1)
@@ -83,12 +69,40 @@ def get_segments(hparams):
   hparams.num_neurons = raw_signals.shape[1]
   hparams.num_channels = hparams.num_neurons
 
+  print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
+      np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
+
   if hparams.fft:
-    print('apply fft')
+    print('\napply fft')
     raw_signals = fft(raw_signals)
     print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
         np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
     hparams.num_channels = raw_signals.shape[-1]
+
+  if hparams.conv2d:
+    print('\nconvert to 2D matrix')
+    if hparams.fft:
+      # convert matrix to [sequence, num. neurons, 2]
+      mid = raw_signals.shape[-1] // 2
+      real = np.expand_dims(raw_signals[..., :mid], axis=-1)
+      imaginary = np.expand_dims(raw_signals[..., mid:], axis=-1)
+      raw_signals = np.concatenate((real, imaginary), axis=-1)
+    else:
+      # convert matrix to [sequence, num. neurons, 1]
+      raw_signals = np.expand_dims(raw_signals, axis=-1)
+    hparams.num_channels = raw_signals.shape[-1]
+    print('raw signals shape {}'.format(raw_signals.shape))
+
+  # max and min value of signals
+  hparams.signals_min = np.min(raw_signals)
+  hparams.signals_max = np.max(raw_signals)
+
+  if hparams.normalize:
+    print('\napply normalization')
+    raw_signals = normalize(raw_signals, hparams.signals_min,
+                            hparams.signals_max)
+    print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
+        np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
 
   print('segmentation with stride {}'.format(hparams.stride))
 
@@ -96,12 +110,15 @@ def get_segments(hparams):
 
   i = 0
   while i + hparams.sequence_length < raw_signals.shape[0]:
-    signals.append(raw_signals[i:i + hparams.sequence_length, :])
-    spikes.append(raw_spikes[i:i + hparams.sequence_length, :])
+    signals.append(raw_signals[i:i + hparams.sequence_length, ...])
+    spikes.append(raw_spikes[i:i + hparams.sequence_length, ...])
     i += hparams.stride
 
   signals = np.array(signals, dtype=np.float32)
   spikes = np.array(spikes, dtype=np.float32)
+
+  print('\nsignals shape {}, spikes shape {}'.format(signals.shape,
+                                                     spikes.shape))
 
   return signals, spikes
 
@@ -220,7 +237,8 @@ def main(hparams):
         'buffer_size': min(hparams.num_per_shard, hparams.train_size),
         'normalize': hparams.normalize,
         'stride': hparams.stride,
-        'fft': hparams.fft
+        'fft': hparams.fft,
+        'conv2d': hparams.conv2d,
     }
     if hparams.normalize:
       info['signals_min'] = hparams.signals_min
@@ -241,6 +259,7 @@ if __name__ == '__main__':
   parser.add_argument('--stride', default=2, type=int)
   parser.add_argument('--normalize', action='store_true')
   parser.add_argument('--fft', action='store_true')
+  parser.add_argument('--conv2d', action='store_true')
   parser.add_argument('--replace', action='store_true')
   parser.add_argument('--validation_size', default=1000, type=float)
   parser.add_argument('--is_dg_data', action='store_true')
