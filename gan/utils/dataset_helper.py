@@ -41,12 +41,7 @@ def plot_real_signals(hparams, summary, ds, indexes=None):
 
   signals, spikes = signals[0].numpy(), spikes[0].numpy()
 
-  if hparams.normalize:
-    signals = utils.denormalize(
-        signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
-
-  if hparams.fft:
-    signals = utils.ifft(signals)
+  signals = utils.reverse_preprocessing(hparams, signals)
 
   signals = utils.set_array_format(signals, data_format='CW', hparams=hparams)
   spikes = utils.set_array_format(spikes, data_format='CW', hparams=hparams)
@@ -58,30 +53,6 @@ def plot_real_signals(hparams, summary, ds, indexes=None):
       indexes=indexes if indexes is not None else hparams.focus_neurons,
       step=0,
       training=False)
-
-
-def get_fashion_mnist(hparams):
-  (x_train, _), (x_test, _) = tf.keras.datasets.fashion_mnist.load_data()
-
-  def preprocess(images):
-    images = np.reshape(images, newshape=(images.shape[0], 28, 28, 1))
-    return images.astype('float32') / 255.0
-
-  x_train = preprocess(x_train)
-  x_test = preprocess(x_test)
-
-  hparams.train_size = len(x_train)
-  hparams.eval_size = len(x_test)
-
-  train_ds = tf.data.Dataset.from_tensor_slices(x_train)
-  train_ds = train_ds.shuffle(buffer_size=2048)
-  train_ds = train_ds.batch(hparams.batch_size)
-  train_ds = train_ds.prefetch(2)
-
-  eval_ds = tf.data.Dataset.from_tensor_slices(x_test)
-  eval_ds = eval_ds.batch(hparams.batch_size)
-
-  return train_ds, eval_ds
 
 
 def get_surrogate_dataset(hparams):
@@ -121,6 +92,7 @@ def get_surrogate_dataset(hparams):
   hparams.num_channels = train_signals.shape[-1]
   hparams.normalize = True
   hparams.fft = False
+  hparams.conv2d = False
 
   if hparams.save_generated:
     hparams.generated_dir = os.path.join(hparams.output_dir, 'generated')
@@ -161,6 +133,7 @@ def get_dataset_info(hparams):
   hparams.buffer_size = info['buffer_size']
   hparams.normalize = info['normalize']
   hparams.fft = info['fft']
+  hparams.conv2d = info['conv2d']
 
   if hparams.normalize:
     hparams.signals_min = float(info['signals_min'])
@@ -216,9 +189,7 @@ def get_tfrecords(hparams):
 def get_dataset(hparams, summary):
   hparams.noise_shape = (hparams.noise_dim,)
 
-  if hparams.input_dir == 'fashion_mnist':
-    train_ds, validation_ds = get_fashion_mnist(hparams)
-  elif hparams.surrogate_ds:
+  if hparams.surrogate_ds:
     train_ds, validation_ds = get_surrogate_dataset(hparams)
     plot_real_signals(
         hparams,

@@ -42,6 +42,25 @@ def ifft(x):
   return np.real(x)
 
 
+def reverse_preprocessing(hparams, x):
+  ''' reverse the preprocessing on data so that it matches the input data '''
+  if hparams.normalize:
+    x = denormalize(x, x_min=hparams.signals_min, x_max=hparams.signals_max)
+
+  if hparams.conv2d:
+    if hparams.fft:
+      real = np.squeeze(x[..., 0], axis=-1)
+      imaginary = np.squeeze(x[..., 1], axis=-1)
+      x = np.concatenate((real, imaginary), axis=-1)
+    else:
+      x = np.squeeze(x, axis=-1)
+
+  if hparams.fft:
+    x = ifft(x)
+
+  return x
+
+
 def get_current_git_hash():
   ''' return the current Git hash '''
   return subprocess.check_output(['git', 'describe',
@@ -73,12 +92,7 @@ def save_fake_signals(hparams, epoch, signals):
   if tf.is_tensor(signals):
     signals = signals.numpy()
 
-  if hparams.normalize:
-    signals = denormalize(
-        signals, x_min=hparams.signals_min, x_max=hparams.signals_max)
-
-  if hparams.fft:
-    signals = ifft(signals)
+  signals = reverse_preprocessing(hparams, signals)
 
   filename = os.path.join(hparams.generated_dir,
                           'epoch{:03d}_signals.h5'.format(epoch))

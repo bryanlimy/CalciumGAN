@@ -14,6 +14,7 @@ class WGAN_GP(GAN):
 
     self.penalty = hparams.gradient_penalty
     self.n_critic = hparams.n_critic
+    self.conv2d = hparams.conv2d
 
   def generator_loss(self, fake_output):
     return -tf.reduce_mean(fake_output)
@@ -34,9 +35,9 @@ class WGAN_GP(GAN):
 
     return gen_loss, metrics
 
-  @staticmethod
-  def interpolation(real, fake):
-    alpha = tf.random.uniform((real.shape[0], 1, 1), minval=0.0, maxval=1.0)
+  def interpolation(self, real, fake):
+    shape = (real.shape[0], 1, 1, 1) if self.conv2d else (real.shape[0], 1, 1)
+    alpha = tf.random.uniform(shape, minval=0.0, maxval=1.0)
     return (alpha * real) + ((1 - alpha) * fake)
 
   def gradient_penalty(self, real, fake, training=True):
