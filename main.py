@@ -140,7 +140,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
 
     if epoch % 10 == 0 or epoch == hparams.epochs - 1:
       # test generated data and plot in TensorBoard
-      fake_signals = gan.generate(test_noise, denorm=hparams.normalize)
+      fake_signals = gan.generate(test_noise)
       fake_signals = utils.reverse_preprocessing(hparams, fake_signals)
       fake_signals = utils.set_array_format(
           fake_signals[0], data_format='CW', hparams=hparams)
@@ -149,8 +149,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
           'fake',
           fake_signals,
           fake_spikes,
-          indexes=list(range(hparams.num_neurons))
-          if hparams.surrogate_ds else hparams.focus_neurons,
+          indexes=hparams.focus_neurons,
           step=epoch,
           training=False)
       if not hparams.skip_checkpoints:
