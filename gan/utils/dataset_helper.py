@@ -22,12 +22,7 @@ def cache_validation_set(hparams, validation_ds):
 
       signal, spike = signal.numpy(), spike.numpy()
 
-      if hparams.normalize:
-        signal = utils.denormalize(
-            signal, x_min=hparams.signals_min, x_max=hparams.signals_max)
-
-      if hparams.fft:
-        signal = utils.ifft(signal)
+      signal = utils.reverse_preprocessing(hparams, signal)
 
       h5_helper.write(hparams.validation_cache, {
           'signals': signal.astype(np.float32),
