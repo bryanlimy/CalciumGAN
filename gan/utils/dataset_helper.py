@@ -34,12 +34,13 @@ def plot_real_signals(hparams, summary, ds, indexes=None):
   # plot signals and spikes from validation set
   signals, spikes = next(iter(ds))
 
-  signals, spikes = signals[0].numpy(), spikes[0].numpy()
+  signals, spikes = signals.numpy(), spikes.numpy()
 
   signals = utils.reverse_preprocessing(hparams, signals)
 
-  signals = utils.set_array_format(signals, data_format='CW', hparams=hparams)
-  spikes = utils.set_array_format(spikes, data_format='CW', hparams=hparams)
+  signals = utils.set_array_format(
+      signals[0], data_format='CW', hparams=hparams)
+  spikes = utils.set_array_format(spikes[0], data_format='CW', hparams=hparams)
 
   summary.plot_traces(
       'real',

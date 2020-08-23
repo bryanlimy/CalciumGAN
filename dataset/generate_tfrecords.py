@@ -7,6 +7,7 @@ import pickle
 import argparse
 import numpy as np
 from math import ceil
+from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
 
@@ -26,11 +27,19 @@ def normalize(x, x_min, x_max):
   return (x - x_min) / (x_max - x_min)
 
 
-def fft(x):
-  """ Apply FFT on x and represent complex number in a 2D float array"""
-  x = np.fft.fft(x.astype(np.complex64), axis=-1, norm='ortho')
+def fft(signals):
+  """ Apply FFT over each neuron recordings """
+  real = np.zeros(signals.shape, dtype=np.float32)
+  imag = np.zeros(signals.shape, dtype=np.float32)
 
-  return np.concatenate([np.real(x), np.imag(x)], axis=-1)
+  for b in tqdm(range(signals.shape[0])):
+    for n in range(signals.shape[-1]):
+      x = signals[b, :, n]
+      x = tf.signal.fft(x.astype(np.complex64))
+      x = x.numpy()
+      real[b, :, n], imag[b, :, n] = np.real(x), np.imag(x)
+
+  return np.concatenate([real, imag], axis=-1)
 
 
 def calculate_num_per_shard(hparams):
@@ -62,53 +71,15 @@ def get_segments(hparams):
 
   assert raw_signals.shape == raw_spikes.shape
 
-  # set signals and spikes to WC [sequence, num. neurons]
+  # set signals and spikes to WC [sequence, num. neurons, ...]
   raw_signals = np.swapaxes(raw_signals, 0, 1)
   raw_spikes = np.swapaxes(raw_spikes, 0, 1)
 
   hparams.num_neurons = raw_signals.shape[1]
   hparams.num_channels = hparams.num_neurons
 
-  print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
-      np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
-
-  if hparams.fft:
-    print('\napply fft')
-    raw_signals = fft(raw_signals)
-    print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
-        np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
-    hparams.num_channels = raw_signals.shape[-1]
-
-  if hparams.conv2d:
-    print('\nconvert to 2D matrix')
-    if hparams.fft:
-      # convert matrix to [sequence, num. neurons, 2]
-      mid = raw_signals.shape[-1] // 2
-      real = np.expand_dims(raw_signals[..., :mid], axis=-1)
-      imaginary = np.expand_dims(raw_signals[..., mid:], axis=-1)
-      raw_signals = np.concatenate((real, imaginary), axis=-1)
-    else:
-      # convert matrix to [sequence, num. neurons, 1]
-      raw_signals = np.expand_dims(raw_signals, axis=-1)
-    hparams.num_channels = raw_signals.shape[-1]
-    print('raw signals shape {}'.format(raw_signals.shape))
-
-  # max and min value of signals
-  hparams.signals_min = np.min(raw_signals)
-  hparams.signals_max = np.max(raw_signals)
-
-  if hparams.normalize:
-    print('\napply normalization')
-    raw_signals = normalize(raw_signals, hparams.signals_min,
-                            hparams.signals_max)
-    print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
-        np.min(raw_signals), np.max(raw_signals), np.mean(raw_signals)))
-
   print('\nsegmentation with stride {}'.format(hparams.stride))
-
-  signals, spikes = [], []
-
-  i = 0
+  signals, spikes, i = [], [], 0
   while i + hparams.sequence_length < raw_signals.shape[0]:
     signals.append(raw_signals[i:i + hparams.sequence_length, ...])
     spikes.append(raw_spikes[i:i + hparams.sequence_length, ...])
@@ -116,6 +87,37 @@ def get_segments(hparams):
 
   signals = np.array(signals, dtype=np.float32)
   spikes = np.array(spikes, dtype=np.float32)
+
+  if hparams.fft:
+    print('\napply fft')
+    signals = fft(signals)
+    hparams.num_channels = signals.shape[-1]
+
+  if hparams.conv2d:
+    print('\nconvert to 3D matrix')
+    if hparams.fft:
+      # convert matrix to [sequence, num. neurons, 2]
+      mid = signals.shape[-1] // 2
+      real = np.expand_dims(signals[..., :mid], axis=-1)
+      imag = np.expand_dims(signals[..., mid:], axis=-1)
+      signals = np.concatenate((real, imag), axis=-1)
+    else:
+      # convert matrix to [sequence, num. neurons, 1]
+      signals = np.expand_dims(signals, axis=-1)
+    hparams.num_channels = signals.shape[-1]
+    print('signals shape {}'.format(signals.shape))
+
+  print('\nsignals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
+      np.min(signals), np.max(signals), np.mean(signals)))
+
+  # normalize signals to [0, 1]
+  hparams.signals_min = np.min(signals)
+  hparams.signals_max = np.max(signals)
+  if hparams.normalize:
+    print('\napply normalization')
+    signals = normalize(signals, hparams.signals_min, hparams.signals_max)
+    print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
+        np.min(signals), np.max(signals), np.mean(signals)))
 
   print('\nsignals shape {}, spikes shape {}'.format(signals.shape,
                                                      spikes.shape))

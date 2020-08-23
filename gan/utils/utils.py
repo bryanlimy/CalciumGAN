@@ -32,14 +32,18 @@ def denormalize(x, x_min, x_max):
   return x * (x_max - x_min) + x_min
 
 
-def ifft(x):
-  if tf.is_tensor(x):
-    x = x.numpy()
-  # x = x[..., 0::2] + x[..., 1::2] * 1j
-  mid = x.shape[-1] // 2
-  x = x[..., :mid] + x[..., mid:] * 1j
-  x = np.fft.ifft(x, norm='ortho')
-  return np.real(x)
+def ifft(signals):
+  # signals shape (batch size, sequence, num neurons * 2)
+  mid = signals.shape[-1] // 2
+  real, imag = signals[..., :mid], signals[..., mid:]
+  result = np.zeros(real.shape, np.float32)
+  for b in range(real.shape[0]):
+    for n in range(real.shape[-1]):
+      x = real[b, :, n] + imag[b, :, n] * 1j
+      x = tf.signal.ifft(x)
+      x = x.numpy()
+      result[b, :, n] = np.real(x)
+  return result
 
 
 def reverse_preprocessing(hparams, x):
