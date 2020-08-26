@@ -248,11 +248,10 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
         '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
             np.min(kl_divergence), np.max(kl_divergence),
             np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
-    print(
-        '\tKL divergence of neuron {:03d}: {:.02f}, neuron {:03d}: {:.02f}, neuron {:03d}: {:.02f}'
-        .format(hparams.neurons[0], kl_divergence[hparams.neurons[0]],
-                hparams.neurons[1], kl_divergence[hparams.neurons[1]],
-                hparams.neurons[2], kl_divergence[hparams.neurons[2]]))
+    message = ''
+    for n in hparams.neurons:
+      message += '\tneuron {:03d}: {:.02f}\n'.format(n, kl_divergence[n])
+    print(message)
 
 
 def covariance(hparams, filename, trial):
