@@ -145,9 +145,9 @@ def plot_signals(hparams, summary, filename, epoch):
                 np.max(fake_signals[i])])
     ])
 
-  plots_per_row = 2
+  plots_per_row = 1
   summary.plot_traces(
-      'real',
+      'real_traces',
       real_signals,
       real_spikes,
       indexes=hparams.neurons[:hparams.num_neuron_plots],
@@ -159,7 +159,7 @@ def plot_signals(hparams, summary, filename, epoch):
       plots_per_row=plots_per_row)
 
   summary.plot_traces(
-      'fake',
+      'fake_traces',
       fake_signals,
       fake_spikes,
       indexes=hparams.neurons[:hparams.num_neuron_plots],
@@ -171,7 +171,7 @@ def plot_signals(hparams, summary, filename, epoch):
       plots_per_row=plots_per_row)
 
 
-def raster_plots(hparams, summary, filename, epoch, trial=1):
+def raster_plots(hparams, summary, filename, epoch, trial=2):
   if hparams.verbose:
     print('\tPlotting raster plot for trial #{}'.format(trial))
 
@@ -182,7 +182,7 @@ def raster_plots(hparams, summary, filename, epoch, trial=1):
   fake_spikes = utils.set_array_format(fake_spikes, 'CW', hparams)
 
   summary.raster_plot(
-      'raster_plot_trial',
+      'raster_plot',
       real_spikes=real_spikes,
       fake_spikes=fake_spikes,
       xlabel='Time (s)',
@@ -225,14 +225,16 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
                                     for n in range(hparams.num_neurons)])
   pool.close()
 
+  plots_per_row = 1
   summary.plot_histograms_grid(
-      'firing_rate_histogram',
+      'firing_rate',
       data=[firing_rate_pairs[n] for n in hparams.neurons],
       xlabel='Hz',
       ylabel='Count',
       titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons],
       step=epoch,
-      legend_labels=['recorded', 'synthetic'])
+      legend_labels=['recorded', 'synthetic'],
+      plots_per_row=plots_per_row)
 
   kl_divergence = pairs_kl_divergence(firing_rate_pairs)
   summary.plot_distribution(
@@ -244,13 +246,9 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       step=epoch)
 
   if hparams.verbose:
-    print(
-        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
-            np.min(kl_divergence), np.max(kl_divergence),
-            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
-    message = ''
+    message = '\t\tKL mean: {:.04f}\n'.format(np.mean(kl_divergence))
     for n in hparams.neurons:
-      message += '\tneuron {:03d}: {:.02f}\n'.format(n, kl_divergence[n])
+      message += '\t\tneuron {:03d}: {:.02f}\n'.format(n, kl_divergence[n])
     print(message)
 
 
@@ -281,6 +279,7 @@ def covariance_metrics(hparams, summary, filename, epoch):
       covariance, [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
 
+  plots_per_row = 1
   summary.plot_histograms_grid(
       'covariance_histogram',
       data=[covariances[i] for i in hparams.trials],
@@ -288,7 +287,8 @@ def covariance_metrics(hparams, summary, filename, epoch):
       ylabel='Count',
       titles=['Sample #{:03d}'.format(i) for i in hparams.trials],
       step=epoch,
-      legend_labels=['recorded', 'synthetic'])
+      legend_labels=['recorded', 'synthetic'],
+      plots_per_row=plots_per_row)
 
   kl_divergence = pairs_kl_divergence(covariances)
   summary.plot_distribution(
@@ -334,14 +334,16 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
 
+  plots_per_row = 1
   summary.plot_histograms_grid(
-      'correlation_histogram',
+      'correlation',
       data=[correlations[i] for i in hparams.trials],
       xlabel='Correlation',
       ylabel='Count',
       titles=['Sample #{:03d}'.format(i) for i in hparams.trials],
       step=epoch,
-      legend_labels=['recorded', 'synthetic'])
+      legend_labels=['recorded', 'synthetic'],
+      plots_per_row=plots_per_row)
 
   kl_divergence = pairs_kl_divergence(correlations)
   summary.plot_distribution(
@@ -353,10 +355,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       step=epoch)
 
   if hparams.verbose:
-    print(
-        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
-            np.min(kl_divergence), np.max(kl_divergence),
-            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
+    print('\t\tmean: {:.04f}'.format(np.mean(kl_divergence)))
 
 
 def sort_heatmap(matrix):
@@ -447,7 +446,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
   # compute van-Rossum distance heatmap
   pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_van_rossum,
-                         [(hparams, filename, n, 50) for n in hparams.neurons])
+                         [(hparams, filename, n, 45) for n in hparams.neurons])
   pool.close()
 
   heatmaps, xticklabels, yticklabels, titles = [], [], [], []
@@ -457,15 +456,17 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     yticklabels.append(results[i]['yticklabels'])
     titles.append('Neuron #{:03d}'.format(hparams.neurons[i]))
 
+  plots_per_row = 1
   summary.plot_heatmaps_grid(
-      'van_rossum_heatmap',
+      'van_rossum',
       matrix=heatmaps,
       xlabel='synthetic trial',
       ylabel='recorded trial',
       xticklabels=xticklabels,
       yticklabels=yticklabels,
       titles=titles,
-      step=epoch)
+      step=epoch,
+      plots_per_row=plots_per_row)
 
   # compute van rossum distance KL divergence
   pool = Pool(hparams.num_processors)
@@ -484,10 +485,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       step=epoch)
 
   if hparams.verbose:
-    print(
-        '\tmin: {:.04f}, max: {:.04f}, mean: {:.04f}, num below 1.5: {}'.format(
-            np.min(kl_divergence), np.max(kl_divergence),
-            np.mean(kl_divergence), np.count_nonzero(kl_divergence < 1.5)))
+    print('\t\tmean: {:.04f}'.format(np.mean(kl_divergence)))
 
 
 def compute_epoch_spike_metrics(hparams, summary, filename, epoch):

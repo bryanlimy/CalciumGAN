@@ -79,7 +79,7 @@ class WGAN_GP(GAN):
 
     return dis_loss, gradient_penalty
 
-  @tf.function
+  # @tf.function
   def train(self, inputs):
     dis_losses, gradient_penalties = [], []
     for i in range(self.n_critic):

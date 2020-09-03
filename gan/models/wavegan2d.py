@@ -115,46 +115,46 @@ class PhaseShuffle(layers.Layer):
   are less sensitive toward periodic patterns which occurs quite frequently in
   signal data '''
 
-  def __init__(self, input_shape, shuffle=0, mode='reflect'):
+  def __init__(self, input_shape, m=0, n=0, mode='reflect'):
     super().__init__()
     self.shape = input_shape
-    self.shuffle = shuffle
+    self.m = m
+    self.n = n
     self.mode = mode
 
   def call(self, inputs):
-    if self.shuffle == 0:
-      return inputs
 
-    w_phase = tf.random.uniform([],
-                                minval=-self.shuffle,
-                                maxval=self.shuffle + 1,
+    def get_paddings(shift, length):
+      if shift > 0:
+        paddings = [0, shift]
+        start, end = shift, length + shift
+      else:
+        paddings = [tf.math.abs(shift), 0]
+        start, end = 0, length
+      return paddings, start, end
+
+    # shift on the temporal and spatial dimensions
+    w_shift = tf.random.uniform([],
+                                minval=-self.m,
+                                maxval=self.m + 1,
                                 dtype=tf.int32)
-    w_left_pad = tf.maximum(w_phase, 0)
-    w_right_pad = tf.maximum(-w_phase, 0)
-
-    c_phase = tf.random.uniform([],
-                                minval=-self.shuffle,
-                                maxval=self.shuffle + 1,
+    c_shift = tf.random.uniform([],
+                                minval=-self.n,
+                                maxval=self.n + 1,
                                 dtype=tf.int32)
-    c_left_pad = tf.maximum(c_phase, 0)
-    c_right_pad = tf.maximum(-c_phase, 0)
 
-    outputs = tf.pad(
-        inputs,
-        paddings=[[0, 0], [w_left_pad, w_right_pad], [c_left_pad, c_right_pad],
-                  [0, 0]],
-        mode=self.mode)
+    w_padding, w_start, w_end = get_paddings(w_shift, self.shape[1])
+    c_padding, c_start, c_end = get_paddings(c_shift, self.shape[2])
+    paddings = [[0, 0], w_padding, c_padding, [0, 0]]
 
-    outputs = outputs[:, w_right_pad:w_right_pad +
-                      self.shape[1], c_right_pad:c_right_pad + self.shape[2], :]
+    outputs = tf.pad(inputs, paddings=paddings, mode=self.mode)
+
+    outputs = outputs[:, w_start:w_end, c_start:c_end, :]
     return tf.ensure_shape(outputs, shape=self.shape)
 
 
-def discriminator(hparams,
-                  kernel_size=(16, 16),
-                  strides=(4, 1),
-                  padding='same',
-                  shuffle=2):
+def discriminator(hparams, kernel_size=(16, 16), strides=(4, 1),
+                  padding='same'):
   inputs = tf.keras.Input(hparams.signal_shape, name='signals')
 
   # Layer 1
@@ -165,7 +165,7 @@ def discriminator(hparams,
       padding=padding,
   )(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = PhaseShuffle(outputs.shape, shuffle=shuffle)(outputs)
+  outputs = PhaseShuffle(outputs.shape, m=hparams.m, n=hparams.n)(outputs)
 
   # Layer 2
   outputs = layers.Conv2D(
@@ -175,7 +175,7 @@ def discriminator(hparams,
       padding=padding,
   )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = PhaseShuffle(outputs.shape, shuffle=shuffle)(outputs)
+  outputs = PhaseShuffle(outputs.shape, m=hparams.m, n=hparams.n)(outputs)
 
   # Layer 3
   outputs = layers.Conv2D(
@@ -185,7 +185,7 @@ def discriminator(hparams,
       padding=padding,
   )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = PhaseShuffle(outputs.shape, shuffle=shuffle)(outputs)
+  outputs = PhaseShuffle(outputs.shape, m=hparams.m, n=hparams.n)(outputs)
 
   # Layer 4
   outputs = layers.Conv2D(
@@ -195,7 +195,7 @@ def discriminator(hparams,
       padding=padding,
   )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = PhaseShuffle(outputs.shape, shuffle=shuffle)(outputs)
+  outputs = PhaseShuffle(outputs.shape, m=hparams.m, n=hparams.n)(outputs)
 
   # Layer 5
   outputs = layers.Conv2D(

@@ -108,29 +108,33 @@ class PhaseShuffle(layers.Layer):
   are less sensitive toward periodic patterns which occurs quite frequently in
   signal data '''
 
-  def __init__(self, input_shape, shuffle=0, mode='reflect'):
+  def __init__(self, input_shape, m=0, mode='reflect'):
     super().__init__()
     self.shape = input_shape
-    self.shuffle = shuffle
+    self.m = m
     self.mode = mode
 
   def call(self, inputs):
-    if self.shuffle == 0:
-      return inputs
+    w = self.shape[1]
 
-    phase = tf.random.uniform([],
-                              minval=-self.shuffle,
-                              maxval=self.shuffle + 1,
+    # shift on the temporal dimension
+    shift = tf.random.uniform([],
+                              minval=-self.m,
+                              maxval=self.m + 1,
                               dtype=tf.int32)
-    left_pad = tf.maximum(phase, 0)
-    right_pad = tf.maximum(-phase, 0)
 
-    outputs = tf.pad(
-        inputs,
-        paddings=[[0, 0], [left_pad, right_pad], [0, 0]],
-        mode=self.mode)
+    if shift > 0:
+      # shift to the right
+      paddings = [[0, 0], [0, shift], [0, 0]]
+      start, end = shift, w + shift
+    else:
+      # shift to the left
+      paddings = [[0, 0], [tf.math.abs(shift), 0], [0, 0]]
+      start, end = 0, w
 
-    outputs = outputs[:, right_pad:right_pad + self.shape[1]]
+    outputs = tf.pad(inputs, paddings=paddings, mode=self.mode)
+
+    outputs = outputs[:, start:end, :]
     return tf.ensure_shape(outputs, shape=self.shape)
 
 
@@ -144,7 +148,7 @@ def discriminator(hparams, padding='same'):
       strides=hparams.strides,
       padding=padding)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = PhaseShuffle(outputs.shape, shuffle=hparams.phase_shuffle)(outputs)
+  outputs = PhaseShuffle(outputs.shape, m=hparams.m)(outputs)
 
   # Layer 2
   outputs = layers.Conv1D(
@@ -153,7 +157,7 @@ def discriminator(hparams, padding='same'):
       strides=hparams.strides,
       padding=padding)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = PhaseShuffle(outputs.shape, shuffle=hparams.phase_shuffle)(outputs)
+  outputs = PhaseShuffle(outputs.shape, m=hparams.m)(outputs)
 
   # Layer 3
   outputs = layers.Conv1D(
@@ -162,7 +166,7 @@ def discriminator(hparams, padding='same'):
       strides=hparams.strides,
       padding=padding)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = PhaseShuffle(outputs.shape, shuffle=hparams.phase_shuffle)(outputs)
+  outputs = PhaseShuffle(outputs.shape, m=hparams.m)(outputs)
 
   # Layer 4
   outputs = layers.Conv1D(
@@ -171,7 +175,7 @@ def discriminator(hparams, padding='same'):
       strides=hparams.strides,
       padding=padding)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = PhaseShuffle(outputs.shape, shuffle=hparams.phase_shuffle)(outputs)
+  outputs = PhaseShuffle(outputs.shape, m=hparams.m)(outputs)
 
   # Layer 5
   outputs = layers.Conv1D(

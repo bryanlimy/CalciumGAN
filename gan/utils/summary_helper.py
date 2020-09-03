@@ -52,13 +52,12 @@ class Summary(object):
         shutil.rmtree(self._vector_dir)
       os.makedirs(self._vector_dir)
 
-    tick_size = 35
-    label_size = 35
-    legend_size = 25
+    tick_size = 12
+    legend_size = 12
+    label_size = 14
     plt.rc('xtick', labelsize=tick_size)
     plt.rc('ytick', labelsize=tick_size)
     plt.rc('axes', titlesize=label_size)
-    plt.rc('axes', labelsize=label_size)
     plt.rc('axes', labelsize=label_size)
     plt.rc('legend', fontsize=legend_size)
 
@@ -145,10 +144,7 @@ class Summary(object):
     if rem > 0:
       num_rows += 1
 
-    fig = plt.figure(figsize=(int(10 * plots_per_row), int(4.5 * num_rows)))
-    fig.patch.set_facecolor('white')
-
-    plt.tick_params(axis='both', which='minor', labelsize=20)
+    plt.tick_params(axis='both', which='minor')
 
     for i, neuron in enumerate(indexes):
       plt.subplot(num_rows, plots_per_row, i + 1)
@@ -159,13 +155,13 @@ class Summary(object):
       plt.plot(
           signals[neuron],
           label=signal_label,
+          linewidth=1,
           alpha=0.6,
           color=color,
       )
       # rescale x-axis to seconds
       x_axis = np.arange(0, len(signals[neuron]), 200)
-      plt.xticks(ticks=x_axis, labels=x_axis // self.framerate, fontsize=30)
-      plt.yticks(fontsize=30)
+      plt.xticks(ticks=x_axis, labels=x_axis // self.framerate)
       # plot spike
       x = np.nonzero(spikes[neuron])[0]
       fill_value = ylims[neuron][0] + (
@@ -174,14 +170,14 @@ class Summary(object):
       plt.scatter(
           x,
           y,
-          s=350,
+          s=100,
           marker='|',
-          linewidth=3,
+          linewidth=1.5,
           label=spike_label,
           color='dimgray')
 
       if i == 0:
-        plt.legend(ncol=1, frameon=False, loc=(0.6, 0.55))
+        plt.legend(ncol=1, frameon=False)
 
       plt.title('Neuron #{:03d}'.format(neuron))
       plt.xlabel(xlabel)
@@ -193,6 +189,7 @@ class Summary(object):
       axis.spines['right'].set_visible(False)
       axis.get_xaxis().tick_bottom()
       axis.get_yaxis().tick_left()
+      plt.tight_layout()
 
     plt.tight_layout()
     images.append(self._plot_to_png())
@@ -221,7 +218,7 @@ class Summary(object):
     })
 
     g = sns.JointGrid(x='x', y='y', data=df, ratio=8)
-    plt.gcf().set_size_inches(24, 17)
+    plt.gcf().set_size_inches(9, 7)
     plt.gcf().set_facecolor("white")
 
     real = df.loc[df.real_data == True]
@@ -232,19 +229,19 @@ class Summary(object):
         real.y,
         color=self.real_color,
         marker="|",
-        linewidth=2.5,
-        alpha=0.9,
+        linewidth=1.5,
+        alpha=0.7,
         ax=g.ax_joint,
-        s=90)
+        s=40)
     ax = sns.scatterplot(
         fake.x,
         fake.y,
         color=self.fake_color,
         marker="|",
-        linewidth=2.5,
-        alpha=0.9,
+        linewidth=1.5,
+        alpha=0.7,
         ax=g.ax_joint,
-        s=90)
+        s=40)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_ylim([-2, 104])
@@ -398,19 +395,20 @@ class Summary(object):
                            titles=None,
                            step=0,
                            training=False,
-                           legend_labels=None):
+                           legend_labels=None,
+                           plots_per_row=3):
     assert type(data) == list and type(data[0]) == tuple
     images = []
 
-    num_rows, rem = divmod(len(data), 3)
+    num_rows, rem = divmod(len(data), plots_per_row)
     if rem > 0:
       num_rows += 1
 
-    fig = plt.figure(figsize=(32, 8 * num_rows))
+    fig = plt.figure(figsize=(5 * plots_per_row, 5 * num_rows))
     fig.patch.set_facecolor('white')
 
     for i in range(len(data)):
-      plt.subplot(num_rows, 3, i + 1)
+      plt.subplot(num_rows, plots_per_row, i + 1)
 
       real, fake = data[i]
 
@@ -464,19 +462,20 @@ class Summary(object):
                          yticklabels='auto',
                          titles=None,
                          step=0,
-                         training=False):
+                         training=False,
+                         plots_per_row=3):
     assert type(matrix) == list and type(matrix[0]) == np.ndarray
     images = []
 
-    num_rows, rem = divmod(len(matrix), 3)
+    num_rows, rem = divmod(len(matrix), plots_per_row)
     if rem > 0:
       num_rows += 1
 
-    fig = plt.figure(figsize=(30, 10 * num_rows))
+    fig = plt.figure(figsize=(5 * plots_per_row, 5 * num_rows))
     fig.patch.set_facecolor('white')
 
     for i in range(len(matrix)):
-      plt.subplot(num_rows, 3, i + 1)
+      plt.subplot(num_rows, plots_per_row, i + 1)
       ax = sns.heatmap(
           matrix[i],
           cmap='YlOrRd',
@@ -492,11 +491,13 @@ class Summary(object):
       plt.xticks(
           ticks=list(range(0, len(xticklabels[i]), 2)),
           labels=xticklabels[i],
-          fontsize=22)
+          fontsize=12)
       plt.yticks(
           ticks=list(range(0, len(yticklabels[i]), 2)),
           labels=yticklabels[i],
-          fontsize=22)
+          fontsize=12)
+
+      plt.tight_layout()
 
     plt.tight_layout()
     images.append(self._plot_to_png())
