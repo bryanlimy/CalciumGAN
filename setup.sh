@@ -21,38 +21,38 @@ check_requirements() {
 }
 
 install_python_packages() {
-  echo '\nInstall tensorflow'
+  echo 'Install tensorflow'
   if [ "$macOS" = "true" ]; then
     python3 -m pip install tensorflow==2.2.0
   else
     conda install -c anaconda tensorflow-gpu==2.2.0 -y
   fi
-  echo '\nInstall Python packages'
+  echo 'Install Python packages'
   python3 -m pip install -r requirements.txt
 }
 
 install_oasis() {
-  echo '\n\nInstall OASIS'
+  echo 'Install OASIS'
   cd "$current_dir" || exit 1
-  echo '\nInstall Gurobi'
+  echo 'Install Gurobi'
   conda config --add channels http://conda.anaconda.org/gurobi
   conda install gurobi -y
-  echo '\nInstall Mosek'
+  echo 'Install Mosek'
   conda install -c mosek mosek -y
   git clone https://github.com/j-friedrich/OASIS.git oasis
   cd oasis || exit 1
   python3 setup.py build_ext --inplace
   python3 -m pip install -e .
-  echo '\nInstall OASIS completed'
+  echo 'Install OASIS completed'
 }
 
 install_elephant() {
-  echo '\n\nInstall Elephant'
+  echo 'Install Elephant'
   cd "$current_dir" || exit 1
   git clone git://github.com/NeuralEnsemble/elephant.git elephant
   cd elephant || exit 1
   python3 setup.py install
-  echo '\nInstall Elephant completed'
+  echo 'Install Elephant completed'
 }
 
 check_requirements
@@ -60,4 +60,4 @@ install_python_packages
 install_oasis
 install_elephant
 
-echo '\nSetup completed.'
+echo 'Setup completed.'
