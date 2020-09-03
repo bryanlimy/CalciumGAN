@@ -195,7 +195,7 @@ def discriminator(hparams, kernel_size=(16, 16), strides=(4, 1),
       padding=padding,
   )(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
-  outputs = PhaseShuffle(outputs.shape, m=hparams.m, n=hparams.n)(outputs)
+  outputs = PhaseShuffle(outputs.shape, m=0, n=hparams.n)(outputs)
 
   # Layer 5
   outputs = layers.Conv2D(
