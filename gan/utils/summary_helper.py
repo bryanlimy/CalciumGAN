@@ -83,7 +83,7 @@ class Summary(object):
     """
     plt.tight_layout()
     buf = io.BytesIO()
-    plt.savefig(buf, dpi=40, format='png')
+    plt.savefig(buf, dpi=90, format='png')
     buf.seek(0)
     return tf.image.decode_png(buf.getvalue(), channels=4)
 
@@ -143,6 +143,9 @@ class Summary(object):
     num_rows, rem = divmod(len(indexes), plots_per_row)
     if rem > 0:
       num_rows += 1
+
+    fig = plt.figure(figsize=(5 * plots_per_row, 2.5 * num_rows))
+    fig.patch.set_facecolor('white')
 
     plt.tick_params(axis='both', which='minor')
 
@@ -318,7 +321,7 @@ class Summary(object):
                         training=False):
     images = []
 
-    fig = plt.figure(figsize=(12, 8))
+    fig = plt.figure(figsize=(5, 4))
     fig.patch.set_facecolor('white')
     ax = sns.distplot(
         data, kde=False, hist_kws={"rwidth": 0.85}, color="green", bins=bins)

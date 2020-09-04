@@ -145,7 +145,6 @@ def plot_signals(hparams, summary, filename, epoch):
                 np.max(fake_signals[i])])
     ])
 
-  plots_per_row = 1
   summary.plot_traces(
       'real_traces',
       real_signals,
@@ -156,7 +155,7 @@ def plot_signals(hparams, summary, filename, epoch):
       is_real=True,
       signal_label='recorded signal',
       spike_label='inferred spike',
-      plots_per_row=plots_per_row)
+      plots_per_row=hparams.plots_per_row)
 
   summary.plot_traces(
       'fake_traces',
@@ -168,7 +167,7 @@ def plot_signals(hparams, summary, filename, epoch):
       is_real=False,
       signal_label='synthetic signal',
       spike_label='inferred spike',
-      plots_per_row=plots_per_row)
+      plots_per_row=hparams.plots_per_row)
 
 
 def raster_plots(hparams, summary, filename, epoch, trial=2):
@@ -225,7 +224,6 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
                                     for n in range(hparams.num_neurons)])
   pool.close()
 
-  plots_per_row = 1
   summary.plot_histograms_grid(
       'firing_rate',
       data=[firing_rate_pairs[n] for n in hparams.neurons],
@@ -234,7 +232,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       titles=['Neuron #{:03d}'.format(n) for n in hparams.neurons],
       step=epoch,
       legend_labels=['recorded', 'synthetic'],
-      plots_per_row=plots_per_row)
+      plots_per_row=hparams.plots_per_row)
 
   kl_divergence = pairs_kl_divergence(firing_rate_pairs)
   summary.plot_distribution(
@@ -242,7 +240,6 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
-      title='Mean firing rate',
       step=epoch)
 
   if hparams.verbose:
@@ -279,7 +276,6 @@ def covariance_metrics(hparams, summary, filename, epoch):
       covariance, [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
 
-  plots_per_row = 1
   summary.plot_histograms_grid(
       'covariance_histogram',
       data=[covariances[i] for i in hparams.trials],
@@ -288,7 +284,7 @@ def covariance_metrics(hparams, summary, filename, epoch):
       titles=['Sample #{:03d}'.format(i) for i in hparams.trials],
       step=epoch,
       legend_labels=['recorded', 'synthetic'],
-      plots_per_row=plots_per_row)
+      plots_per_row=hparams.plots_per_row)
 
   kl_divergence = pairs_kl_divergence(covariances)
   summary.plot_distribution(
@@ -296,7 +292,6 @@ def covariance_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
-      title='Covariance',
       step=epoch)
 
   if hparams.verbose:
@@ -334,7 +329,6 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
 
-  plots_per_row = 1
   summary.plot_histograms_grid(
       'correlation',
       data=[correlations[i] for i in hparams.trials],
@@ -343,7 +337,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       titles=['Sample #{:03d}'.format(i) for i in hparams.trials],
       step=epoch,
       legend_labels=['recorded', 'synthetic'],
-      plots_per_row=plots_per_row)
+      plots_per_row=hparams.plots_per_row)
 
   kl_divergence = pairs_kl_divergence(correlations)
   summary.plot_distribution(
@@ -351,7 +345,6 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
-      title='Correlation',
       step=epoch)
 
   if hparams.verbose:
@@ -456,7 +449,6 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     yticklabels.append(results[i]['yticklabels'])
     titles.append('Neuron #{:03d}'.format(hparams.neurons[i]))
 
-  plots_per_row = 1
   summary.plot_heatmaps_grid(
       'van_rossum',
       matrix=heatmaps,
@@ -466,7 +458,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       yticklabels=yticklabels,
       titles=titles,
       step=epoch,
-      plots_per_row=plots_per_row)
+      plots_per_row=hparams.plots_per_row)
 
   # compute van rossum distance KL divergence
   pool = Pool(hparams.num_processors)
@@ -481,7 +473,6 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
-      title='van-Rossum distance',
       step=epoch)
 
   if hparams.verbose:
@@ -556,6 +547,7 @@ if __name__ == '__main__':
   parser.add_argument('--all_epochs', action='store_true')
   parser.add_argument('--num_neuron_plots', default=6, type=int)
   parser.add_argument('--num_trial_plots', default=6, type=int)
+  parser.add_argument('--plots_per_row', default=3, type=int)
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
   parser.add_argument('--seed', default=12, type=int)

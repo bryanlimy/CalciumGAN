@@ -43,7 +43,7 @@ def plot_real_signals(hparams, summary, ds, indexes=None):
   spikes = utils.set_array_format(spikes[0], data_format='CW', hparams=hparams)
 
   summary.plot_traces(
-      'real',
+      'real_traces',
       signals,
       spikes,
       indexes=indexes if indexes is not None else hparams.focus_neurons,

@@ -146,7 +146,7 @@ def train_and_validate(hparams, train_ds, validation_ds, gan, summary):
           fake_signals[0], data_format='CW', hparams=hparams)
       fake_spikes = spike_helper.deconvolve_signals(fake_signals)
       summary.plot_traces(
-          'fake',
+          'fake_traces',
           fake_signals,
           fake_spikes,
           indexes=hparams.focus_neurons,
