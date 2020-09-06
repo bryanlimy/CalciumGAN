@@ -180,7 +180,7 @@ class Summary(object):
           color='dimgray')
 
       if i == 0:
-        plt.legend(ncol=1, frameon=False)
+        plt.legend(loc='upper right', ncol=1, frameon=False)
 
       plt.title('Neuron #{:03d}'.format(neuron))
       plt.xlabel(xlabel)

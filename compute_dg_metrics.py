@@ -20,13 +20,12 @@ plt.style.use('seaborn-deep')
 
 import seaborn as sns
 
-tick_size = 14
-label_size = 16
-legend_size = 14
+tick_size = 11
+legend_size = 11
+label_size = 13
 plt.rc('xtick', labelsize=tick_size)
 plt.rc('ytick', labelsize=tick_size)
 plt.rc('axes', titlesize=label_size)
-plt.rc('axes', labelsize=label_size)
 plt.rc('axes', labelsize=label_size)
 plt.rc('legend', fontsize=legend_size)
 
@@ -68,7 +67,7 @@ def plot_firing_rate(hparams, filename, real, fake):
   fake = fake[neuron_order].flatten('F')
   x = list(range(len(neuron_order)))
 
-  fig = plt.figure(figsize=(16, 10))
+  fig = plt.figure(figsize=(5, 4))
   fig.patch.set_facecolor('white')
 
   scatter_kws = {'alpha': 0.6}
@@ -91,8 +90,8 @@ def plot_firing_rate(hparams, filename, real, fake):
   ax.spines['top'].set_visible(False)
   ax.spines['right'].set_visible(False)
   ax.set_xlabel('Neuron')
-  ax.set_ylabel('Firing rate (Hz)')
-  plt.legend(loc='upper left', labels=['DG', 'CalciumGAN'])
+  ax.set_ylabel('Firing rate')
+  plt.legend(loc='upper left', labels=['DG', 'CalciumGAN'], frameon=False)
 
   plt.tight_layout()
   plt.savefig(filename, dpi=120, format='pdf', transparent=True)
@@ -112,8 +111,8 @@ def plot_covariance(hparams, filename, real, fake):
   fake = fake[pair_order].flatten('F')
   x = list(range(len(pair_order)))
 
-  # fig = plt.figure(figsize=(16, 10))
-  # fig.patch.set_facecolor('white')
+  fig = plt.figure(figsize=(5, 4))
+  fig.patch.set_facecolor('white')
 
   scatter_kws = {'alpha': 0.6}
   sns.regplot(
@@ -136,7 +135,6 @@ def plot_covariance(hparams, filename, real, fake):
   ax.spines['right'].set_visible(False)
   ax.set_xlabel('Neuron Pair')
   ax.set_ylabel('Covariance')
-  plt.legend(loc='upper left', labels=['DG', 'CalciumGAN'])
 
   plt.tight_layout()
   plt.savefig(filename, dpi=120, format='pdf', transparent=True)
@@ -165,14 +163,19 @@ def main(hparams):
       np.mean(np.square(real_firing_rate - fake_firing_rate)),
       np.sqrt(np.mean(np.square(real_firing_rate - fake_firing_rate)))))
 
+  print('covariance MAE {:.04f} MSE {:.04f} RMSE {:.04f}'.format(
+      np.mean(np.abs(real_covariance - fake_covariance)),
+      np.mean(np.square(real_covariance - fake_covariance)),
+      np.sqrt(np.mean(np.square(real_covariance - fake_covariance)))))
+
   plot_firing_rate(
       hparams,
-      filename='diagrams/dg_firing_rate.pdf',
+      filename=os.path.join(hparams.output_dir, 'dg_firing_rate.pdf'),
       real=real_firing_rate,
       fake=fake_firing_rate)
   plot_covariance(
       hparams,
-      filename='diagrams/dg_covariance.pdf',
+      filename=os.path.join(hparams.output_dir, 'dg_covariance.pdf'),
       real=real_covariance,
       fake=fake_covariance)
 
