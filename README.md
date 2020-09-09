@@ -4,7 +4,7 @@
 ```
 @misc{li2020calciumgan,
     title={CalciumGAN: A Generative Adversarial Network Model for Synthesising Realistic Calcium Imaging Data of Neuronal Populations},
-    author={Bryan M. Li. and Theoklitos Amvrosiadis and Nathalie Rochefort and Arno Onken},
+    author={Bryan M. Li and Theoklitos Amvrosiadis and Nathalie Rochefort and Arno Onken},
     year={2020},
     eprint={2009.02707},
     archivePrefix={arXiv},
