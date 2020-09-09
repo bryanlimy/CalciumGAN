@@ -1,5 +1,17 @@
 ## CalciumGAN: A Generative Adversarial Network Model for Synthesising Realistic Calcium Imaging Data of Neuronal Populations
 
+### Citing this work
+```
+@misc{li2020calciumgan,
+    title={CalciumGAN: A Generative Adversarial Network Model for Synthesising Realistic Calcium Imaging Data of Neuronal Populations},
+    author={Bryan M. Li. and Theoklitos Amvrosiadis and Nathalie Rochefort and Arno Onken},
+    year={2020},
+    eprint={2009.02707},
+    archivePrefix={arXiv},
+    primaryClass={q-bio.NC}
+}
+```
+
 ### Table of content
 - [1. Installation](#1-installation)
 - [2. Dataset](#2-dataset)
