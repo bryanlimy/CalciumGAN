@@ -170,7 +170,7 @@ def plot_signals(hparams, summary, filename, epoch):
       plots_per_row=hparams.plots_per_row)
 
 
-def raster_plots(hparams, summary, filename, epoch, trial=2):
+def raster_plots(hparams, summary, filename, epoch, trial=100):
   if hparams.verbose:
     print('\tPlotting raster plot for trial #{}'.format(trial))
 
