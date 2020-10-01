@@ -240,6 +240,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
+      title='Firing Rate',
       step=epoch)
 
   if hparams.verbose:
@@ -292,6 +293,7 @@ def covariance_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
+      title='Covariance',
       step=epoch)
 
   if hparams.verbose:
@@ -345,6 +347,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
+      title='Correlation',
       step=epoch)
 
   if hparams.verbose:
@@ -473,6 +476,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       data=kl_divergence,
       xlabel='KL divergence',
       ylabel='Count',
+      title='van-Rossum distance',
       step=epoch)
 
   if hparams.verbose:

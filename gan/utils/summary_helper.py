@@ -124,6 +124,7 @@ class Summary(object):
                   indexes,
                   ylims=[],
                   xlabel='Time (s)',
+                  ylabel=r"$\Delta F/F$",
                   step=0,
                   training=True,
                   is_real=True,
@@ -184,6 +185,7 @@ class Summary(object):
 
       plt.title('Neuron #{:03d}'.format(neuron))
       plt.xlabel(xlabel)
+      plt.ylabel(ylabel)
 
       axis = plt.gca()
       if ylims:

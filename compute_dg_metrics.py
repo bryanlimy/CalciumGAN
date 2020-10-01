@@ -143,6 +143,25 @@ def plot_covariance(hparams, filename, real, fake):
   print('saved covariance figure to {}'.format(filename))
 
 
+def percentage_error(y_true, y_pred):
+  error = np.empty(y_true.shape)
+  for j in range(y_true.shape[0]):
+    if y_true[j] != 0.0:
+      error[j] = (y_true[j] - y_pred[j]) / y_true[j]
+    else:
+      error[j] = y_pred[j] / np.mean(y_true)
+  return error
+
+
+def mean_absolute_percentage_error(y_true, y_pred):
+  errors = np.zeros(shape=y_true.shape, dtype=np.float32)
+  for i in range(errors.shape[1]):
+    errors[..., i] = percentage_error(y_true[..., i], y_pred[..., i])
+  mape = np.mean(np.abs(errors), axis=0)
+  mape = np.mean(mape, axis=0)
+  return mape * 100
+
+
 def main(hparams):
   if not os.path.exists(hparams.output_dir):
     print('{} not found'.format(hparams.output_dir))
@@ -158,32 +177,35 @@ def main(hparams):
   fake_firing_rate, fake_covariance = get_data_statistics(
       hparams, filename=info[epochs[-1]]['filename'])
 
-  print('mean firing rate MAE {:.04f} MSE {:.04f} RMSE {:.04f}'.format(
-      np.mean(np.abs(real_firing_rate - fake_firing_rate)),
-      np.mean(np.square(real_firing_rate - fake_firing_rate)),
-      np.sqrt(np.mean(np.square(real_firing_rate - fake_firing_rate)))))
+  if hparams.save_plots:
+    plot_firing_rate(
+        hparams,
+        filename=os.path.join(hparams.output_dir, 'dg_firing_rate.pdf'),
+        real=real_firing_rate,
+        fake=fake_firing_rate)
+    plot_covariance(
+        hparams,
+        filename=os.path.join(hparams.output_dir, 'dg_covariance.pdf'),
+        real=real_covariance,
+        fake=fake_covariance)
 
-  print('covariance MAE {:.04f} MSE {:.04f} RMSE {:.04f}'.format(
+  print('\nmean firing rate\n\tMAE\t{:.02f}\n\tRMSE\t{:.02f}\n\tMAPE\t{:.02f}%'.
+        format(
+            np.mean(np.abs(real_firing_rate - fake_firing_rate)),
+            np.sqrt(np.mean(np.square(real_firing_rate - fake_firing_rate))),
+            mean_absolute_percentage_error(real_firing_rate, fake_firing_rate)))
+
+  print('\ncovariance\n\tMAE\t{:.02f}\n\tMSE\t{:.02f}\n\tMAPE\t{:.02f}%'.format(
       np.mean(np.abs(real_covariance - fake_covariance)),
       np.mean(np.square(real_covariance - fake_covariance)),
-      np.sqrt(np.mean(np.square(real_covariance - fake_covariance)))))
-
-  plot_firing_rate(
-      hparams,
-      filename=os.path.join(hparams.output_dir, 'dg_firing_rate.pdf'),
-      real=real_firing_rate,
-      fake=fake_firing_rate)
-  plot_covariance(
-      hparams,
-      filename=os.path.join(hparams.output_dir, 'dg_covariance.pdf'),
-      real=real_covariance,
-      fake=fake_covariance)
+      mean_absolute_percentage_error(real_covariance, fake_covariance)))
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='runs', type=str)
   parser.add_argument('--num_trials', default=5, type=int)
+  parser.add_argument('--save_plots', action='store_true')
   hparams = parser.parse_args()
 
   warnings.simplefilter(action='ignore', category=UserWarning)
