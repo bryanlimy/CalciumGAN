@@ -24,22 +24,28 @@ def generator(hparams, units=64):
 
   # Layer 1
   outputs = layers.Dense(units)(outputs)
-  if not hparams.no_batch_norm:
+  if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
+  if hparams.layer_norm:
+    outputs = layers.LayerNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 2
   outputs = layers.Dense(units * 2)(outputs)
-  if not hparams.no_batch_norm:
+  if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
+  if hparams.layer_norm:
+    outputs = layers.LayerNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 3
   outputs = layers.Dense(units * 3)(outputs)
-  if not hparams.no_batch_norm:
+  if hparams.batch_norm:
     outputs = layers.BatchNormalization()(outputs)
+  if hparams.layer_norm:
+    outputs = layers.LayerNormalization()(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
