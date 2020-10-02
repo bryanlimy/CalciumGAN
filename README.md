@@ -77,7 +77,7 @@ Use `--help` to see all available arguments.
 hyper-parameters for 400 epochs. Checkpoints, generated data, model training
 information are stored in `--output_dir`.
     ```bash
-    python main.py --input_dir dataset/tfrecords/sl2048 --output_dir runs/001 --epochs 400 --batch_size 128 --model calciumgan --algoirthm wgan-gp --noise_dim 32 --num_units 64 --kernel_size 24 --strides 2 --phase_shift 10 --layer_norm --mixed_precision --save_generated last 
+    python main.py --input_dir dataset/tfrecords/sl2048 --output_dir runs/001 --epochs 400 --batch_size 128 --model calciumgan --algoirthm wgan-gp --noise_dim 32 --num_units 64 --kernel_size 24 --strides 2 --m 10 --layer_norm --mixed_precision --save_generated last 
     ```
 - Use `--help` to check all available arguments. Mixed precision compute, 
 TensorBoard profiling, hyper-parameter search are some of the features built 
