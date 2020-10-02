@@ -4,11 +4,11 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 
-from .utils import activation_fn, Conv1DTranspose
+from .utils import activation_fn
 
 
-@register('wavegan2d')
-def get_wavegan(hparams):
+@register('calciumgan2d')
+def get_calciumgan2d(hparams):
   return generator(hparams), discriminator(hparams)
 
 

@@ -7,8 +7,8 @@ from tensorflow.keras import layers
 from .utils import activation_fn, Conv1DTranspose
 
 
-@register('wavegan')
-def get_wavegan(hparams):
+@register('calciumgan')
+def get_calciumgan(hparams):
   return generator(hparams), discriminator(hparams)
 
 

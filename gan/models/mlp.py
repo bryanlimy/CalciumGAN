@@ -12,7 +12,7 @@ def get_models(hparams):
   return generator(hparams), discriminator(hparams)
 
 
-def generator(hparams, units=64):
+def generator(hparams):
   shape = (hparams.sequence_length, hparams.noise_dim)
   noise_size = int(np.prod(shape))
 
@@ -23,29 +23,17 @@ def generator(hparams, units=64):
   outputs = layers.Reshape(shape)(outputs)
 
   # Layer 1
-  outputs = layers.Dense(units)(outputs)
-  if hparams.batch_norm:
-    outputs = layers.BatchNormalization()(outputs)
-  if hparams.layer_norm:
-    outputs = layers.LayerNormalization()(outputs)
+  outputs = layers.Dense(hparams.num_units)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 2
-  outputs = layers.Dense(units * 2)(outputs)
-  if hparams.batch_norm:
-    outputs = layers.BatchNormalization()(outputs)
-  if hparams.layer_norm:
-    outputs = layers.LayerNormalization()(outputs)
+  outputs = layers.Dense(hparams.num_units * 2)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 3
-  outputs = layers.Dense(units * 3)(outputs)
-  if hparams.batch_norm:
-    outputs = layers.BatchNormalization()(outputs)
-  if hparams.layer_norm:
-    outputs = layers.LayerNormalization()(outputs)
+  outputs = layers.Dense(hparams.num_units * 3)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
@@ -59,26 +47,26 @@ def generator(hparams, units=64):
   return tf.keras.Model(inputs=inputs, outputs=outputs, name='generator')
 
 
-def discriminator(hparams, units=64):
+def discriminator(hparams):
   inputs = tf.keras.Input(shape=hparams.signal_shape, name='inputs')
 
   # Layer 1
-  outputs = layers.Dense(units * 4)(inputs)
+  outputs = layers.Dense(hparams.num_units * 4)(inputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 2
-  outputs = layers.Dense(units * 3)(outputs)
+  outputs = layers.Dense(hparams.num_units * 3)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 3
-  outputs = layers.Dense(units * 2)(outputs)
+  outputs = layers.Dense(hparams.num_units * 2)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 
   # Layer 4
-  outputs = layers.Dense(units)(outputs)
+  outputs = layers.Dense(hparams.num_units)(outputs)
   outputs = activation_fn(hparams.activation)(outputs)
   outputs = layers.Dropout(hparams.dropout)(outputs)
 

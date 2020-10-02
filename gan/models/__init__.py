@@ -1,6 +1,6 @@
 __all__ = [
-    'conv1d', 'conv2d', 'mlp', 'registry', 'rnn', 'utils', 'wavegan',
-    'wavegan2d'
+    'conv1d', 'conv2d', 'mlp', 'registry', 'rnn', 'utils', 'calciumgan.py',
+    'calciumgan2d.py'
 ]
 
 from .conv1d import *
@@ -9,5 +9,5 @@ from .mlp import *
 from .registry import *
 from .rnn import *
 from .utils import *
-from .wavegan import *
-from .wavegan2d import *
+from .calciumgan import *
+from .calciumgan2d import *
