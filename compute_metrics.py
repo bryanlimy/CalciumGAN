@@ -1,15 +1,13 @@
 import os
 import pickle
 import random
+import platform
 import argparse
 import warnings
 import numpy as np
 import pandas as pd
 from time import time
-from multiprocessing import Pool
-
-# use CPU only
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+import multiprocessing
 
 from gan.utils import utils
 from gan.utils import h5_helper
@@ -40,7 +38,7 @@ def deconvolve_from_file(hparams, filename, return_spikes=False):
   if hparams.verbose:
     print('\tDeconvolve {}'.format(filename))
 
-  pool = Pool(hparams.num_processors)
+  pool = multiprocessing.Pool(hparams.num_processors)
   fake_spikes = pool.starmap(
       deconvolve_neuron,
       [(hparams, filename, n) for n in range(hparams.num_neurons)])
@@ -218,7 +216,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing firing rate')
 
-  pool = Pool(hparams.num_processors)
+  pool = multiprocessing.Pool(hparams.num_processors)
   firing_rate_pairs = pool.starmap(firing_rate,
                                    [(hparams, filename, n, hparams.num_samples)
                                     for n in range(hparams.num_neurons)])
@@ -272,7 +270,7 @@ def covariance_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing covariance')
 
-  pool = Pool(hparams.num_processors)
+  pool = multiprocessing.Pool(hparams.num_processors)
   covariances = pool.starmap(
       covariance, [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
@@ -325,7 +323,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
 
-  pool = Pool(hparams.num_processors)
+  pool = multiprocessing.Pool(hparams.num_processors)
   correlations = pool.starmap(
       correlation_coefficient,
       [(hparams, filename, i) for i in range(hparams.num_samples)])
@@ -440,7 +438,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     print('\tComputing van-rossum distance')
 
   # compute van-Rossum distance heatmap
-  pool = Pool(hparams.num_processors)
+  pool = multiprocessing.Pool(hparams.num_processors)
   results = pool.starmap(neuron_van_rossum,
                          [(hparams, filename, n, 45) for n in hparams.neurons])
   pool.close()
@@ -464,7 +462,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       plots_per_row=hparams.plots_per_row)
 
   # compute van rossum distance KL divergence
-  pool = Pool(hparams.num_processors)
+  pool = multiprocessing.Pool(hparams.num_processors)
   van_rossum_pairs = pool.starmap(
       trial_van_rossum,
       [(hparams, filename, i) for i in range(hparams.num_samples)])
@@ -545,6 +543,12 @@ def main(hparams):
 
 
 if __name__ == '__main__':
+  if platform.system() == 'Darwin':
+    multiprocessing.set_start_method('spawn')
+
+  # use CPU only
+  os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--num_processors', default=6, type=int)
