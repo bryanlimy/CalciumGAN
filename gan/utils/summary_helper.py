@@ -443,7 +443,7 @@ class Summary(object):
           color=self.fake_color,
           label="Fake")
 
-      if i == 2:
+      if i == 0:
         ax.legend(labels=legend_labels, frameon=False)
       ax.set_xlabel(xlabel)
       ax.set_ylabel(ylabel)
