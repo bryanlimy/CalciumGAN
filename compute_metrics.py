@@ -9,7 +9,9 @@ import pandas as pd
 from time import time
 import multiprocessing
 
-
+warnings.simplefilter(action='ignore', category=UserWarning)
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
+warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
 from gan.utils import utils
 from gan.utils import h5_helper
@@ -545,9 +547,7 @@ def main(hparams):
 
 
 if __name__ == '__main__':
-  warnings.simplefilter(action='ignore', category=UserWarning)
-  warnings.simplefilter(action='ignore', category=RuntimeWarning)
-  warnings.simplefilter(action='ignore', category=DeprecationWarning)
+
 
   if platform.system() == 'Darwin':
     multiprocessing.set_start_method('spawn')
