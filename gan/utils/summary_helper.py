@@ -89,10 +89,11 @@ class Summary(object):
 
   def save_vector_plot(self, filename):
     if self.spike_metrics:
+      format = 'png'
       plt.savefig(
-          os.path.join(self._vector_dir, '{}.pdf'.format(filename)),
-          dpi=self.dpi,
-          format='pdf')
+          os.path.join(self._vector_dir, f'{filename}.{format}'),
+          dpi=240,
+          format=format)
 
   def scalar(self, tag, value, step=0, training=True):
     writer = self._get_writer(training)
@@ -184,7 +185,8 @@ class Summary(object):
         plt.legend(loc='upper right', ncol=1, frameon=False)
 
       plt.title('Neuron #{:03d}'.format(neuron))
-      plt.xlabel(xlabel)
+      if i == len(indexes) - 1:
+        plt.xlabel(xlabel)
       plt.ylabel(ylabel)
 
       axis = plt.gca()
@@ -412,6 +414,7 @@ class Summary(object):
     fig = plt.figure(figsize=(5 * plots_per_row, 5 * num_rows))
     fig.patch.set_facecolor('white')
 
+    current_row = 0
     for i in range(len(data)):
       plt.subplot(num_rows, plots_per_row, i + 1)
 
@@ -445,11 +448,17 @@ class Summary(object):
 
       if i == 0:
         ax.legend(labels=legend_labels, frameon=False)
-      ax.set_xlabel(xlabel)
+
       ax.set_ylabel(ylabel)
       ax.set_title(titles[i])
       ax.spines['top'].set_visible(False)
       ax.spines['right'].set_visible(False)
+
+      # only show x label on last row
+      current_row, _ = divmod(i, plots_per_row)
+      if current_row == num_rows - 1:
+        ax.set_xlabel(xlabel)
+
 
     plt.tight_layout()
     images.append(self._plot_to_png())
