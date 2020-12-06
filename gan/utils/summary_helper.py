@@ -45,6 +45,7 @@ class Summary(object):
       # for spike metrics
       self._metrics_dir = os.path.join(hparams.output_dir, 'metrics')
       self.metrics_writer = tf.summary.create_file_writer(self._metrics_dir)
+      self.format = hparams.format
 
       # save plots as vector pdf
       self._vector_dir = os.path.join(self._metrics_dir, 'plots')
@@ -89,11 +90,10 @@ class Summary(object):
 
   def save_vector_plot(self, filename):
     if self.spike_metrics:
-      format = 'png'
       plt.savefig(
-          os.path.join(self._vector_dir, f'{filename}.{format}'),
-          dpi=240,
-          format=format)
+          os.path.join(self._vector_dir, f'{filename}.{self.format}'),
+          dpi=self.dpi,
+          format=self.format)
 
   def scalar(self, tag, value, step=0, training=True):
     writer = self._get_writer(training)

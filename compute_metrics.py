@@ -9,9 +9,7 @@ import pandas as pd
 from time import time
 import multiprocessing
 
-warnings.simplefilter(action='ignore', category=UserWarning)
-warnings.simplefilter(action='ignore', category=RuntimeWarning)
-warnings.simplefilter(action='ignore', category=DeprecationWarning)
+
 
 from gan.utils import utils
 from gan.utils import h5_helper
@@ -547,6 +545,9 @@ def main(hparams):
 
 
 if __name__ == '__main__':
+  warnings.simplefilter(action='ignore', category=UserWarning)
+  warnings.simplefilter(action='ignore', category=RuntimeWarning)
+  warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
   if platform.system() == 'Darwin':
     multiprocessing.set_start_method('spawn')
@@ -562,6 +563,7 @@ if __name__ == '__main__':
   parser.add_argument('--num_trial_plots', default=6, type=int)
   parser.add_argument('--plots_per_row', default=3, type=int)
   parser.add_argument('--dpi', default=120, type=int)
+  parser.add_argument('--format', default='pdf', choices=['pdf', 'png'])
   parser.add_argument('--verbose', default=1, type=int)
   parser.add_argument('--seed', default=12, type=int)
   hparams = parser.parse_args()
