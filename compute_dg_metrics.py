@@ -67,7 +67,7 @@ def plot_firing_rate(hparams, filename, real, fake):
   fake = fake[neuron_order].flatten('F')
   x = list(range(len(neuron_order)))
 
-  fig = plt.figure(figsize=(5, 4))
+  fig = plt.figure(figsize=(8,6))
   fig.patch.set_facecolor('white')
 
   scatter_kws = {'alpha': 0.6}
@@ -94,7 +94,7 @@ def plot_firing_rate(hparams, filename, real, fake):
   plt.legend(loc='upper left', labels=['DG', 'CalciumGAN'], frameon=False)
 
   plt.tight_layout()
-  plt.savefig(filename, dpi=120, format='pdf', transparent=True)
+  plt.savefig(filename, dpi=120, format=hparams.format, transparent=True)
   plt.close()
 
   print('saved firing rate figure to {}'.format(filename))
@@ -111,7 +111,7 @@ def plot_covariance(hparams, filename, real, fake):
   fake = fake[pair_order].flatten('F')
   x = list(range(len(pair_order)))
 
-  fig = plt.figure(figsize=(5, 4))
+  fig = plt.figure(figsize=(8,6))
   fig.patch.set_facecolor('white')
 
   scatter_kws = {'alpha': 0.6}
@@ -137,7 +137,7 @@ def plot_covariance(hparams, filename, real, fake):
   ax.set_ylabel('Covariance')
 
   plt.tight_layout()
-  plt.savefig(filename, dpi=120, format='pdf', transparent=True)
+  plt.savefig(filename, dpi=120, format=hparams.format, transparent=True)
   plt.close()
 
   print('saved covariance figure to {}'.format(filename))
@@ -180,12 +180,12 @@ def main(hparams):
   if hparams.save_plots:
     plot_firing_rate(
         hparams,
-        filename=os.path.join(hparams.output_dir, 'dg_firing_rate.pdf'),
+        filename=os.path.join('diagrams', f'dg_firing_rate.{hparams.format}'),
         real=real_firing_rate,
         fake=fake_firing_rate)
     plot_covariance(
         hparams,
-        filename=os.path.join(hparams.output_dir, 'dg_covariance.pdf'),
+        filename=os.path.join('diagrams', f'dg_covariance..{hparams.format}'),
         real=real_covariance,
         fake=fake_covariance)
 
@@ -206,6 +206,7 @@ if __name__ == '__main__':
   parser.add_argument('--output_dir', default='runs', type=str)
   parser.add_argument('--num_trials', default=5, type=int)
   parser.add_argument('--save_plots', action='store_true')
+  parser.add_argument('--format', default='pdf', choices=['pdf', 'png'])
   hparams = parser.parse_args()
 
   warnings.simplefilter(action='ignore', category=UserWarning)
