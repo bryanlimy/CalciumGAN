@@ -12,26 +12,25 @@
 
 ### 1.1 Requirements
 - It is recommended to install the codebase in a virtual environment, 
-such as [conda](https://conda.io/en/latest/).
+such as [miniconda](https://docs.conda.io/en/latest/miniconda.html).
 
 ### 1.2 Quick install
-- Create a new `conda` environment in Python 3.6
-    ```bash
-    conda create -n calciumgan python=3.6
+- Create a new `conda` environment in Python 3.8
+    ```
+    conda create -n calciumgan python=3.8
     ```
 - Activate `calciumgan` virtual environment
-    ```bash
+    ```
     conda activate calciumgan
     ```
 - Install all dependencies and packages with `setup.sh` script, works on both Linus and macOS.
-    ```bash
+    ```
     sh setup.sh
     ```
 
 ### 1.3 Manual setup
 Install the following packages:
 - [TensorFlow](https://tensorflow.org)
-- [j-friedrich/OASIS](https://github.com/j-friedrich/OASIS)
 - [Neo](https://github.com/NeuralEnsemble/python-neo)
 - [Elephant](https://github.com/NeuralEnsemble/elephant)
 - packages in `requirements.txt`
@@ -39,21 +38,14 @@ Install the following packages:
 used for the dichotomized Gaussian model
 
 ## 2. Dataset
-- Navigate to `dataset`
-    ```bash
-    cd dataset
-    ```
 
 ### 2.1 Recorded Calcium Imaging Data
+- Navigate to [dataset](dataset)
 - Place all raw calcium imaging data under `dataset/raw_data`
-- Apply OASIS to infer spike train
-    ```bash
-    python spike_train_inference.py --input_dir raw_data
-    ```
 - Generate `TFRecords` from a specific pickle file `--input`, normalize the 
 data, preform segmentation and store the `TFrecords` in `output_dir`. 
 Use `--help` to see all available arguments.
-    ```bash
+    ```
     python generate_tfrecords.py --input raw_data/signals.pkl --output_dir tfrecords/sl2048 --sequence_length 2048 --normalize
     ```
 
@@ -62,13 +54,13 @@ Use `--help` to see all available arguments.
 Dichomotized Gaussian distribution with the mean and covariance of data in 
 `--input`, save the the output pickle file to `--output`. `TFRecords` in `--output_dir`. Use `--help` to 
 see all available arguments.
-    ```bash
+    ```
     python generate_dg_data.py --input raw_data/signals.pkl --output dg.pkl
     ```
 - Generate `TFRecords` from a specific pickle file `--input`, normalize the 
 data, preform segmentation and store the `TFrecords` in `output_dir`. 
 Use `--help` to see all available arguments.
-    ```bash
+    ```
     python generate_tfrecords.py --input dg.pkl --output_dir tfrecords/sl2048_dg --sequence_length 2048 --normalize
     ```
 
@@ -76,7 +68,7 @@ Use `--help` to see all available arguments.
 - To train CalciumGAN on the recorded calcium imaging data with the default 
 hyper-parameters for 400 epochs. Checkpoints, generated data, model training
 information are stored in `--output_dir`.
-    ```bash
+    ```
     python main.py --input_dir dataset/tfrecords/sl2048 --output_dir runs/001 --epochs 400 --batch_size 128 --model calciumgan --algoirthm wgan-gp --noise_dim 32 --num_units 64 --kernel_size 24 --strides 2 --m 10 --layer_norm --mixed_precision --save_generated last 
     ```
 - Use `--help` to check all available arguments. Mixed precision compute, 
