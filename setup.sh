@@ -1,7 +1,7 @@
 #!/bin/sh
 
-current_dir="$(pwd)"
 macOS=false
+current_dir="$(pwd)"
 
 check_requirements() {
   case "$(uname -s)" in
@@ -14,49 +14,43 @@ check_requirements() {
       printf 'Installing on Linux...'
       ;;
     *)
-      printf 'Only Linux and macOS systems are currently supported.'
+      printf 'The installation script only support Linux and macOS.'
       exit 1
       ;;
   esac
 }
 
 install_python_packages() {
-  printf '\nInstall tensorflow\n'
+  printf '\nInstalling tensorflow...'
   if [ "$macOS" = "true" ]; then
-    python3 -m pip install tensorflow==2.3.1
+    pip install -q tensorflow==2.4.1
   else
-    conda install cudatoolkit=10.1 cudnn=7.6 cupti=10.1 numpy blas scipy -y
-    python3 -m pip install tensorflow==2.3.1
+    conda install -q -c nvidia cudatoolkit=11.0 cudnn=8.0 nccl -y
+    pip install -q tensorflow==2.4.1
   fi
-  printf '\nInstall Python packages\n'
-  python3 -m pip install -r requirements.txt
+  printf '\nInstalling other Python packages...'
+  pip install -q -r requirements.txt
 }
 
-install_oasis() {
-  printf '\nInstalling OASIS...'
-  cd "$current_dir" || exit 1
-  printf '\nInstalling Gurobi...'
-  conda config --add channels http://conda.anaconda.org/gurobi
-  conda install gurobi -y
-  printf '\nInstalling Mosek...'
-  conda install -c mosek mosek -y
-  git clone https://github.com/j-friedrich/OASIS.git oasis
-  cd oasis || exit 1
-  python3 setup.py build_ext --inplace
-  python3 -m pip install -e .
-}
-
-install_elephant() {
-  printf '\nInstalling Elephant...'
-  cd "$current_dir" || exit 1
-  git clone git://github.com/NeuralEnsemble/elephant.git elephant
-  cd elephant || exit 1
-  python3 setup.py install
+set_python_path() {
+  path='PYTHONPATH=$PYTHONPATH:'$current_dir
+  case $SHELL in
+    */zsh)
+      printf "\nUpdating ~/.zshrc to set PYTHONPATH..."
+      echo "# slowMRI PYTHONPATH\nexport $path\n" >> ~/.zshrc
+      ;;
+    */bash)
+      printf "\nUpdating ~/.bashrc to set PYTHONPATH..."
+      echo "# slowMRI PYTHONPATH\nexport $path\n" >> ~/.bashrc
+      ;;
+    *)
+      ;;
+  esac
+  printf "\nPlease run export $path\n"
 }
 
 check_requirements
 install_python_packages
-install_oasis
-install_elephant
+set_python_path
 
 printf '\nSetup completed.'

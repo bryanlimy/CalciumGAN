@@ -11,20 +11,9 @@ from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
 
+from calciumgan.utils import utils
+
 np.random.seed(1234)
-
-
-def split(sequence, n):
-  """ divide sequence into n sub-sequence evenly """
-  k, m = divmod(len(sequence), n)
-  return [
-      sequence[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)
-  ]
-
-
-def normalize(x, x_min, x_max):
-  """ scale x to be between 0 and 1 """
-  return (x - x_min) / (x_max - x_min)
 
 
 def fft(signals):
@@ -115,7 +104,7 @@ def get_segments(hparams):
   hparams.signals_max = np.max(signals)
   if hparams.normalize:
     print('\napply normalization')
-    signals = normalize(signals, hparams.signals_min, hparams.signals_max)
+    signals = utils.normalize(signals, hparams.signals_min, hparams.signals_max)
     print('signals min {:.04f}, max {:.04f}, mean {:.04f}'.format(
         np.min(signals), np.max(signals), np.mean(signals)))
 
@@ -169,7 +158,7 @@ def write_to_records(hparams, mode, signals, spikes, indexes):
   else:
     hparams.num_validation_shards = num_shards
 
-  sharded_indexes = split(indexes, num_shards)
+  sharded_indexes = utils.split(indexes, num_shards)
 
   for shard in range(num_shards):
     write_to_record(
@@ -270,6 +259,5 @@ if __name__ == '__main__':
       default=0.5,
       type=float,
       help='target size in GB for each TFRecord file.')
-  hparams = parser.parse_args()
 
-  main(hparams)
+  main(parser.parse_args())

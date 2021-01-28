@@ -15,8 +15,6 @@ plt.style.use('seaborn-deep')
 
 import seaborn as sns
 
-from . import utils, spike_helper
-
 
 class Summary(object):
   """ 
@@ -24,34 +22,31 @@ class Summary(object):
   evaluation
   """
 
-  def __init__(self, hparams, policy=None, spike_metrics=False):
-    self._hparams = hparams
+  def __init__(self, hparams, spike_metrics=False):
     self.spike_metrics = spike_metrics
+    self.dpi = hparams.dpi
+    self.format = 'pdf'
+    self.framerate = 24.
+    self.real_color = 'dodgerblue'
+    self.fake_color = 'orangered'
 
-    if not spike_metrics:
-      self._train_dir = hparams.output_dir
-      self._validation_dir = os.path.join(
-          os.path.join(hparams.output_dir, 'validation'))
-
-      self._profiler_dir = os.path.join(
-          os.path.join(hparams.output_dir, 'profiler'))
-
-      self.train_writer = tf.summary.create_file_writer(self._train_dir)
-      self.val_writer = tf.summary.create_file_writer(self._validation_dir)
-
-      self._policy = policy
-      self._plot_weights = hparams.plot_weights
-    else:
+    if spike_metrics:
       # for spike metrics
       self._metrics_dir = os.path.join(hparams.output_dir, 'metrics')
       self.metrics_writer = tf.summary.create_file_writer(self._metrics_dir)
       self.format = hparams.format
-
       # save plots as vector pdf
       self._vector_dir = os.path.join(self._metrics_dir, 'plots')
       if os.path.exists(self._vector_dir):
         shutil.rmtree(self._vector_dir)
       os.makedirs(self._vector_dir)
+    else:
+      self.profiler_dir = os.path.join(
+          os.path.join(hparams.output_dir, 'profiler'))
+      self.train_writer = tf.summary.create_file_writer(hparams.output_dir)
+      self.val_writer = tf.summary.create_file_writer(
+          os.path.join(os.path.join(hparams.output_dir, 'validation')))
+      self.plot_weights = hparams.plot_weights
 
     tick_size = 12
     legend_size = 12
@@ -62,20 +57,13 @@ class Summary(object):
     plt.rc('axes', labelsize=label_size)
     plt.rc('legend', fontsize=legend_size)
 
-    self.dpi = hparams.dpi
-    self.framerate = 24
-
-    self.real_color = 'dodgerblue'
-    self.fake_color = 'orangered'
-
   def _get_writer(self, training):
     if self.spike_metrics:
       return self.metrics_writer
+    elif training:
+      return self.train_writer
     else:
-      return self.train_writer if training else self.val_writer
-
-  def _get_loss_scale(self):
-    return self._policy.loss_scale._current_loss_scale if self._policy else None
+      return self.val_writer
 
   def _plot_to_png(self):
     """
@@ -106,17 +94,15 @@ class Summary(object):
       tf.summary.histogram(tag, values, step=step)
 
   def image(self, tag, values, step=0, training=True):
-    if type(values) == list:
-      values = tf.stack(values)
     writer = self._get_writer(training)
     with writer.as_default():
-      tf.summary.image(tag, data=values, step=step, max_outputs=values.shape[0])
+      tf.summary.image(tag, data=values, step=step, max_outputs=len(values))
 
   def profiler_trace(self):
     tf.summary.trace_on(graph=True, profiler=True)
 
   def profiler_export(self):
-    tf.summary.trace_export(name='models', profiler_outdir=self._profiler_dir)
+    tf.summary.trace_export(name='models', profiler_outdir=self.profiler_dir)
 
   def plot_traces(self,
                   tag,
@@ -133,8 +119,6 @@ class Summary(object):
                   spike_label='spike',
                   plots_per_row=3):
     assert len(signals.shape) == 2 and len(spikes.shape) == 2
-
-    images = []
 
     if tf.is_tensor(signals):
       signals = signals.numpy()
@@ -199,11 +183,11 @@ class Summary(object):
       plt.tight_layout()
 
     plt.tight_layout()
-    images.append(self._plot_to_png())
+    image = self._plot_to_png()
     self.save_vector_plot(tag)
     plt.close()
 
-    self.image(tag, values=images, step=step, training=training)
+    self.image(tag, values=[image], step=step, training=training)
 
   def raster_plot(self,
                   tag,
@@ -214,7 +198,6 @@ class Summary(object):
                   legend_labels=None,
                   step=0,
                   training=True):
-    images = []
     real_x, real_y = np.nonzero(real_spikes)
     fake_x, fake_y = np.nonzero(fake_spikes)
 
@@ -308,11 +291,11 @@ class Summary(object):
           framealpha=1)
 
     plt.tight_layout()
-    images.append(self._plot_to_png())
+    image = self._plot_to_png()
     self.save_vector_plot(tag)
     plt.close()
 
-    self.image(tag, values=images, step=step, training=training)
+    self.image(tag, values=[image], step=step, training=training)
 
   def plot_distribution(self,
                         tag,
@@ -323,8 +306,6 @@ class Summary(object):
                         bins=30,
                         step=0,
                         training=False):
-    images = []
-
     fig = plt.figure(figsize=(5, 4))
     fig.patch.set_facecolor('white')
     ax = sns.distplot(
@@ -336,11 +317,11 @@ class Summary(object):
     if title:
       ax.set_title(title)
     plt.tight_layout()
-    images.append(self._plot_to_png())
+    image = self._plot_to_png()
     self.save_vector_plot(tag)
     plt.close()
 
-    self.image(tag, values=images, step=step, training=training)
+    self.image(tag, values=[image], step=step, training=training)
 
   def plot_histogram(self,
                      tag,
@@ -352,8 +333,6 @@ class Summary(object):
                      training=False,
                      legend_labels=None):
     assert type(data) == tuple
-    images = []
-
     fig = plt.figure(figsize=(12, 10))
     fig.patch.set_facecolor('white')
 
@@ -388,11 +367,11 @@ class Summary(object):
     ax.spines['right'].set_visible(False)
 
     plt.tight_layout()
-    images.append(self._plot_to_png())
+    image = self._plot_to_png()
     self.save_vector_plot(tag)
     plt.close()
 
-    self.image(tag, values=images, step=step, training=training)
+    self.image(tag, values=[image], step=step, training=training)
 
   def plot_histograms_grid(self,
                            tag,
@@ -405,8 +384,6 @@ class Summary(object):
                            legend_labels=None,
                            plots_per_row=3):
     assert type(data) == list and type(data[0]) == tuple
-    images = []
-
     num_rows, rem = divmod(len(data), plots_per_row)
     if rem > 0:
       num_rows += 1
@@ -414,7 +391,6 @@ class Summary(object):
     fig = plt.figure(figsize=(5 * plots_per_row, 5 * num_rows))
     fig.patch.set_facecolor('white')
 
-    current_row = 0
     for i in range(len(data)):
       plt.subplot(num_rows, plots_per_row, i + 1)
 
@@ -459,13 +435,12 @@ class Summary(object):
       if current_row == num_rows - 1:
         ax.set_xlabel(xlabel)
 
-
     plt.tight_layout()
-    images.append(self._plot_to_png())
+    image = self._plot_to_png()
     self.save_vector_plot(tag)
     plt.close()
 
-    self.image(tag, values=images, step=step, training=training)
+    self.image(tag, values=[image], step=step, training=training)
 
   def plot_heatmaps_grid(self,
                          tag,
@@ -479,7 +454,6 @@ class Summary(object):
                          training=False,
                          plots_per_row=3):
     assert type(matrix) == list and type(matrix[0]) == np.ndarray
-    images = []
 
     num_rows, rem = divmod(len(matrix), plots_per_row)
     if rem > 0:
@@ -514,11 +488,11 @@ class Summary(object):
       plt.tight_layout()
 
     plt.tight_layout()
-    images.append(self._plot_to_png())
+    image = self._plot_to_png()
     self.save_vector_plot(tag)
     plt.close()
 
-    self.image(tag, values=images, step=step, training=training)
+    self.image(tag, values=[image], step=step, training=training)
 
   def variable_summary(self, variable, name=None, step=0, training=True):
     if name is None:
@@ -578,11 +552,5 @@ class Summary(object):
         self.scalar(tag, value, step=step, training=training)
     if elapse is not None:
       self.scalar('elapse', elapse, step=step, training=training)
-    if gan is not None and self._plot_weights:
+    if gan is not None and self.plot_weights:
       self.plot_weights(gan, step=step, training=training)
-    if not training and self._policy is not None:
-      self.scalar(
-          'model/loss_scale',
-          self._get_loss_scale(),
-          step=step,
-          training=training)

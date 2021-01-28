@@ -5,29 +5,17 @@ from time import time
 from tqdm import tqdm
 import tensorflow as tf
 from shutil import rmtree
-
-from tensorflow.keras.mixed_precision import experimental as mixed_precision
+from tensorflow.keras import mixed_precision
 
 np.random.seed(1234)
 tf.random.set_seed(1234)
 
-from gan.utils import utils
-from gan.utils import spike_helper
-from gan.models.registry import get_models
-from gan.utils.summary_helper import Summary
-from gan.utils.dataset_helper import get_dataset
-from gan.algorithms.registry import get_algorithm
-
-
-def set_precision_policy(hparams):
-  policy = None
-  if hparams.mixed_precision:
-    policy = mixed_precision.Policy('mixed_float16')
-    mixed_precision.set_policy(policy)
-    if hparams.verbose:
-      print('\nCompute dtype: {}\nVariable dtype: {}\n'.format(
-          policy.compute_dtype, policy.variable_dtype))
-  return policy
+from calciumgan.utils import utils
+from calciumgan.utils import spike_helper
+from calciumgan.models.registry import get_models
+from calciumgan.utils.summary_helper import Summary
+from calciumgan.utils.dataset_helper import get_dataset
+from calciumgan.algorithms.registry import get_algorithm
 
 
 def train(hparams, train_ds, gan, summary, epoch):
@@ -186,6 +174,9 @@ def main(hparams, return_metrics=False):
     rmtree(hparams.output_dir)
 
   tf.keras.backend.clear_session()
+
+  if hparams.mixed_precision:
+    mixed_precision.set_global_policy('mixed_float16')
 
   hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
 

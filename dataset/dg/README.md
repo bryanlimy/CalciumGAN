@@ -1,0 +1,2 @@
+Dichotomized Gaussian model from [github.com/mackelab/dg_python](https://github.com/mackelab/dg_python).
+Specifically [mackelab/dg_python/dg_python/dichot_gauss.py](https://github.com/mackelab/dg_python/blob/master/dg_python/dichot_gauss.py) and [mackelab/dg_python/dg_python/optim_dichot_gauss.py](https://github.com/mackelab/dg_python/blob/master/dg_python/optim_dichot_gauss.py)

@@ -1,23 +1,21 @@
 import os
 import pickle
 import random
-import platform
 import argparse
 import warnings
 import numpy as np
 import pandas as pd
 from time import time
-import multiprocessing
+from multiprocessing import Pool
 
-warnings.simplefilter(action='ignore', category=UserWarning)
-warnings.simplefilter(action='ignore', category=RuntimeWarning)
-warnings.simplefilter(action='ignore', category=DeprecationWarning)
+# use CPU only
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-from gan.utils import utils
-from gan.utils import h5_helper
-from gan.utils import spike_metrics
-from gan.utils import spike_helper
-from gan.utils.summary_helper import Summary
+from calciumgan.utils import utils
+from calciumgan.utils import h5_helper
+from calciumgan.utils import spike_metrics
+from calciumgan.utils import spike_helper
+from calciumgan.utils.summary_helper import Summary
 
 
 def set_seed(seed):
@@ -42,7 +40,7 @@ def deconvolve_from_file(hparams, filename, return_spikes=False):
   if hparams.verbose:
     print('\tDeconvolve {}'.format(filename))
 
-  pool = multiprocessing.Pool(hparams.num_processors)
+  pool = Pool(hparams.num_processors)
   fake_spikes = pool.starmap(
       deconvolve_neuron,
       [(hparams, filename, n) for n in range(hparams.num_neurons)])
@@ -220,7 +218,7 @@ def firing_rate_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing firing rate')
 
-  pool = multiprocessing.Pool(hparams.num_processors)
+  pool = Pool(hparams.num_processors)
   firing_rate_pairs = pool.starmap(firing_rate,
                                    [(hparams, filename, n, hparams.num_samples)
                                     for n in range(hparams.num_neurons)])
@@ -274,7 +272,7 @@ def covariance_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing covariance')
 
-  pool = multiprocessing.Pool(hparams.num_processors)
+  pool = Pool(hparams.num_processors)
   covariances = pool.starmap(
       covariance, [(hparams, filename, i) for i in range(hparams.num_samples)])
   pool.close()
@@ -327,7 +325,7 @@ def correlation_coefficient_metrics(hparams, summary, filename, epoch):
   if hparams.verbose:
     print('\tComputing correlation coefficient')
 
-  pool = multiprocessing.Pool(hparams.num_processors)
+  pool = Pool(hparams.num_processors)
   correlations = pool.starmap(
       correlation_coefficient,
       [(hparams, filename, i) for i in range(hparams.num_samples)])
@@ -442,7 +440,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     print('\tComputing van-rossum distance')
 
   # compute van-Rossum distance heatmap
-  pool = multiprocessing.Pool(hparams.num_processors)
+  pool = Pool(hparams.num_processors)
   results = pool.starmap(neuron_van_rossum,
                          [(hparams, filename, n, 45) for n in hparams.neurons])
   pool.close()
@@ -466,7 +464,7 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
       plots_per_row=hparams.plots_per_row)
 
   # compute van rossum distance KL divergence
-  pool = multiprocessing.Pool(hparams.num_processors)
+  pool = Pool(hparams.num_processors)
   van_rossum_pairs = pool.starmap(
       trial_van_rossum,
       [(hparams, filename, i) for i in range(hparams.num_samples)])
@@ -547,14 +545,6 @@ def main(hparams):
 
 
 if __name__ == '__main__':
-
-
-  if platform.system() == 'Darwin':
-    multiprocessing.set_start_method('spawn')
-
-  # use CPU only
-  os.environ["CUDA_VISIBLE_DEVICES"] = ""
-
   parser = argparse.ArgumentParser()
   parser.add_argument('--output_dir', default='runs')
   parser.add_argument('--num_processors', default=6, type=int)
@@ -563,9 +553,12 @@ if __name__ == '__main__':
   parser.add_argument('--num_trial_plots', default=6, type=int)
   parser.add_argument('--plots_per_row', default=3, type=int)
   parser.add_argument('--dpi', default=120, type=int)
-  parser.add_argument('--format', default='pdf', choices=['pdf', 'png'])
   parser.add_argument('--verbose', default=1, type=int)
   parser.add_argument('--seed', default=12, type=int)
   hparams = parser.parse_args()
+
+  warnings.simplefilter(action='ignore', category=UserWarning)
+  warnings.simplefilter(action='ignore', category=RuntimeWarning)
+  warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
   main(hparams)

@@ -1,4 +1,3 @@
 raw_data/
-*.record
-dg/*.pkl
-
+tfrecords/
+*.pkl

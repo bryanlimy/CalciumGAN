@@ -1,3 +1,5 @@
+# Code copied from https://github.com/mackelab/dg_python/blob/master/dg_python/dichot_gauss.py
+
 import warnings
 import numpy as np
 from numpy.linalg import LinAlgError
@@ -37,7 +39,7 @@ class Higham:
     Converts an input symmetric matrix M into a positive semi-definite 
     matrix A using the Higham iterative projection algorithm to minimize the 
     Frobenius norm between A and M.
-    
+
     Reference: NJ Higham, Computing the nearest correlation matrix - a problem 
     from finance, IMA Journal of Numerical Analysis, 2002
 
@@ -102,22 +104,22 @@ class Higham:
 
 class DichotGauss:
   """
-    Creates dichotomous Gaussian model. The model takes the mean and 
-    correlation of a multivariate Gaussian as input and generates binary 
-    population spike trains, assuming that they are independent across 
-    timebins, but have fixed correlations across neurons in each timebin.
-    
-    Inputs:
-      :param num_neur: number of neurons.
-      :param mean: mean of multivariate Gaussian. Default is zero for all 
-                  timebins and neurons.
-      :param corr: fixed correlation matrix for multivariate Gaussian, assumed 
-                  to be symmetric. Default is the identity matrix.
-      :param make_pd: set to True to make input correlation matrix positive 
-                      definite using Higham algorithm.
-      :param kwargs: hyper-parameters for class Higham which performs the 
-                    Higham correction (see help(Higham)).
-    """
+  Creates dichotomous Gaussian model. The model takes the mean and 
+  correlation of a multivariate Gaussian as input and generates binary 
+  population spike trains, assuming that they are independent across 
+  timebins, but have fixed correlations across neurons in each timebin.
+
+  Inputs:
+    :param num_neur: number of neurons.
+    :param mean: mean of multivariate Gaussian. Default is zero for all 
+                timebins and neurons.
+    :param corr: fixed correlation matrix for multivariate Gaussian, assumed 
+                to be symmetric. Default is the identity matrix.
+    :param make_pd: set to True to make input correlation matrix positive 
+                    definite using Higham algorithm.
+    :param kwargs: hyper-parameters for class Higham which performs the 
+                  Higham correction (see help(Higham)).
+  """
 
   def __init__(self, num_neur, mean=None, corr=None, make_pd=False, **kwargs):
     super(DichotGauss, self).__init__()
@@ -144,18 +146,18 @@ class DichotGauss:
 
   def sample(self, mean=None, corr=None, repeats=1):
     """
-      Samples binary spike trains from DG model with input mean and 
-      correlation matrix.
-      
-      Inputs:
-        :param mean: mean of multivariate Gaussian of size 
-                    (timebins x number of neurons).
-        :param corr: correlation matrix for multivariate Gaussian of size 
-                    (number of neurons x number of neurons).
-        :param repeats: number of binary spike trains to generate for the 
-                      given mean and covariance matrix.
-      Returns:
-        :return: binary spike count tensor of size timebins x repeats x neurons
+    Samples binary spike trains from DG model with input mean and 
+    correlation matrix.
+
+    Inputs:
+      :param mean: mean of multivariate Gaussian of size 
+                  (timebins x number of neurons).
+      :param corr: correlation matrix for multivariate Gaussian of size 
+                  (number of neurons x number of neurons).
+      :param repeats: number of binary spike trains to generate for the 
+                    given mean and covariance matrix.
+    Returns:
+      :return: binary spike count tensor of size timebins x repeats x neurons
     """
     if mean is None:
       mean = self.mean
@@ -180,8 +182,8 @@ class DichotGauss:
 
   def do_higham_correction(self, M):
     """
-      Finds nearest positive definite matrix to the input matrix using the 
-      Higham algorithm.
+    Finds nearest positive definite matrix to the input matrix using the 
+    Higham algorithm.
     """
     # Check if input matrix is already positive definite.
     is_pd = self._check_pd(M)

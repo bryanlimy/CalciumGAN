@@ -1,11 +1,9 @@
 tqdm
-matplotlib==3.2.2
-sklearn
-scipy==1.4.1
-cython==0.29.14
-cvxpy==1.0.25
+scipy
 jupyter
-jupyterlab
-jupyter_http_over_ws
+sklearn
 seaborn==0.10.1
+elephant
+matplotlib
 memory_profiler
+jupyter_http_over_ws
