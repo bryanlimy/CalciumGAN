@@ -37,11 +37,11 @@ set_python_path() {
   case $SHELL in
     */zsh)
       printf "\nUpdating ~/.zshrc to set PYTHONPATH..."
-      echo "# slowMRI PYTHONPATH\nexport $path\n" >> ~/.zshrc
+      echo "# CalciumGAN PYTHONPATH\nexport $path\n" >> ~/.zshrc
       ;;
     */bash)
       printf "\nUpdating ~/.bashrc to set PYTHONPATH..."
-      echo "# slowMRI PYTHONPATH\nexport $path\n" >> ~/.bashrc
+      echo "# CalciumGAN PYTHONPATH\nexport $path\n" >> ~/.bashrc
       ;;
     *)
       ;;
