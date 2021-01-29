@@ -57,8 +57,8 @@ def main(hparams):
 
   summary = Summary(hparams)
   train_ds, validation_ds = get_dataset(hparams, summary)
-  generator, discriminator = get_models(hparams, summary)
-  gan = get_algorithm(hparams, generator, discriminator)
+  G, D = get_models(hparams, summary)
+  gan = get_algorithm(hparams, G, D)
 
   utils.save_hparams(hparams)
 
@@ -87,6 +87,7 @@ def main(hparams):
 
   utils.save_models(hparams, gan)
   utils.save_samples(hparams, validation_ds, gan)
+  utils.deconvolve_samples(hparams)
 
   # generate dataset for surrogate metrics
   if hparams.surrogate_ds:

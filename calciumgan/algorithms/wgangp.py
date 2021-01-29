@@ -1,95 +1,94 @@
 from .registry import register
 
-import numpy as np
 import tensorflow as tf
 
-from .gan import GAN
+from calciumgan.algorithms.gan import GAN
+from calciumgan.utils.utils import update_dict
 
 
 @register('wgangp')
 class WGANGP(GAN):
 
-  def __init__(self, hparams, generator, discriminator):
-    super().__init__(hparams, generator, discriminator)
+  def __init__(self, hparams, G, D):
+    super(GAN, self).__init__(hparams, G, D)
 
-    self.penalty = hparams.gradient_penalty
+    self.penalty_coefficient = hparams.gradient_penalty
     self.n_critic = hparams.n_critic
     self.conv2d = hparams.conv2d
 
-  def generator_loss(self, fake_output):
-    return -tf.reduce_mean(fake_output)
+  def generator_loss(self, discriminate_fake):
+    return -tf.reduce_mean(discriminate_fake)
 
   def _train_generator(self, inputs):
+    result = {}
     noise = self.get_noise(batch_size=inputs.shape[0])
+    with tf.GradientTape(persistent=True) as tape:
+      fake = self.G(noise, training=True)
+      discriminate_fake = self.D(fake, training=True)
+      G_loss = self.generator_loss(discriminate_fake)
+      result.update({'G_loss': G_loss})
+      if self.mixed_precision:
+        G_loss = self.G_optimizer.get_scaled_loss(G_loss)
+    self.G_optimizer.minimize(self.G, G_loss, tape)
+    return result
 
-    with tf.GradientTape() as tape:
-      fake = self.generator(noise, training=True)
-      fake_output = self.discriminator(fake, training=True)
-
-      gen_loss = self.generator_loss(fake_output)
-      scaled_loss = self.gen_optimizer.get_scaled_loss(gen_loss)
-
-    self.gen_optimizer.update(self.generator, scaled_loss, tape)
-
-    metrics = self.metrics(real=inputs, fake=fake)
-
-    return gen_loss, metrics
-
-  def interpolation(self, real, fake):
+  def interpolate(self, real, fake):
     shape = (real.shape[0], 1, 1, 1) if self.conv2d else (real.shape[0], 1, 1)
     alpha = tf.random.uniform(shape, minval=0.0, maxval=1.0)
     return (alpha * real) + ((1 - alpha) * fake)
 
   def gradient_penalty(self, real, fake, training=True):
-    interpolated = self.interpolation(real, fake)
+    interpolated = self.interpolate(real, fake)
     with tf.GradientTape() as tape:
       tape.watch(interpolated)
-      interpolated_output = self.discriminator(interpolated, training=training)
-    gradient = tape.gradient(interpolated_output, interpolated)
+      discriminate_interpolated = self.D(interpolated, training=training)
+    gradient = tape.gradient(discriminate_interpolated, interpolated)
     norm = tf.norm(tf.reshape(gradient, shape=(gradient.shape[0], -1)), axis=1)
     return tf.reduce_mean(tf.square(norm - 1.0))
 
-  def discriminator_loss(self,
-                         real_output,
-                         fake_output,
-                         real=None,
-                         fake=None,
-                         training=True):
-    real_loss = -tf.reduce_mean(real_output)
-    fake_loss = tf.reduce_mean(fake_output)
-    gradient_penalty = self.gradient_penalty(real, fake, training=training)
-    loss = real_loss + fake_loss + self.penalty * gradient_penalty
-    return loss, gradient_penalty
+  def discriminator_loss(self, discriminate_real, discriminate_fake):
+    real_loss = -tf.reduce_mean(discriminate_real)
+    fake_loss = tf.reduce_mean(discriminate_fake)
+    return real_loss + fake_loss
 
   def _train_discriminator(self, inputs):
+    result = {}
     noise = self.get_noise(batch_size=inputs.shape[0])
-
-    with tf.GradientTape() as tape:
-      fake = self.generator(noise, training=True)
-
-      real_output = self.discriminator(inputs, training=True)
-      fake_output = self.discriminator(fake, training=True)
-
-      dis_loss, gradient_penalty = self.discriminator_loss(
-          real_output, fake_output, real=inputs, fake=fake, training=True)
-
-      scaled_loss = self.dis_optimizer.get_scaled_loss(dis_loss)
-
-    self.dis_optimizer.update(self.discriminator, scaled_loss, tape)
-
-    return dis_loss, gradient_penalty
+    with tf.GradientTape(persistent=True) as tape:
+      fake = self.G(noise, training=True)
+      discriminate_real = self.D(inputs, training=True)
+      discriminate_fake = self.D(fake, training=True)
+      D_loss = self.discriminator_loss(discriminate_real, discriminate_fake)
+      gradient_penalty = self.gradient_penalty(inputs, fake, training=True)
+      result.update({'D_loss': D_loss, 'gradient_penalty': gradient_penalty})
+      D_loss += self.penalty_coefficient * gradient_penalty
+      if self.mixed_precision:
+        D_loss = self.D_optimizer.get_scaled_loss(D_loss)
+    self.D_optimizer.minimize(self.D, D_loss, tape)
+    return result
 
   @tf.function
   def train(self, inputs):
-    dis_losses, gradient_penalties = [], []
+    result = {}
     for i in range(self.n_critic):
-      dis_loss, gradient_penalty = self._train_discriminator(inputs)
-      dis_losses.append(dis_loss)
-      gradient_penalties.append(gradient_penalty)
+      D_result = self._train_discriminator(inputs)
+      update_dict(result, D_result)
+    G_result = self._train_generator(inputs)
+    update_dict(result, G_result)
+    return {key: tf.reduce_mean(value) for key, value in result.items()}
 
-    gen_loss, metrics = self._train_generator(inputs)
-
-    dis_loss = tf.reduce_mean(dis_losses)
-    gradient_penalty = tf.reduce_mean(gradient_penalties)
-
-    return gen_loss, dis_loss, gradient_penalty, metrics
+  @tf.function
+  def validation(self, inputs):
+    result = {}
+    fake = self.G(inputs, training=False)
+    discriminate_real = self.D(inputs, training=False)
+    discriminate_fake = self.D(fake, training=False)
+    G_loss = self.generator_loss(discriminate_fake)
+    D_loss = self.discriminator_loss(discriminate_real, discriminate_fake)
+    gradient_penalty = self.gradient_penalty(inputs, fake, training=False)
+    result.update({
+        'G_loss': G_loss,
+        'D_loss': D_loss,
+        'gradient_penalty': gradient_penalty
+    })
+    return result

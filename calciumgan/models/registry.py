@@ -18,19 +18,19 @@ def get_models(hparams, summary):
     print('model {} not found'.format(hparams.model))
     exit()
 
-  generator, discriminator = _MODELS[hparams.model](hparams)
+  G, D = _MODELS[hparams.model](hparams)
 
   summary.scalar('model/trainable_parameters/generator',
-                 utils.count_trainable_params(generator))
+                 utils.count_trainable_params(G))
   summary.scalar('model/trainable_parameters/discriminator',
-                 utils.count_trainable_params(discriminator))
+                 utils.count_trainable_params(D))
 
-  gen_summary = utils.model_summary(hparams, generator)
-  disc_summary = utils.model_summary(hparams, discriminator)
+  G_summary = utils.model_summary(hparams, G)
+  D_summary = utils.model_summary(hparams, D)
 
   if hparams.verbose == 2:
-    print(gen_summary)
+    print(G_summary)
     print('')
-    print(disc_summary)
+    print(D_summary)
 
-  return generator, discriminator
+  return G, D

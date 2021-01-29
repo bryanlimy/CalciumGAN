@@ -7,6 +7,7 @@ from tqdm import tqdm
 import tensorflow as tf
 
 from calciumgan.utils import h5_helper as h5
+from calciumgan.utils.cascade.spike_inference import spike_inference
 
 
 def split_index(length, n):
@@ -16,18 +17,18 @@ def split_index(length, n):
 
 
 def split(sequence, n):
-  """ divide sequence into n sub-sequences evenly"""
+  """ divide sequence into n sub-sequences evenly """
   indexes = split_index(len(sequence), n)
   return [sequence[indexes[i][0]:indexes[i][1]] for i in range(len(indexes))]
 
 
 def normalize(x, x_min, x_max):
-  ''' scale x to be between 0 and 1 '''
+  """ scale x to be between 0 and 1 """
   return (x - x_min) / (x_max - x_min)
 
 
 def denormalize(x, x_min, x_max):
-  ''' re-scale signals back to its original range '''
+  """ re-scale signals back to its original range """
   return x * (x_max - x_min) + x_min
 
 
@@ -61,7 +62,7 @@ def ifft(signals):
 
 
 def reverse_preprocessing(hparams, x):
-  ''' reverse the preprocessing on data so that it matches the input data '''
+  """ reverse the preprocessing on data so that it matches the input data """
   if hparams.normalize:
     x = denormalize(x, x_min=hparams.signals_min, x_max=hparams.signals_max)
 
@@ -88,7 +89,7 @@ def plot_samples(hparams, summary, signals, step=0, tag='traces'):
 
 
 def get_current_git_hash():
-  ''' return the current Git hash '''
+  """ return the current Git hash """
   return subprocess.check_output(['git', 'describe',
                                   '--always']).strip().decode()
 
@@ -188,11 +189,11 @@ def save_models(hparams, gan):
 
 
 def get_array_format(shape, hparams):
-  ''' get the array data format in string
+  """ get the array data format in string
   N: number of samples
   W: sequence length
   C: number of channels
-  '''
+  """
   assert len(shape) <= 3
   return ''.join([
       'W' if s == hparams.sequence_length else
@@ -201,7 +202,7 @@ def get_array_format(shape, hparams):
 
 
 def set_array_format(array, data_format, hparams):
-  ''' set array to the given data format '''
+  """ set array to the given data format """
   assert len(array.shape) == len(data_format)
 
   current_format = get_array_format(array.shape, hparams)
@@ -240,3 +241,19 @@ def generate_dataset(hparams, gan, num_samples=1000):
 
   if hparams.verbose:
     print('save {} samples to {}'.format(num_samples, filename))
+
+
+def deconvolve_samples(hparams):
+  if not hasattr(hparams, 'spikes_filename'):
+    hparams.spikes_filename = os.path.join(hparams.samples_dir, 'spikes.h5')
+
+  spike_inference(
+      signals_filename=hparams.signals_filename,
+      spikes_filename=hparams.spikes_filename)
+
+  update_json(
+      filename=os.path.join(hparams.output_dir, 'hparams.json'),
+      data={'spikes_filename': hparams.spikes_filename})
+
+  if hparams.verbose:
+    print(f'saved inferred spike trains to {hparams.spikes_filename}')
