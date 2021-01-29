@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 import analysis
 from calciumgan.utils import utils
-from calciumgan.utils import spike_metrics
+from calciumgan.utils import spike_helper
 
 import matplotlib
 
@@ -49,8 +49,8 @@ def get_data_statistics(hparams, filename):
   for i in tqdm(range(hparams.num_trials), desc="Trial"):
     spike_trains = analysis.get_neo_trains(
         hparams, filename, trial=i, data_format='CW')
-    firing_rates[:, i] = spike_metrics.mean_firing_rate(spike_trains)
-    covariance = spike_metrics.covariance(spikes1=spike_trains, spikes2=None)
+    firing_rates[:, i] = spike_helper.mean_firing_rate(spike_trains)
+    covariance = spike_helper.covariance(spikes1=spike_trains, spikes2=None)
     indices = np.triu_indices(len(covariance))
     covariance = np.nan_to_num(covariance[indices])
     covariances[:, i] = covariance

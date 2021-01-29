@@ -12,47 +12,11 @@ from multiprocessing import Pool
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 from calciumgan.utils import utils
-from calciumgan.utils import h5_helper
-from calciumgan.utils import spike_metrics
+from calciumgan.utils import h5
 from calciumgan.utils import spike_helper
 from calciumgan.utils.summary_helper import Summary
 
-
-def set_seed(seed):
-  random.seed(seed)
-  np.random.seed(seed)
-
-
-def load_info(hparams):
-  filename = os.path.join(hparams.generated_dir, 'info.pkl')
-  with open(filename, 'rb') as file:
-    info = pickle.load(file)
-  return info
-
-
-def deconvolve_neuron(hparams, filename, neuron):
-  signals = h5_helper.get(filename, name='signals', neuron=neuron)
-  signals = utils.set_array_format(signals, data_format='NW', hparams=hparams)
-  return spike_helper.deconvolve_signals(signals, threshold=0.5)
-
-
-def deconvolve_from_file(hparams, filename, return_spikes=False):
-  if hparams.verbose:
-    print('\tDeconvolve {}'.format(filename))
-
-  pool = Pool(hparams.num_processors)
-  fake_spikes = pool.starmap(
-      deconvolve_neuron,
-      [(hparams, filename, n) for n in range(hparams.num_neurons)])
-  pool.close()
-
-  fake_spikes = utils.set_array_format(
-      np.array(fake_spikes, dtype=np.int8), data_format='NWC', hparams=hparams)
-
-  h5_helper.write(filename, {'spikes': fake_spikes})
-
-  if return_spikes:
-    return fake_spikes
+np.random.seed(1234)
 
 
 def get_neo_trains(hparams,
@@ -63,7 +27,7 @@ def get_neo_trains(hparams,
                    num_trials=None):
   assert data_format and (neuron is not None or trial is not None)
 
-  spikes = h5_helper.get(filename, name='spikes', neuron=neuron, trial=trial)
+  spikes = h5.get(filename, key='spikes', neuron=neuron, trial=trial)
   spikes = utils.set_array_format(spikes, data_format, hparams)
 
   if num_trials is not None:
@@ -111,23 +75,21 @@ def pairs_kl_divergence(pairs):
 
 
 def plot_signals(hparams, summary, filename, epoch):
-  trial = random.randint(0, hparams.num_samples)
+  trial = np.random.randint(hparams.num_samples)
 
   if hparams.verbose:
     print('\tPlotting traces for trial #{}'.format(trial))
 
-  real_signals = h5_helper.get(
-      hparams.validation_cache, name='signals', trial=trial)
-  real_spikes = h5_helper.get(
-      hparams.validation_cache, name='spikes', trial=trial)
+  real_signals = h5.get(hparams.validation_cache, key='signals', trial=trial)
+  real_spikes = h5.get(hparams.validation_cache, key='spikes', trial=trial)
 
   real_signals = utils.set_array_format(
       real_signals, data_format='CW', hparams=hparams)
   real_spikes = utils.set_array_format(
       real_spikes, data_format='CW', hparams=hparams)
 
-  fake_signals = h5_helper.get(filename, name='signals', trial=trial)
-  fake_spikes = h5_helper.get(filename, name='spikes', trial=trial)
+  fake_signals = h5.get(filename, key='signals', trial=trial)
+  fake_spikes = h5.get(filename, key='spikes', trial=trial)
 
   fake_signals = utils.set_array_format(
       fake_signals, data_format='CW', hparams=hparams)
@@ -174,10 +136,9 @@ def raster_plots(hparams, summary, filename, epoch, trial=100):
   if hparams.verbose:
     print('\tPlotting raster plot for trial #{}'.format(trial))
 
-  real_spikes = h5_helper.get(
-      hparams.validation_cache, name='spikes', trial=trial)
+  real_spikes = h5.get(hparams.validation_cache, key='spikes', trial=trial)
   real_spikes = utils.set_array_format(real_spikes, 'CW', hparams)
-  fake_spikes = h5_helper.get(filename, name='spikes', trial=trial)
+  fake_spikes = h5.get(filename, key='spikes', trial=trial)
   fake_spikes = utils.set_array_format(fake_spikes, 'CW', hparams)
 
   summary.raster_plot(
@@ -208,8 +169,8 @@ def firing_rate(hparams, filename, neuron, num_trials=200):
       num_trials=num_trials,
   )
 
-  real_firing_rate = spike_metrics.mean_firing_rate(real_spikes)
-  fake_firing_rate = spike_metrics.mean_firing_rate(fake_spikes)
+  real_firing_rate = spike_helper.mean_firing_rate(real_spikes)
+  fake_firing_rate = spike_helper.mean_firing_rate(fake_spikes)
 
   return (real_firing_rate, fake_firing_rate)
 
@@ -258,11 +219,11 @@ def covariance(hparams, filename, trial):
 
   real_spikes = get_neo_trains(
       hparams, hparams.validation_cache, trial=trial, data_format='CW')
-  real_covariance = spike_metrics.covariance(real_spikes, None)
+  real_covariance = spike_helper.covariance(real_spikes, None)
   real_covariance = utils.remove_nan(real_covariance[diag_indices])
 
   fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
-  fake_covariance = spike_metrics.covariance(fake_spikes, None)
+  fake_covariance = spike_helper.covariance(fake_spikes, None)
   fake_covariance = utils.remove_nan(fake_covariance[diag_indices])
 
   return (real_covariance, fake_covariance)
@@ -311,11 +272,11 @@ def correlation_coefficient(hparams, filename, trial):
 
   real_spikes = get_neo_trains(
       hparams, hparams.validation_cache, trial=trial, data_format='CW')
-  real_corrcoef = spike_metrics.correlation_coefficients(real_spikes, None)
+  real_corrcoef = spike_helper.correlation_coefficients(real_spikes, None)
   real_corrcoef = utils.remove_nan(real_corrcoef[diag_indices])
 
   fake_spikes = get_neo_trains(hparams, filename, trial=trial, data_format='CW')
-  fake_corrcoef = spike_metrics.correlation_coefficients(fake_spikes, None)
+  fake_corrcoef = spike_helper.correlation_coefficients(fake_spikes, None)
   fake_corrcoef = utils.remove_nan(fake_corrcoef[diag_indices])
 
   return (real_corrcoef, fake_corrcoef)
@@ -394,7 +355,7 @@ def neuron_van_rossum(hparams, filename, neuron, num_trials=50):
   fake_spikes = get_neo_trains(
       hparams, filename, neuron=neuron, data_format='NW', num_trials=num_trials)
 
-  distances = spike_metrics.van_rossum_distance(real_spikes, fake_spikes)
+  distances = spike_helper.van_rossum_distance(real_spikes, fake_spikes)
   heatmap, row_order, column_order = sort_heatmap(distances)
 
   return {
@@ -415,7 +376,7 @@ def trial_van_rossum(hparams, filename, trial):
       trial=trial,
       data_format='CW',
   )
-  real_van_rossum = spike_metrics.van_rossum_distance(real_spikes, None)
+  real_van_rossum = spike_helper.van_rossum_distance(real_spikes, None)
 
   fake_spikes = get_neo_trains(
       hparams,
@@ -423,7 +384,7 @@ def trial_van_rossum(hparams, filename, trial):
       trial=trial,
       data_format='CW',
   )
-  fake_van_rossum = spike_metrics.van_rossum_distance(fake_spikes, None)
+  fake_van_rossum = spike_helper.van_rossum_distance(fake_spikes, None)
 
   assert real_van_rossum.shape == fake_van_rossum.shape
 
@@ -493,8 +454,6 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
 
   firing_rate_metrics(hparams, summary, filename, epoch)
 
-  # covariance_metrics(hparams, summary, filename, epoch)
-
   correlation_coefficient_metrics(hparams, summary, filename, epoch)
 
   van_rossum_metrics(hparams, summary, filename, epoch)
@@ -502,16 +461,11 @@ def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
 
 def main(hparams):
   if not os.path.exists(hparams.output_dir):
-    print('{} not found'.format(hparams.output_dir))
-    exit()
-
-  set_seed(hparams.seed)
+    raise FileNotFoundError('{} not found'.format(hparams.output_dir))
 
   utils.load_hparams(hparams)
-  info = load_info(hparams)
 
-  hparams.num_samples = min(
-      h5_helper.get_dataset_length(hparams.validation_cache, 'signals'), 1000)
+  hparams.num_samples = h5.get_length(hparams.spikes_filename, 'real')
 
   # randomly select neurons and trials to plot
   hparams.neurons = list(
@@ -554,7 +508,6 @@ if __name__ == '__main__':
   parser.add_argument('--plots_per_row', default=3, type=int)
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
-  parser.add_argument('--seed', default=12, type=int)
   hparams = parser.parse_args()
 
   warnings.simplefilter(action='ignore', category=UserWarning)

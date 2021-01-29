@@ -7,7 +7,7 @@ import numpy as np
 from tqdm import tqdm
 
 from calciumgan.utils import utils
-from calciumgan.utils import spike_helper
+from calciumgan.utils import spike_inference
 from dataset.generate_surrogate_data import spikes_to_signals
 
 import matplotlib
@@ -31,7 +31,7 @@ def load_info(hparams):
 def deconvolution(signals):
   spikes = np.zeros(signals.shape, dtype=np.int32)
   for i in tqdm(range(len(signals)), desc='Deconvolution'):
-    spikes[i] = spike_helper.deconvolve_signals(signals[i])
+    spikes[i] = spike_inference.deconvolve_signals(signals[i])
   return spikes
 
 

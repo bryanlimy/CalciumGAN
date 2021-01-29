@@ -2,96 +2,104 @@ from .registry import register
 
 import tensorflow as tf
 
-from .optimizer import Optimizer
-from ..utils import signals_metrics
-from ..utils.utils import denormalize
+from calciumgan.utils import signals_metrics
+from calciumgan.utils.utils import denormalize
+from calciumgan.algorithms.optimizer import Optimizer
 
 
 @register('gan')
 class GAN(object):
 
-  def __init__(self, hparams, generator, discriminator, summary):
-    self.generator = generator
-    self.discriminator = discriminator
+  def __init__(self, hparams, generator, discriminator):
+    self.G = generator
+    self.D = discriminator
 
-    self._summary = summary
+    self.G_optimizer = Optimizer(hparams)
+    self.D_optimizer = Optimizer(hparams)
+
     self.noise_shape = hparams.noise_shape
-    self._normalize = hparams.normalize
-    if hparams.normalize:
-      self._signals_min = hparams.signals_min
-      self._signals_max = hparams.signals_max
+    self.normalize = hparams.normalize
+    self.signals_min = hparams.signals_min
+    self.signals_max = hparams.signals_max
+    self.mixed_precision = hparams.mixed_precision
 
-    self.gen_optimizer = Optimizer(hparams)
-    self.dis_optimizer = Optimizer(hparams)
+    self.cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
-    self._cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-
-  def get_noise(self, batch_size):
+  def sample_noise(self, batch_size):
+    """ sample noise from standard normal distribution """
     return tf.random.normal((batch_size,) + self.noise_shape)
 
-  def metrics(self, real, fake):
-    if self._normalize:
-      real = denormalize(real, x_min=self._signals_min, x_max=self._signals_max)
-      fake = denormalize(fake, x_min=self._signals_min, x_max=self._signals_max)
-    return {
-        'signals_metrics/min': signals_metrics.min_signals_error(real, fake),
-        'signals_metrics/max': signals_metrics.max_signals_error(real, fake),
-        'signals_metrics/mean': signals_metrics.mean_signals_error(real, fake),
-        'signals_metrics/std': signals_metrics.std_signals_error(real, fake)
-    }
-
-  def generator_loss(self, fake_output):
-    return self._cross_entropy(tf.ones_like(fake_output), fake_output)
+  def generator_loss(self, discriminate_fake):
+    return self.cross_entropy(
+        tf.ones_like(discriminate_fake), discriminate_fake)
 
   def discriminator_loss(self,
-                         real_output,
-                         fake_output,
+                         discriminate_real,
+                         discriminate_fake,
                          real=None,
                          fake=None,
                          training=True):
-    real_loss = self._cross_entropy(tf.ones_like(real_output), real_output)
-    fake_loss = self._cross_entropy(tf.zeros_like(fake_output), fake_output)
-    gradient_penalty = None
-    loss = real_loss + fake_loss
-    return loss, gradient_penalty
-
-  def _step(self, real, noise, training=True):
-    fake = self.generator(noise, training=training)
-
-    real_output = self.discriminator(real, training=training)
-    fake_output = self.discriminator(fake, training=training)
-
-    gen_loss = self.generator_loss(fake_output)
-    dis_loss, gradient_penalty = self.discriminator_loss(
-        real_output, fake_output, real=real, fake=fake, training=training)
-
-    metrics = self.metrics(real=real, fake=fake)
-
-    return fake, gen_loss, dis_loss, gradient_penalty, metrics
+    real_loss = self.cross_entropy(
+        tf.ones_like(discriminate_real), discriminate_real)
+    fake_loss = self.cross_entropy(
+        tf.zeros_like(discriminate_fake), discriminate_fake)
+    return real_loss + fake_loss, 0
 
   @tf.function
   def train(self, inputs):
-    noise = self.get_noise(batch_size=inputs.shape[0])
+    result = {}
+    noise = self.sample_noise(batch_size=inputs.shape[0])
 
-    with tf.GradientTape() as gen_tape, tf.GradientTape() as dis_tape:
-      _, gen_loss, dis_loss, gradient_penalty, metrics = self._step(
-          inputs, noise)
-      gen_scaled_loss = self.gen_optimizer.get_scaled_loss(gen_loss)
-      dis_scaled_loss = self.dis_optimizer.get_scaled_loss(dis_loss)
+    with tf.GradientTape(persistent=True) as tape:
+      fake = self.G(noise, training=True)
 
-    self.gen_optimizer.update(self.generator, gen_scaled_loss, gen_tape)
-    self.dis_optimizer.update(self.discriminator, dis_scaled_loss, dis_tape)
+      discriminate_real = self.D(inputs, training=True)
+      discriminate_fake = self.D(fake, training=True)
 
-    return gen_loss, dis_loss, gradient_penalty, metrics
+      G_loss = self.generator_loss(discriminate_fake)
+      D_loss, gradient_penalty = self.discriminator_loss(
+          discriminate_real,
+          discriminate_fake,
+          real=inputs,
+          fake=fake,
+          training=True)
+
+      result.update({'G_loss': G_loss, 'D_loss': D_loss})
+
+      if self.mixed_precision:
+        G_loss = self.G_optimizer.get_scaled_loss(G_loss)
+        D_loss = self.D_optimizer.get_scaled_loss(D_loss)
+
+    self.G_optimizer.minimize(self.generator, G_loss, tape)
+    self.D_optimizer.minimize(self.discriminator, D_loss, tape)
+
+    return result
 
   @tf.function
   def validate(self, inputs):
-    noise = self.get_noise(batch_size=inputs.shape[0])
-    return self._step(inputs, noise, training=False)
+    result = {}
+    noise = self.sample_noise(batch_size=inputs.shape[0])
+
+    fake = self.G(noise, training=True)
+
+    discriminate_real = self.D(inputs, training=True)
+    discriminate_fake = self.D(fake, training=True)
+
+    G_loss = self.generator_loss(discriminate_fake)
+    D_loss, gradient_penalty = self.discriminator_loss(
+        discriminate_real,
+        discriminate_fake,
+        real=inputs,
+        fake=fake,
+        training=True)
+
+    result.update({'G_loss': G_loss, 'D_loss': D_loss})
+
+    return result
 
   @tf.function
   def generate(self, noise, denorm=False):
-    fake = self.generator(noise, training=False)
+    fake = self.G(noise, training=False)
     if denorm:
       fake = denormalize(fake, x_min=self._signals_min, x_max=self._signals_max)
     return fake

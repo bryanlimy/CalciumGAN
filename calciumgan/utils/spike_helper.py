@@ -1,17 +1,45 @@
+import os
+import elephant
 import numpy as np
-import tensorflow as tf
 import quantities as pq
 from neo.core import SpikeTrain
-from oasis.oasis_methods import oasisAR1
+
+from calciumgan.utils import utils
+from calciumgan.utils.cascade.spike_inference import spike_inference
 
 
-def train_to_neo(train, framerate=24):
+def deconvolve_samples(hparams):
+  if not hasattr(hparams, 'spikes_filename'):
+    hparams.spikes_filename = os.path.join(hparams.samples_dir, 'spikes.h5')
+
+  spike_inference(
+      signals_filename=hparams.signals_filename,
+      spikes_filename=hparams.spikes_filename)
+
+  utils.update_json(
+      filename=os.path.join(hparams.output_dir, 'hparams.json'),
+      data={'spikes_filename': hparams.spikes_filename})
+
+  if hparams.verbose:
+    print(f'saved inferred spike trains to {hparams.spikes_filename}')
+
+
+def get_spike_times(spike_rates, threshold=0.25):
+  return np.where(spike_rates > threshold)
+
+
+def get_spike_trains(spike_rates):
+  spike_trains = np.zeros(spike_rates.shape, dtype=np.int8)
+  spike_trains[get_spike_times(spike_rates)] = 1.0
+  return spike_trains
+
+
+def train_to_neo(spike_rate, frame_rate=24.0):
   ''' convert a single spike train to Neo SpikeTrain '''
-  times = np.nonzero(train)[0]
-  times = times / framerate * pq.s
-  t_stop = train.shape[-1] / framerate * pq.s
-  spike_train = SpikeTrain(times=times, units=pq.s, t_stop=t_stop)
-  return spike_train
+  spike_time = get_spike_times(spike_rate)[0]
+  spike_time = (spike_time / frame_rate) * pq.s
+  t_stop = (len(spike_rate) / frame_rate) * pq.s
+  return SpikeTrain(spike_time, units=pq.s, t_stop=t_stop, dtype=np.float32)
 
 
 def trains_to_neo(trains):
@@ -20,35 +48,47 @@ def trains_to_neo(trains):
   return [train_to_neo(trains[i]) for i in range(len(trains))]
 
 
-def oasis_function(signal, threshold=0.5):
-  ''' apply OASIS function to a single calcium signal and binarize spike train 
-  with threshold '''
-  if signal.dtype != np.double:
-    signal = signal.astype(np.double)
-  _, train = oasisAR1(signal, g=0.95, s_min=.55)
-  return np.where(train > threshold, 1.0, 0.0)
+def mean_firing_rate(spikes):
+  ''' get mean firing rate of spikes in Hz'''
+  result = [
+      elephant.statistics.mean_firing_rate(spikes[i]) * pq.s
+      for i in range(len(spikes))
+  ]
+  return np.array(result, dtype=np.float32)
 
 
-def deconvolve_signals(signals, threshold=0.5, to_neo=False):
-  ''' apply OASIS function to array of signals and convert to Neo SpikeTrain 
-  if to_neo is True'''
-  if tf.is_tensor(signals):
-    signals = signals.numpy()
+def correlation_coefficients(spikes1, spikes2, binsize=500 * pq.ms):
+  spikes = spikes1 + spikes2 if spikes2 is not None else spikes1
+  binned = elephant.conversion.BinnedSpikeTrain(spikes, binsize=binsize)
+  result = elephant.spike_train_correlation.correlation_coefficient(
+      binned, binary=True, fast=False)
+  if spikes2 is not None:
+    result = result[len(spikes1):, :len(spikes2)]
+  return result.astype(np.float32)
 
-  assert signals.ndim == 2
 
-  if signals.dtype != np.double:
-    signals = signals.astype(np.double)
+def covariance(spikes1, spikes2, binsize=500 * pq.ms):
+  spikes = spikes1 + spikes2 if spikes2 is not None else spikes1
+  binned = elephant.conversion.BinnedSpikeTrain(spikes, binsize=binsize)
+  result = elephant.spike_train_correlation.covariance(
+      binned, binary=True, fast=False)
+  if spikes2 is not None:
+    result = result[len(spikes1):, :len(spikes2)]
+  return result.astype(np.float32)
 
-  spike_trains = []
-  t_stop = signals.shape[-1] * pq.ms
 
-  for i in range(len(signals)):
-    spike_train = oasis_function(signals[i], threshold=threshold)
-    spike_trains.append(
-        train_to_neo(spike_train, t_stop=t_stop) if to_neo else spike_train)
+def van_rossum_distance(spikes1, spikes2):
+  ''' return the mean van rossum distance between spikes1 and spikes2 '''
+  spikes = spikes1 + spikes2 if spikes2 is not None else spikes1
+  result = elephant.spike_train_dissimilarity.van_rossum_distance(spikes)
+  if spikes2 is not None:
+    result = result[len(spikes1):, :len(spikes2)]
+  return result.astype(np.float32)
 
-  if not to_neo:
-    spike_trains = np.array(spike_trains, dtype=np.float32)
 
-  return spike_trains
+def victor_purpura_distance(spikes1, spikes2):
+  spikes = spikes1 + spikes2 if spikes2 is not None else spikes1
+  result = elephant.spike_train_dissimilarity.victor_purpura_distance(spikes)
+  if spikes2 is not None:
+    result = result[len(spikes1):, :len(spikes2)]
+  return result.astype(np.float32)

@@ -57,6 +57,9 @@ class Summary(object):
     plt.rc('axes', labelsize=label_size)
     plt.rc('legend', fontsize=legend_size)
 
+    # neurons to plot in tensorboard for monitoring
+    hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
+
   def _get_writer(self, training):
     if self.spike_metrics:
       return self.metrics_writer
@@ -107,26 +110,29 @@ class Summary(object):
   def plot_traces(self,
                   tag,
                   signals,
-                  spikes,
-                  indexes,
+                  spikes=None,
                   ylims=[],
                   xlabel='Time (s)',
                   ylabel=r"$\Delta F/F$",
+                  titles=[],
                   step=0,
                   training=True,
                   is_real=True,
                   signal_label='signal',
                   spike_label='spike',
                   plots_per_row=3):
-    assert len(signals.shape) == 2 and len(spikes.shape) == 2
+    if titles:
+      assert len(titles) == signals.shape[0]
+    if ylims:
+      assert len(ylims) == signals.shape[0]
 
     if tf.is_tensor(signals):
       signals = signals.numpy()
-    if tf.is_tensor(spikes):
+    if spikes is not None and tf.is_tensor(spikes):
       spikes = spikes.numpy()
 
     # calculate the number of rows needed in subplots
-    num_rows, rem = divmod(len(indexes), plots_per_row)
+    num_rows, rem = divmod(signals.shape[0], plots_per_row)
     if rem > 0:
       num_rows += 1
 
@@ -135,47 +141,49 @@ class Summary(object):
 
     plt.tick_params(axis='both', which='minor')
 
-    for i, neuron in enumerate(indexes):
+    for i in range(signals.shape[0]):
       plt.subplot(num_rows, plots_per_row, i + 1)
 
       color = self.real_color if is_real else self.fake_color
 
       # plot signal
       plt.plot(
-          signals[neuron],
+          signals[i],
           label=signal_label,
           linewidth=1,
           alpha=0.6,
           color=color,
       )
       # rescale x-axis to seconds
-      x_axis = np.arange(0, len(signals[neuron]), 200)
+      x_axis = np.arange(0, len(signals[i]), 200)
       plt.xticks(ticks=x_axis, labels=x_axis // self.framerate)
-      # plot spike
-      x = np.nonzero(spikes[neuron])[0]
-      fill_value = ylims[neuron][0] + (
-          (ylims[neuron][1] - ylims[neuron][0]) * 0.1) if ylims else 0
-      y = np.full(x.shape, fill_value=fill_value)
-      plt.scatter(
-          x,
-          y,
-          s=100,
-          marker='|',
-          linewidth=1.5,
-          label=spike_label,
-          color='dimgray')
+
+      if spikes is not None:
+        spike_times = np.nonzero(spikes[i])[0]
+        fill_value = ylims[i][0] + (
+            (ylims[i][1] - ylims[i][0]) * 0.1) if ylims else 0
+        y = np.full(spike_times.shape, fill_value=fill_value)
+        plt.scatter(
+            spike_times,
+            y,
+            s=100,
+            marker='|',
+            linewidth=1.5,
+            label=spike_label,
+            color='dimgray')
 
       if i == 0:
         plt.legend(loc='upper right', ncol=1, frameon=False)
 
-      plt.title('Neuron #{:03d}'.format(neuron))
-      if i == len(indexes) - 1:
+      if titles:
+        plt.title(titles[i])
+      if i == len(signals.shape[0]) - 1:
         plt.xlabel(xlabel)
       plt.ylabel(ylabel)
 
       axis = plt.gca()
       if ylims:
-        axis.set_ylim(ylims[neuron])
+        axis.set_ylim(ylims[i])
       axis.spines['top'].set_visible(False)
       axis.spines['right'].set_visible(False)
       axis.get_xaxis().tick_bottom()

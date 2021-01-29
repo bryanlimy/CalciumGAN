@@ -4,10 +4,9 @@ import pickle
 import subprocess
 import numpy as np
 from tqdm import tqdm
-from glob import glob
 import tensorflow as tf
 
-from . import h5_helper
+from calciumgan.utils import h5_helper as h5
 
 
 def split_index(length, n):
@@ -30,6 +29,21 @@ def normalize(x, x_min, x_max):
 def denormalize(x, x_min, x_max):
   ''' re-scale signals back to its original range '''
   return x * (x_max - x_min) + x_min
+
+
+def fft(signals):
+  """ Apply FFT over each neuron recordings """
+  real = np.zeros(signals.shape, dtype=np.float32)
+  imag = np.zeros(signals.shape, dtype=np.float32)
+
+  for b in tqdm(range(signals.shape[0])):
+    for n in range(signals.shape[-1]):
+      x = signals[b, :, n]
+      x = tf.signal.fft(x.astype(np.complex64))
+      x = x.numpy()
+      real[b, :, n], imag[b, :, n] = np.real(x), np.imag(x)
+
+  return np.concatenate([real, imag], axis=-1)
 
 
 def ifft(signals):
@@ -63,15 +77,60 @@ def reverse_preprocessing(hparams, x):
   return x
 
 
+def plot_samples(hparams, summary, signals, step=0, tag='traces'):
+  signals = reverse_preprocessing(hparams, signals)
+  signals = set_array_format(signals[0], data_format='CW', hparams=hparams)
+  summary.plot_traces(
+      tag, signals[hparams.focus_neurons], step=step, training=False)
+
+
 def get_current_git_hash():
   ''' return the current Git hash '''
   return subprocess.check_output(['git', 'describe',
                                   '--always']).strip().decode()
 
 
+def update_dict(target, source, replace=False):
+  """ add or update items in source to target """
+  for key, value in source.items():
+    if replace:
+      target[key] = value
+    else:
+      if key not in target:
+        target[key] = []
+      source[key].append(value)
+
+
+def save_json(filename, data):
+  assert type(data) == dict
+  for key, value in data.items():
+    if isinstance(value, np.ndarray):
+      data[key] = value.tolist()
+    elif isinstance(value, np.float32):
+      data[key] = float(value)
+  with open(filename, 'w') as file:
+    json.dump(data, file)
+
+
+def update_json(filename, data):
+  content = {}
+  if os.path.exists(filename):
+    content = load_json(filename)
+  for key, value in data.items():
+    content[key] = value
+  save_json(filename, content)
+
+
+def load_json(filename):
+  with open(filename, 'r') as file:
+    content = json.load(file)
+  return content
+
+
 def save_hparams(hparams):
+  hparams.hparams_filename = os.path.join(hparams.output_dir, 'hparams.json')
   hparams.git_hash = get_current_git_hash()
-  with open(os.path.join(hparams.output_dir, 'hparams.json'), 'w') as file:
+  with open(hparams.hparams_filename, 'w') as file:
     json.dump(hparams.__dict__, file)
 
 
@@ -90,66 +149,39 @@ def swap_neuron_major(hparams, array):
       array, axis1=0, axis2=1) if array.shape[:2] == shape else array
 
 
-def save_fake_signals(hparams, epoch, signals):
-  if tf.is_tensor(signals):
-    signals = signals.numpy()
-
-  signals = reverse_preprocessing(hparams, signals)
-
-  filename = os.path.join(hparams.generated_dir,
-                          'epoch{:03d}_signals.h5'.format(epoch))
-
-  h5_helper.write(filename, {'signals': signals.astype(np.float32)})
-
-  # store generated data information
-  info_filename = os.path.join(hparams.generated_dir, 'info.pkl')
-  info = {}
-  if os.path.exists(info_filename):
-    with open(info_filename, 'rb') as file:
-      info = pickle.load(file)
-  if epoch not in info:
-    info[epoch] = {'global_step': hparams.global_step, 'filename': filename}
-    with open(info_filename, 'wb') as file:
-      pickle.dump(info, file)
-
-
-def save_models(hparams, gan, epoch):
-  if not os.path.exists(hparams.ckpt_dir):
-    os.makedirs(hparams.ckpt_dir)
-  filename = os.path.join(hparams.ckpt_dir, 'epoch-{:03d}.pkl'.format(epoch))
-
-  with open(filename, 'wb') as file:
-    content = {
-        'epoch': epoch,
-        'gen_weights': gan.generator.get_weights(),
-        'dis_weights': gan.discriminator.get_weights(),
-        'gen_steps': gan.gen_optimizer.iterations,
-        'dis_steps': gan.dis_optimizer.iterations
-    }
-    pickle.dump(content, file)
-
+def save_samples(hparams, ds, gan):
   if hparams.verbose:
-    print('Saved checkpoint to {}'.format(filename))
+    print('generating samples for evaluation...')
+
+  samples = {'real': [], 'fake': []}
+  for real in ds:
+    noise = gan.sample_noise(real.shape[0])
+    fake = gan.generate(noise, denorm=False)
+    real = reverse_preprocessing(hparams, real)
+    fake = reverse_preprocessing(hparams, fake)
+    samples['real'].append(real.numpy())
+    samples['fake'].append(fake.numpy())
+  samples = {key: np.vstack(value) for key, value in samples.items()}
+
+  if not os.path.exists(hparams.samples_dir):
+    os.makedirs(hparams.samples_dir)
+  hparams.signals_filename = os.path.join(hparams.samples_dir, 'signals.h5')
+  h5.write(hparams.signals_filename, data=samples)
+  update_json(
+      filename=hparams.hparams_filename,
+      data={
+          'global_step': hparams.global_step,
+          'signals_filename': hparams.signals_filename
+      })
+  if hparams.verbose:
+    print(f'saved signal samples to {hparams.signals_filename}')
 
 
-def load_models(hparams, gan):
-  if not hasattr(hparams, 'ckpt_dir'):
-    hparams.ckpt_dir = os.path.join(hparams.output_dir, 'checkpoints')
-
-  hparams.start_epoch = 0
-  filenames = glob(os.path.join(hparams.ckpt_dir, 'epoch-*'))
-  if filenames:
-    filename = sorted(filenames)[-1]
-    with open(filename, 'rb') as file:
-      ckpt = pickle.load(file)
-    hparams.start_epoch = ckpt['epoch'] + 1
-    gan.generator.set_weights(ckpt['gen_weights'])
-    gan.discriminator.set_weights(ckpt['dis_weights'])
-    gan.gen_optimizer.iterations = ckpt['gen_steps']
-    gan.dis_optimizer.iterations = ckpt['dis_steps']
-
-    if hparams.verbose:
-      print('\n\nRestored checkpoint at {}\n\n'.format(filename))
+def save_models(hparams, gan):
+  for model in gan.get_models():
+    model.save_weights(os.path.join(hparams.checkpoint_dir, model.name))
+  if hparams.verbose:
+    print(f'checkpoints saved at {hparams.checkpoint_dir}/n')
 
 
 def get_array_format(shape, hparams):

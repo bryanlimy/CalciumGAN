@@ -1,5 +1,4 @@
 import h5py
-import numpy as np
 
 
 def append(ds, value):
@@ -8,35 +7,28 @@ def append(ds, value):
   ds[-value.shape[0]:] = value
 
 
-def write(filename, content):
+def write(filename, data):
   """ write or append content to H5 file
   NOTE: dataset must be stored in NWC data format
   """
-  assert type(content) == dict
+  assert type(data) == dict
   with h5py.File(filename, mode='a') as file:
-    for k, v in content.items():
-      if k in file:
-        append(file[k], v)
-      else:
-        file.create_dataset(
-            k,
-            shape=v.shape,
-            dtype=v.dtype,
-            data=v,
-            chunks=True,
-            maxshape=(None,) + v.shape[1:])
+    for key, value in data.items():
+      if key in file.keys():
+        del file[key]
+      file.create_dataset(key, shape=value.shape, dtype=value.dtype, data=value)
 
 
-def overwrite(filename, name, value):
+def overwrite(filename, key, value):
   ''' overwrite dataset with value '''
   with h5py.File(filename, mode='r+') as file:
-    if name not in file.keys():
-      raise KeyError('{} cannot be found'.format(name))
-    del file[name]
-    file.create_dataset(name, shape=value.shape, dtype=value.dtype, data=value)
+    if key not in file.keys():
+      raise KeyError('{} cannot be found'.format(key))
+    del file[key]
+    file.create_dataset(key, shape=value.shape, dtype=value.dtype, data=value)
 
 
-def get(filename, name, neuron=None, trial=None):
+def get(filename, key, neuron=None, trial=None):
   """
   Return the dataset with the given name
   NOTE: Dataset must be stored in NWC format
@@ -45,9 +37,9 @@ def get(filename, name, neuron=None, trial=None):
   """
   assert not (neuron is not None and trial is not None)
   with h5py.File(filename, mode='r') as file:
-    if name not in file.keys():
-      raise KeyError('{} cannot be found'.format(name))
-    ds = file[name]
+    if key not in file.keys():
+      raise KeyError('{} cannot be found'.format(key))
+    ds = file[key]
     if neuron is not None:
       return ds[:, :, neuron]
     elif trial is not None:
@@ -56,14 +48,20 @@ def get(filename, name, neuron=None, trial=None):
       return ds[:]
 
 
-def get_dataset_length(filename, name):
+def get_keys(filename):
   with h5py.File(filename, mode='r') as file:
-    dataset = file[name]
+    keys = [k for k in file.keys()]
+  return keys
+
+
+def get_length(filename, key):
+  with h5py.File(filename, mode='r') as file:
+    dataset = file[key]
     length = dataset.len()
   return length
 
 
-def contains(filename, name):
+def contains(filename, key):
   with h5py.File(filename, mode='r') as file:
     keys = list(file.keys())
-  return name in keys
+  return key in keys

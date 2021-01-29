@@ -16,21 +16,6 @@ from calciumgan.utils import utils
 np.random.seed(1234)
 
 
-def fft(signals):
-  """ Apply FFT over each neuron recordings """
-  real = np.zeros(signals.shape, dtype=np.float32)
-  imag = np.zeros(signals.shape, dtype=np.float32)
-
-  for b in tqdm(range(signals.shape[0])):
-    for n in range(signals.shape[-1]):
-      x = signals[b, :, n]
-      x = tf.signal.fft(x.astype(np.complex64))
-      x = x.numpy()
-      real[b, :, n], imag[b, :, n] = np.real(x), np.imag(x)
-
-  return np.concatenate([real, imag], axis=-1)
-
-
 def calculate_num_per_shard(hparams):
   """ 
   calculate the number of data per shard given sequence_length such that each 
@@ -79,7 +64,7 @@ def get_segments(hparams):
 
   if hparams.fft:
     print('\napply fft')
-    signals = fft(signals)
+    signals = utils.fft(signals)
     hparams.num_channels = signals.shape[-1]
 
   if hparams.conv2d:
