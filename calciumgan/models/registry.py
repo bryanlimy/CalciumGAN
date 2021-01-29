@@ -1,4 +1,4 @@
-from .utils import count_trainable_params
+from calciumgan.models import utils
 
 _MODELS = dict()
 
@@ -15,19 +15,22 @@ def register(name):
 
 def get_models(hparams, summary):
   if hparams.model not in _MODELS:
-    print('models {} not found'.format(hparams.model))
+    print('model {} not found'.format(hparams.model))
     exit()
 
   generator, discriminator = _MODELS[hparams.model](hparams)
 
   summary.scalar('model/trainable_parameters/generator',
-                 count_trainable_params(generator))
+                 utils.count_trainable_params(generator))
   summary.scalar('model/trainable_parameters/discriminator',
-                 count_trainable_params(discriminator))
+                 utils.count_trainable_params(discriminator))
 
-  if hparams.verbose:
-    generator.summary()
+  gen_summary = utils.model_summary(hparams, generator)
+  disc_summary = utils.model_summary(hparams, discriminator)
+
+  if hparams.verbose == 2:
+    print(gen_summary)
     print('')
-    discriminator.summary()
+    print(disc_summary)
 
   return generator, discriminator

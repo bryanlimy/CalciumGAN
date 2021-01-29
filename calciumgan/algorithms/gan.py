@@ -70,8 +70,8 @@ class GAN(object):
         G_loss = self.G_optimizer.get_scaled_loss(G_loss)
         D_loss = self.D_optimizer.get_scaled_loss(D_loss)
 
-    self.G_optimizer.minimize(self.generator, G_loss, tape)
-    self.D_optimizer.minimize(self.discriminator, D_loss, tape)
+    self.G_optimizer.minimize(self.G, G_loss, tape)
+    self.D_optimizer.minimize(self.D, D_loss, tape)
 
     return result
 

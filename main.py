@@ -58,16 +58,16 @@ def main(hparams):
   summary = Summary(hparams)
   train_ds, validation_ds = get_dataset(hparams, summary)
   generator, discriminator = get_models(hparams, summary)
-  gan = get_algorithm(hparams, generator, discriminator, summary)
+  gan = get_algorithm(hparams, generator, discriminator)
 
   utils.save_hparams(hparams)
 
   # noise to test generator and plot to TensorBoard
-  test_noise = gan.get_noise(batch_size=1)
+  test_noise = gan.sample_noise(batch_size=1)
 
-  for epoch in range(hparams.start_epoch, hparams.epochs):
+  for epoch in range(hparams.epochs):
     if hparams.verbose:
-      print(f'Epoch {epoch:03d}/{hparams.epochs:03d}')
+      print(f'Epoch {epoch + 1:03d}/{hparams.epochs:03d}')
 
     start = time()
     train(hparams, train_ds, gan, summary, epoch)
@@ -112,7 +112,7 @@ if __name__ == '__main__':
   parser.add_argument('--activation', default='leakyrelu', type=str)
   parser.add_argument('--batch_norm', action='store_true')
   parser.add_argument('--layer_norm', action='store_true')
-  parser.add_argument('--algorithm', default='wgan-gp', type=str)
+  parser.add_argument('--algorithm', default='gan', type=str)
   parser.add_argument(
       '--n_critic',
       default=5,
@@ -124,7 +124,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--profile', action='store_true', help='enable TensorBoard profiling')
   parser.add_argument('--dpi', default=120, type=int)
-  parser.add_argument('--verbose', default=1, type=int)
+  parser.add_argument('--verbose', type=int, default=1, choices=[0, 1, 2])
   params = parser.parse_args()
 
   params.global_step = 0

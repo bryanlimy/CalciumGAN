@@ -11,9 +11,8 @@ def register(name):
   return add_to_dict
 
 
-def get_algorithm(hparams, generator, discriminator, summary):
+def get_algorithm(hparams, generator, discriminator):
   if hparams.algorithm not in _ALGORITHMS:
     print('Algorithm {} not found'.format(hparams.algorithm))
     exit()
-  return _ALGORITHMS[hparams.algorithm](hparams, generator, discriminator,
-                                        summary)
+  return _ALGORITHMS[hparams.algorithm](hparams, generator, discriminator)

@@ -83,7 +83,6 @@ def get_tfrecords(hparams):
   hparams.normalize = info['normalize']
   hparams.fft = info['fft']
   hparams.conv2d = info['conv2d']
-
   hparams.signals_min = float(info['signals_min'])
   hparams.signals_max = float(info['signals_max'])
 

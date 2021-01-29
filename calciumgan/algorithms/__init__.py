@@ -1,7 +1,7 @@
-__all__ = ['gan', 'lswgan', 'optimizer', 'wgan_gp', 'registry']
+__all__ = ['gan', 'lsgan', 'optimizer', 'registry', 'wgangp']
 
 from .gan import *
-from .lswgan import *
+from .lsgan import *
 from .optimizer import *
 from .registry import *
-from .wgan_gp import *
+from .wgangp import *

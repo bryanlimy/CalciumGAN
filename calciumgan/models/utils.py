@@ -1,3 +1,5 @@
+import os
+import io
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
@@ -92,3 +94,16 @@ class Conv1DTranspose(layers.Layer):
       outputs = self.activation(outputs)
 
     return outputs
+
+
+def model_summary(hparams, model):
+  ''' get tf.keras model summary as a string and save it as txt '''
+  stream = io.StringIO()
+  model.summary(print_fn=lambda x: stream.write(x + '\n'))
+  summary = stream.getvalue()
+  stream.close()
+
+  with open(os.path.join(hparams.output_dir, f'{model.name}.txt'), 'a') as file:
+    file.write(summary)
+
+  return summary

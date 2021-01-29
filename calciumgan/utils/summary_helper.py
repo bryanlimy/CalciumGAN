@@ -177,7 +177,7 @@ class Summary(object):
 
       if titles:
         plt.title(titles[i])
-      if i == len(signals.shape[0]) - 1:
+      if i == signals.shape[0] - 1:
         plt.xlabel(xlabel)
       plt.ylabel(ylabel)
 

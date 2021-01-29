@@ -81,7 +81,10 @@ def plot_samples(hparams, summary, signals, step=0, tag='traces'):
   signals = reverse_preprocessing(hparams, signals)
   signals = set_array_format(signals[0], data_format='CW', hparams=hparams)
   summary.plot_traces(
-      tag, signals[hparams.focus_neurons], step=step, training=False)
+      tag,
+      np.take(signals, hparams.focus_neurons, axis=0),
+      step=step,
+      training=False)
 
 
 def get_current_git_hash():
@@ -98,7 +101,7 @@ def update_dict(target, source, replace=False):
     else:
       if key not in target:
         target[key] = []
-      source[key].append(value)
+      target[key].append(value)
 
 
 def save_json(filename, data):

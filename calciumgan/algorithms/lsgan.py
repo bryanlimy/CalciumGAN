@@ -6,11 +6,11 @@ import tensorflow as tf
 from .gan import GAN
 
 
-@register('lswgan')
-class LSWGAN(GAN):
+@register('lsgan')
+class LSGAN(GAN):
 
-  def __init__(self, hparams, generator, discriminator, summary):
-    super().__init__(hparams, generator, discriminator, summary)
+  def __init__(self, hparams, generator, discriminator):
+    super().__init__(hparams, generator, discriminator)
 
     self.penalty = hparams.gradient_penalty
     self.n_critic = hparams.n_critic
