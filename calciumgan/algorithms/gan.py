@@ -25,6 +25,9 @@ class GAN(object):
 
     self.cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
+  def get_models(self):
+    return self.G, self.D
+
   def sample_noise(self, batch_size):
     """ sample noise from standard normal distribution """
     return tf.random.normal((batch_size,) + self.noise_shape)
