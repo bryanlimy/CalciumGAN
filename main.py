@@ -109,7 +109,7 @@ if __name__ == '__main__':
   parser.add_argument('--learning_rate', default=0.0001, type=float)
   parser.add_argument('--noise_dim', default=32, type=int)
   parser.add_argument('--gradient_penalty', default=10.0, type=float)
-  parser.add_argument('--model', default='wavegan', type=str)
+  parser.add_argument('--model', default='calciumgan', type=str)
   parser.add_argument('--activation', default='leakyrelu', type=str)
   parser.add_argument('--batch_norm', action='store_true')
   parser.add_argument('--layer_norm', action='store_true')
