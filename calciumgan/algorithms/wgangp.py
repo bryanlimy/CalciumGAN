@@ -44,7 +44,8 @@ class WGANGP(GAN):
       discriminate_interpolated = self.D(interpolated, training=training)
     gradient = tape.gradient(discriminate_interpolated, interpolated)
     norm = tf.norm(tf.reshape(gradient, shape=(gradient.shape[0], -1)), axis=1)
-    return tf.reduce_mean(tf.square(norm - 1.0))
+    penalty = tf.reduce_mean(tf.square(norm - 1.0))
+    return self.penalty_coefficient * penalty
 
   def discriminator_loss(self, discriminate_real, discriminate_fake):
     real_loss = -tf.reduce_mean(discriminate_real)
@@ -61,7 +62,7 @@ class WGANGP(GAN):
       D_loss = self.discriminator_loss(discriminate_real, discriminate_fake)
       gradient_penalty = self.gradient_penalty(inputs, fake, training=True)
       result.update({'D_loss': D_loss, 'gradient_penalty': gradient_penalty})
-      D_loss += self.penalty_coefficient * gradient_penalty
+      D_loss += gradient_penalty
       if self.mixed_precision:
         D_loss = self.D_optimizer.get_scaled_loss(D_loss)
     self.D_optimizer.minimize(self.D, D_loss, tape)
