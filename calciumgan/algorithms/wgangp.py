@@ -10,7 +10,7 @@ from calciumgan.utils.utils import update_dict
 class WGANGP(GAN):
 
   def __init__(self, hparams, G, D):
-    super(GAN, self).__init__(hparams, G, D)
+    super(WGANGP, self).__init__(hparams, G, D)
 
     self.penalty_coefficient = hparams.gradient_penalty
     self.n_critic = hparams.n_critic
