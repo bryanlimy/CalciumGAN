@@ -43,6 +43,9 @@ from scipy.interpolate import interp1d
 from scipy.signal import resample, convolve
 from scipy.ndimage.filters import gaussian_filter
 
+from tensorflow.keras import Model
+from tensorflow.keras.layers import Dense, Flatten, MaxPooling1D, Conv1D, Input
+
 from . import config
 
 sns.set()
@@ -51,7 +54,7 @@ plt.style.use('seaborn-deep')
 
 def define_model(filter_sizes, filter_numbers, dense_expansion, windowsize,
                  loss_function, optimizer):
-  """"
+  """
   Defines the model using the API of Keras.
 
   The model consists of 3 convolutional layers ('conv_filter'), 2 downsampling layers
@@ -60,12 +63,7 @@ def define_model(filter_sizes, filter_numbers, dense_expansion, windowsize,
   To modify the architecture of the network, only the define_model() function needs to be modified.
 
   Example: model = define_model(filter_sizes,filter_numbers,dense_expansion,windowsize,loss_function,optimizer)
-
   """
-
-  from keras.layers import Dense, Flatten, MaxPooling1D, Conv1D, Input
-  from keras import Model
-
   inputs = Input(shape=(windowsize, 1))
 
   conv_filter = Conv1D

@@ -6,5 +6,6 @@ sklearn
 seaborn==0.10.1
 elephant
 matplotlib
+ruamel.yaml
 memory_profiler
 jupyter_http_over_ws

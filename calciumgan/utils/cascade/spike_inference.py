@@ -53,10 +53,8 @@ def spike_inference(signals_filename,
             noise_levels_model=model_config['noise_levels'],
             smoothing=model_config['smoothing'],
         )
-
       # convert spikes to NWC (num. samples, time steps, num. neurons)
       spike_rates = np.transpose(spike_rates, axes=[0, 2, 1])
-
       h5.write(spikes_filename, data={key: spike_rates})
 
 

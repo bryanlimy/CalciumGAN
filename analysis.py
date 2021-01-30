@@ -12,8 +12,8 @@ from multiprocessing import Pool
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 from calciumgan.utils import utils
-from calciumgan.utils import h5
 from calciumgan.utils import spike_helper
+from calciumgan.utils import h5_helper as h5
 from calciumgan.utils.summary_helper import Summary
 
 np.random.seed(1234)
@@ -74,27 +74,29 @@ def pairs_kl_divergence(pairs):
   return kl
 
 
-def plot_signals(hparams, summary, filename, epoch):
+def plot_signals(hparams, summary):
   trial = np.random.randint(hparams.num_samples)
 
   if hparams.verbose:
-    print('\tPlotting traces for trial #{}'.format(trial))
+    print(f'\tPlotting traces for trial #{trial}')
 
-  real_signals = h5.get(hparams.validation_cache, key='signals', trial=trial)
-  real_spikes = h5.get(hparams.validation_cache, key='spikes', trial=trial)
-
+  real_signals = h5.get(hparams.signals_filename, key='real', trial=trial)
   real_signals = utils.set_array_format(
       real_signals, data_format='CW', hparams=hparams)
+
+  real_spikes = h5.get(hparams.spikes_filename, key='real', trial=trial)
   real_spikes = utils.set_array_format(
       real_spikes, data_format='CW', hparams=hparams)
+  real_spikes = spike_helper.get_spike_trains(real_spikes)
 
-  fake_signals = h5.get(filename, key='signals', trial=trial)
-  fake_spikes = h5.get(filename, key='spikes', trial=trial)
-
+  fake_signals = h5.get(hparams.signals_filename, key='fake', trial=trial)
   fake_signals = utils.set_array_format(
       fake_signals, data_format='CW', hparams=hparams)
+
+  fake_spikes = h5.get(hparams.spikes_filename, key='fake', trial=trial)
   fake_spikes = utils.set_array_format(
       fake_spikes, data_format='CW', hparams=hparams)
+  fake_spikes = spike_helper.get_spike_trains(fake_spikes)
 
   # get the y axis range for each neuron
   assert real_signals.shape == fake_signals.shape
@@ -110,10 +112,9 @@ def plot_signals(hparams, summary, filename, epoch):
   summary.plot_traces(
       'real_traces',
       real_signals,
-      real_spikes,
+      spikes=real_spikes,
       indexes=hparams.neurons[:hparams.num_neuron_plots],
       ylims=ylims,
-      step=epoch,
       is_real=True,
       signal_label='recorded signal',
       spike_label='inferred spike',
@@ -122,24 +123,27 @@ def plot_signals(hparams, summary, filename, epoch):
   summary.plot_traces(
       'fake_traces',
       fake_signals,
-      fake_spikes,
+      spikes=fake_spikes,
       indexes=hparams.neurons[:hparams.num_neuron_plots],
       ylims=ylims,
-      step=epoch,
       is_real=False,
       signal_label='synthetic signal',
       spike_label='inferred spike',
       plots_per_row=hparams.plots_per_row)
 
 
-def raster_plots(hparams, summary, filename, epoch, trial=100):
+def plot_raster(hparams, summary):
+  trial = np.random.randint(hparams.num_samples)
   if hparams.verbose:
-    print('\tPlotting raster plot for trial #{}'.format(trial))
+    print(f'\tPlotting raster plot for trial #{trial}')
 
-  real_spikes = h5.get(hparams.validation_cache, key='spikes', trial=trial)
-  real_spikes = utils.set_array_format(real_spikes, 'CW', hparams)
-  fake_spikes = h5.get(filename, key='spikes', trial=trial)
-  fake_spikes = utils.set_array_format(fake_spikes, 'CW', hparams)
+  real_spikes = h5.get(hparams.spikes_filename, key='real', trial=trial)
+  real_spikes = utils.set_array_format(hparams, real_spikes, 'CW')
+  real_spikes = spike_helper.get_spike_trains(real_spikes)
+
+  fake_spikes = h5.get(hparams.spikes_filename, key='fake', trial=trial)
+  fake_spikes = utils.set_array_format(hparams, fake_spikes, 'CW')
+  fake_spikes = spike_helper.get_spike_trains(fake_spikes)
 
   summary.raster_plot(
       'raster_plot',
@@ -147,8 +151,7 @@ def raster_plots(hparams, summary, filename, epoch, trial=100):
       fake_spikes=fake_spikes,
       xlabel='Time (s)',
       ylabel='Neuron',
-      legend_labels=['recorded', 'synthetic'],
-      step=epoch)
+      legend_labels=['recorded', 'synthetic'])
 
 
 def firing_rate(hparams, filename, neuron, num_trials=200):
@@ -444,26 +447,15 @@ def van_rossum_metrics(hparams, summary, filename, epoch):
     print('\t\tmean: {:.04f}'.format(np.mean(kl_divergence)))
 
 
-def compute_epoch_spike_metrics(hparams, summary, filename, epoch):
-  if not h5_helper.contains(filename, 'spikes'):
-    deconvolve_from_file(hparams, filename)
-
-  plot_signals(hparams, summary, filename, epoch)
-
-  raster_plots(hparams, summary, filename, epoch)
-
-  firing_rate_metrics(hparams, summary, filename, epoch)
-
-  correlation_coefficient_metrics(hparams, summary, filename, epoch)
-
-  van_rossum_metrics(hparams, summary, filename, epoch)
-
-
 def main(hparams):
   if not os.path.exists(hparams.output_dir):
-    raise FileNotFoundError('{} not found'.format(hparams.output_dir))
+    raise FileNotFoundError(f'{hparams.output_dir} not found')
 
   utils.load_hparams(hparams)
+
+  if not (hasattr(hparams, 'spikes_filename') and
+          os.path.exists(hparams.spikes_filename)):
+    utils.deconvolve_samples(hparams)
 
   hparams.num_samples = h5.get_length(hparams.spikes_filename, 'real')
 
@@ -475,27 +467,15 @@ def main(hparams):
   hparams.trials = list(
       np.random.choice(hparams.num_samples, hparams.num_trial_plots))
 
-  summary = Summary(hparams, spike_metrics=True)
+  summary = Summary(hparams, analysis=True)
 
-  epochs = sorted(list(info.keys()))
+  plot_signals(hparams, summary)
+  plot_raster(hparams, summary)
+  firing_rate_metrics(hparams, summary)
+  correlation_coefficient_metrics(hparams, summary)
+  van_rossum_metrics(hparams, summary)
 
-  # only compute metrics for the last generated file
-  if not hparams.all_epochs:
-    epochs = [epochs[-1]]
-
-  for epoch in epochs:
-    start = time()
-    if hparams.verbose:
-      print('\nCompute metrics for {}'.format(info[epoch]['filename']))
-    compute_epoch_spike_metrics(
-        hparams, summary, filename=info[epoch]['filename'], epoch=epoch)
-    end = time()
-
-    summary.scalar('elapse/spike_metrics', end - start, step=epoch)
-
-    if hparams.verbose:
-      print('{} took {:.02f} mins'.format(info[epoch]['filename'],
-                                          (end - start) / 60))
+  print(f'results saved in {os.path.join(hparams.output_dir, "analysis")}')
 
 
 if __name__ == '__main__':
@@ -506,12 +486,12 @@ if __name__ == '__main__':
   parser.add_argument('--num_neuron_plots', default=6, type=int)
   parser.add_argument('--num_trial_plots', default=6, type=int)
   parser.add_argument('--plots_per_row', default=3, type=int)
+  parser.add_argument('--save_plots', action='store_true')
   parser.add_argument('--dpi', default=120, type=int)
   parser.add_argument('--verbose', default=1, type=int)
-  hparams = parser.parse_args()
 
   warnings.simplefilter(action='ignore', category=UserWarning)
   warnings.simplefilter(action='ignore', category=RuntimeWarning)
   warnings.simplefilter(action='ignore', category=DeprecationWarning)
 
-  main(hparams)
+  main(parser.parse_args())

@@ -51,8 +51,7 @@ class GAN(object):
       discriminate_real = self.D(inputs, training=True)
       discriminate_fake = self.D(fake, training=True)
       G_loss = self.generator_loss(discriminate_fake)
-      D_loss, gradient_penalty = self.discriminator_loss(
-          discriminate_real, discriminate_fake)
+      D_loss = self.discriminator_loss(discriminate_real, discriminate_fake)
       result.update({'G_loss': G_loss, 'D_loss': D_loss})
       if self.mixed_precision:
         G_loss = self.G_optimizer.get_scaled_loss(G_loss)
@@ -69,8 +68,7 @@ class GAN(object):
     discriminate_real = self.D(inputs, training=True)
     discriminate_fake = self.D(fake, training=True)
     G_loss = self.generator_loss(discriminate_fake)
-    D_loss, gradient_penalty = self.discriminator_loss(discriminate_real,
-                                                       discriminate_fake)
+    D_loss = self.discriminator_loss(discriminate_real, discriminate_fake)
     result.update({'G_loss': G_loss, 'D_loss': D_loss})
     return result
 

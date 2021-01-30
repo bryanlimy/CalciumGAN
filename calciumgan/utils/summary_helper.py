@@ -22,24 +22,26 @@ class Summary(object):
   evaluation
   """
 
-  def __init__(self, hparams, spike_metrics=False):
-    self.spike_metrics = spike_metrics
+  def __init__(self, hparams, analysis=False):
+    self.analysis = analysis
     self.dpi = hparams.dpi
     self.format = 'pdf'
     self.framerate = 24.
     self.real_color = 'dodgerblue'
     self.fake_color = 'orangered'
+    self.save_plots = False
 
-    if spike_metrics:
+    if analysis:
       # for spike metrics
-      self._metrics_dir = os.path.join(hparams.output_dir, 'metrics')
-      self.metrics_writer = tf.summary.create_file_writer(self._metrics_dir)
+      analysis_dir = os.path.join(hparams.output_dir, 'analysis')
+      self.analysis_writer = tf.summary.create_file_writer(analysis_dir)
       self.format = hparams.format
+      self.save_plots = hparams.save_plots
       # save plots as vector pdf
-      self._vector_dir = os.path.join(self._metrics_dir, 'plots')
-      if os.path.exists(self._vector_dir):
-        shutil.rmtree(self._vector_dir)
-      os.makedirs(self._vector_dir)
+      self.plots_dir = os.path.join(analysis_dir, 'plots')
+      if os.path.exists(self.plots_dir):
+        shutil.rmtree(self.plots_dir)
+      os.makedirs(self.plots_dir)
     else:
       self.profiler_dir = os.path.join(
           os.path.join(hparams.output_dir, 'profiler'))
@@ -61,8 +63,8 @@ class Summary(object):
     hparams.focus_neurons = [87, 58, 90, 39, 7, 60, 14, 5, 13]
 
   def _get_writer(self, training):
-    if self.spike_metrics:
-      return self.metrics_writer
+    if self.analysis:
+      return self.analysis_writer
     elif training:
       return self.train_writer
     else:
@@ -80,9 +82,9 @@ class Summary(object):
     return tf.image.decode_png(buf.getvalue(), channels=4)
 
   def save_vector_plot(self, filename):
-    if self.spike_metrics:
+    if self.analysis:
       plt.savefig(
-          os.path.join(self._vector_dir, f'{filename}.{self.format}'),
+          os.path.join(self.plots_dir, f'{filename}.{self.format}'),
           dpi=self.dpi,
           format=self.format)
 
@@ -192,7 +194,8 @@ class Summary(object):
 
     plt.tight_layout()
     image = self._plot_to_png()
-    self.save_vector_plot(tag)
+    if self.save_plots:
+      self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=[image], step=step, training=training)
@@ -300,7 +303,8 @@ class Summary(object):
 
     plt.tight_layout()
     image = self._plot_to_png()
-    self.save_vector_plot(tag)
+    if self.save_plots:
+      self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=[image], step=step, training=training)
@@ -324,9 +328,11 @@ class Summary(object):
     ax.spines['right'].set_visible(False)
     if title:
       ax.set_title(title)
+
     plt.tight_layout()
     image = self._plot_to_png()
-    self.save_vector_plot(tag)
+    if self.save_plots:
+      self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=[image], step=step, training=training)
@@ -376,7 +382,8 @@ class Summary(object):
 
     plt.tight_layout()
     image = self._plot_to_png()
-    self.save_vector_plot(tag)
+    if self.save_plots:
+      self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=[image], step=step, training=training)
@@ -445,7 +452,8 @@ class Summary(object):
 
     plt.tight_layout()
     image = self._plot_to_png()
-    self.save_vector_plot(tag)
+    if self.save_plots:
+      self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=[image], step=step, training=training)
@@ -497,7 +505,8 @@ class Summary(object):
 
     plt.tight_layout()
     image = self._plot_to_png()
-    self.save_vector_plot(tag)
+    if self.save_plots:
+      self.save_vector_plot(tag)
     plt.close()
 
     self.image(tag, values=[image], step=step, training=training)
@@ -537,28 +546,3 @@ class Summary(object):
           step=step,
           training=training,
       )
-
-  def log(self,
-          gen_loss,
-          dis_loss,
-          gradient_penalty,
-          metrics=None,
-          elapse=None,
-          gan=None,
-          step=0,
-          training=True):
-    self.scalar('loss/generator', gen_loss, step=step, training=training)
-    self.scalar('loss/discriminator', dis_loss, step=step, training=training)
-    if gradient_penalty is not None:
-      self.scalar(
-          'loss/gradient_penalty',
-          gradient_penalty,
-          step=step,
-          training=training)
-    if metrics is not None:
-      for tag, value in metrics.items():
-        self.scalar(tag, value, step=step, training=training)
-    if elapse is not None:
-      self.scalar('elapse', elapse, step=step, training=training)
-    if gan is not None and self.plot_weights:
-      self.plot_weights(gan, step=step, training=training)

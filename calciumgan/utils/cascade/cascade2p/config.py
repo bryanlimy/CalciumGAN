@@ -77,35 +77,23 @@ verbose : 1                      # level of status messages (0: minimal, 1: stan
 
 """
 
+import ruamel.yaml as yaml
+
 
 def read_config(config_yaml_file):
   """Read given yaml file and return dictionary with entries"""
-  # if this results in an error, install the package with: pip install ruamel.yaml
-  try:
-    import ruamel.yaml as yaml  # install the package with: pip install ruamel.yaml
-  except ImportError:
-    pip.main(['install', '--user', 'ruamel'])
-    import ruamel.yaml as yaml  # install the package with: pip install ruamel.yaml
-
   # TODO: add handling of file not found error
-
   yaml_config = yaml.YAML()
   with open(config_yaml_file, 'r') as file:
     config_dict = yaml_config.load(file)
-
   return config_dict
 
 
 def write_config(config_dict, save_file):
-  """Write config file from dictionary, use config_template string to define file structure"""
-
-  # if this results in an error, install the package with: pip install ruamel.yaml
-  try:
-    import ruamel.yaml as yaml  # install the package with: pip install ruamel.yaml
-  except ImportError:
-    pip.main(['install', '--user', 'ruamel'])
-    import ruamel.yaml as yaml  # install the package with: pip install ruamel.yaml
-
+  """
+  Write config file from dictionary, use config_template string to define 
+  file structure
+  """
   # TODO: some error handling in case of missing default values?
 
   # read in template

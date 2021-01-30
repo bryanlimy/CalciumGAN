@@ -246,7 +246,7 @@ def generate_dataset(hparams, gan, num_samples=1000):
 def deconvolve_samples(hparams):
   if not hasattr(hparams, 'spikes_filename'):
     hparams.spikes_filename = os.path.join(hparams.samples_dir, 'spikes.h5')
-
+  hparams.signals_filename = os.path.join(hparams.samples_dir, 'signals.h5')
   spike_inference(
       signals_filename=hparams.signals_filename,
       spikes_filename=hparams.spikes_filename)

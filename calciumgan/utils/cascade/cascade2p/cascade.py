@@ -195,7 +195,6 @@ def predict(traces,
             smoothing,
             threshold=0,
             padding=np.nan):
-
   # calculate noise levels for each trace
   trace_noise_levels = utils.calculate_noise_levels(traces, sampling_rate)
 
@@ -354,7 +353,7 @@ def get_model_paths(model_path):
 
 def download_model(
     model_name,
-    model_folder='cyclegan/utils/cascade/pretrained_models',
+    model_folder='calciumgan/utils/cascade/pretrained_models',
     info_file_link='https://drive.switch.ch/index.php/s/lBJd2JfVrkmSSiN/download',
     overwrite=False,
     verbose=0):
