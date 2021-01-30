@@ -1,7 +1,7 @@
 #!/bin/sh
 
 macOS=false
-current_dir="$(pwd)"
+current_dir="$(pwd -P)"
 
 check_requirements() {
   case "$(uname -s)" in
@@ -22,13 +22,13 @@ check_requirements() {
 
 install_python_packages() {
   printf '\nInstalling tensorflow...\n'
-  if [ "$macOS" = "true" ]; then
+  if [ $macOS = "true" ]; then
     pip install -q tensorflow==2.4.1
   else
     conda install -q -c nvidia cudatoolkit=11.0 cudnn=8.0 nccl -y
     pip install -q tensorflow==2.4.1
   fi
-  printf '\nInstalling other Python packages...'
+  printf '\nInstalling other Python packages...\n'
   pip install -q -r requirements.txt
 }
 
@@ -36,12 +36,16 @@ set_python_path() {
   path='PYTHONPATH=$PYTHONPATH:'$current_dir
   case $SHELL in
     */zsh)
-      printf "\nUpdating ~/.zshrc to set PYTHONPATH..."
-      echo "# CalciumGAN PYTHONPATH\nexport $path\n" >> ~/.zshrc
+      printf "\nSet PYTHONPATH in ~/.zshrc..."
+      echo "# CalciumGAN PYTHONPATH" >> ~/.zshrc
+      echo "export $path" >> ~/.zshrc
+      echo "" >> ~/.zshrc
       ;;
     */bash)
-      printf "\nUpdating ~/.bashrc to set PYTHONPATH..."
-      echo "# CalciumGAN PYTHONPATH\nexport $path\n" >> ~/.bashrc
+      printf "\nSet PYTHONPATH in ~/.bashrc..."
+      echo "# CalciumGAN PYTHONPATH" >> ~/.bashrc
+      echo "export $path" >> ~/.bashrc
+      echo "" >> ~/.bashrc
       ;;
     *)
       ;;

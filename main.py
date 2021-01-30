@@ -77,7 +77,7 @@ def main(hparams):
     summary.scalar('elapse', end - start, epoch, training=False)
 
     if hparams.verbose:
-      print(f'G loss: {results["G_loss"]:.04f}\t'
+      print(f'G loss: {results["G_loss"]:.04f}\t\t'
             f'D loss: {results["D_loss"]:.04f}\n'
             f'Elapse: {(end - start)/60:.02f} mins\n')
 
