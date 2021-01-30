@@ -70,7 +70,7 @@ def main(hparams):
       print(f'Epoch {epoch + 1:03d}/{hparams.epochs:03d}')
 
     start = time()
-    train(hparams, train_ds, gan, summary, epoch)
+    # train(hparams, train_ds, gan, summary, epoch)
     results = validate(hparams, validation_ds, gan, summary, epoch)
     end = time()
 

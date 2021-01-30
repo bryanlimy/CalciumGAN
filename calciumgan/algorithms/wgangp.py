@@ -78,9 +78,10 @@ class WGANGP(GAN):
     return {key: tf.reduce_mean(value) for key, value in result.items()}
 
   @tf.function
-  def validation(self, inputs):
+  def validate(self, inputs):
     result = {}
-    fake = self.G(inputs, training=False)
+    noise = self.sample_noise(batch_size=inputs.shape[0])
+    fake = self.G(noise, training=True)
     discriminate_real = self.D(inputs, training=False)
     discriminate_fake = self.D(fake, training=False)
     G_loss = self.generator_loss(discriminate_fake)
