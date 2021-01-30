@@ -21,7 +21,7 @@ class WGANGP(GAN):
 
   def _train_generator(self, inputs):
     result = {}
-    noise = self.get_noise(batch_size=inputs.shape[0])
+    noise = self.sample_noise(batch_size=inputs.shape[0])
     with tf.GradientTape(persistent=True) as tape:
       fake = self.G(noise, training=True)
       discriminate_fake = self.D(fake, training=True)
@@ -53,7 +53,7 @@ class WGANGP(GAN):
 
   def _train_discriminator(self, inputs):
     result = {}
-    noise = self.get_noise(batch_size=inputs.shape[0])
+    noise = self.sample_noise(batch_size=inputs.shape[0])
     with tf.GradientTape(persistent=True) as tape:
       fake = self.G(noise, training=True)
       discriminate_real = self.D(inputs, training=True)
