@@ -128,6 +128,6 @@ def get_dataset(hparams, summary):
   hparams.train_steps = ceil(hparams.train_size / hparams.batch_size)
   hparams.validation_steps = ceil(hparams.validation_size / hparams.batch_size)
   hparams.samples_dir = os.path.join(hparams.output_dir, 'samples')
-  hparams.checkpoint_dir = os.path.join(hparams.output_dir, 'checkpoint')
+  hparams.checkpoint_dir = os.path.join(hparams.output_dir, 'checkpoints')
 
   return train_ds, validation_ds
