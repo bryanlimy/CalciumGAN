@@ -460,12 +460,10 @@ def main(hparams):
   hparams.num_samples = h5.get_length(hparams.spikes_filename, 'real')
 
   # randomly select neurons and trials to plot
-  hparams.neurons = list(
-      range(hparams.num_neurons
-           ) if hparams.num_neuron_plots >= hparams.num_neurons else np.random.
-      choice(hparams.num_neurons, hparams.num_neuron_plots))
-  hparams.trials = list(
-      np.random.choice(hparams.num_samples, hparams.num_trial_plots))
+  hparams.neurons = np.random.choice(hparams.num_neurons,
+                                     hparams.num_neuron_plots)
+  hparams.trials = np.random.choice(hparams.num_samples,
+                                    hparams.num_trial_plots)
 
   summary = Summary(hparams, analysis=True)
 

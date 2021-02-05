@@ -1,5 +1,6 @@
 import os
 import json
+import copy
 import pickle
 import subprocess
 import numpy as np
@@ -132,10 +133,9 @@ def load_json(filename):
 
 
 def save_hparams(hparams):
-  hparams.hparams_filename = os.path.join(hparams.output_dir, 'hparams.json')
   hparams.git_hash = get_current_git_hash()
-  with open(hparams.hparams_filename, 'w') as file:
-    json.dump(hparams.__dict__, file)
+  save_json(os.path.join(hparams.output_dir, 'hparams.json'),
+            copy.deepcopy(hparams.__dict__))
 
 
 def load_hparams(hparams):

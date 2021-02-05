@@ -33,25 +33,10 @@ install_python_packages() {
 }
 
 set_python_path() {
-  path='PYTHONPATH=$PYTHONPATH:'$current_dir
-  case $SHELL in
-    */zsh)
-      printf "\nSet PYTHONPATH in ~/.zshrc..."
-      echo "# CalciumGAN PYTHONPATH" >> ~/.zshrc
-      echo "export $path" >> ~/.zshrc
-      echo "" >> ~/.zshrc
-      ;;
-    */bash)
-      printf "\nSet PYTHONPATH in ~/.bashrc..."
-      echo "# CalciumGAN PYTHONPATH" >> ~/.bashrc
-      echo "export $path" >> ~/.bashrc
-      echo "" >> ~/.bashrc
-      ;;
-    *)
-      ;;
-  esac
-  printf "\nPlease run export $path\n"
+  printf "\nSet conda environment variables...\n"
+  conda env config vars set PYTHONPATH=$PYTHONPATH:$current_dir
 }
+
 
 check_requirements
 install_python_packages
