@@ -1,5 +1,17 @@
 ## Synthesising Realistic Calcium Imaging Data of Neuronal Populations Using GAN
 
+Implementation of CalciumGAN, used to obtain the results detailed in [CalciumGAN: A Generative Adversarial Network Model for Synthesising Realistic Calcium Imaging Data of Neuronal Populations](https://arxiv.org/abs/2009.02707).
+
+Citing this work
+```
+@article{li2020calciumgan,
+  title={CalciumGAN: A Generative Adversarial Network Model for Synthesising Realistic Calcium Imaging Data of Neuronal Populations},
+  author={Li, Bryan M and Amvrosiadis, Theoklitos and Rochefort, Nathalie and Onken, Arno},
+  journal={arXiv preprint arXiv:2009.02707},
+  year={2020}
+}
+```
+
 ### Table of content
 - [1. Installation](#1-installation)
 - [2. Dataset](#2-dataset)
