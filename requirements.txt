@@ -1,7 +1,7 @@
 tqdm
 matplotlib==3.2.2
 sklearn
-scipy==1.4.1
+scipy==1.10.0
 cython==0.29.14
 cvxpy==1.0.25
 jupyter
